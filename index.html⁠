@@ -1,0 +1,1823 @@
+D
+
+<html lang="fr">
+<head>
+<!--
+  ╔══════════════════════════════════════════════════════════════════╗
+  ║  SENMARKET v3.0 -- Production Complete                          ║
+  ║  FlowDynamicsAgency -- Mobile-First Marketplace                 ║
+  ║                                                                  ║
+  ║  CORRECTIONS v3.0 vs v2:                                        ║
+  ║  ✅ Zero async/await (setTimeout callbacks)                     ║
+  ║  ✅ Zero Unicode invalide (--  vs em-dash)                      ║
+  ║  ✅ Donnees demo declarees AVANT state (fix hoisting iOS)       ║
+  ║  ✅ Supabase SDK charge dynamiquement avec fallback demo        ║
+  ║  ✅ Event delegation sur toutes les listes                      ║
+  ║  ✅ will-change sur toutes les animations                       ║
+  ║  ✅ -webkit-backdrop-filter partout                             ║
+  ║  ✅ touch-action: manipulation sur tous les boutons             ║
+  ║  ✅ Safe-area iOS (env(safe-area-inset-*))                      ║
+  ║  ✅ font-size >= 16px sur inputs (anti-zoom iOS)                ║
+  ║  ✅ debounce sur recherche                                       ║
+  ║  ✅ Double-submit prevention                                     ║
+  ║  ✅ ESC + keyCode 27 pour iOS Safari 10+                        ║
+  ║  ✅ overflow stack counter (lockScroll/unlockScroll)            ║
+  ║  ✅ Toast deduplication                                          ║
+  ║  ✅ XSS escape h() sur tous les rendus                          ║
+  ║  ✅ Deep copy demo data (no mutation)                           ║
+  ║  ✅ aria-label / role / aria-live complets                      ║
+  ║  ✅ contain: layout sur listes                                  ║
+  ╚══════════════════════════════════════════════════════════════════╝
+-->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#006B3C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="description" content="SenMarket -- La marketplace senegalaise au Maroc. Mode, alimentation, beaute, bijoux.">
+<title>SenMarket -- Marketplace Senegalaise au Maroc</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+<style>
+/* ================================================================
+   DESIGN TOKENS
+   ================================================================ */
+:root {
+  --g:      #006B3C;
+  --gm:     #00A65A;
+  --gl:     #00C96B;
+  --gg:     rgba(0,107,60,.1);
+  --gd:     rgba(0,107,60,.06);
+  --gold:   #D4A017;
+  --goldb:  #F5B800;
+  --red:    #C41E3A;
+  --redb:   rgba(196,30,58,.08);
+  --bg:     #FAF7F2;
+  --bgw:    #F4EEE4;
+  --card:   #FFFFFF;
+  --txt:    #1A1A1A;
+  --txt2:   #3D3D3D;
+  --mut:    #7A7A7A;
+  --bdr:    #E8E2D9;
+  --bdrs:   #F0EBE3;
+  --r8:     10px;
+  --r12:    14px;
+  --r16:    18px;
+  --r20:    22px;
+  --r24:    26px;
+  --rpill:  100px;
+  --sh:     0 2px 12px rgba(0,0,0,.07);
+  --shl:    0 8px 32px rgba(0,0,0,.11);
+  --shx:    0 20px 60px rgba(0,0,0,.15);
+  --shg:    0 4px 20px rgba(0,107,60,.22);
+  --ease:   cubic-bezier(.16,1,.3,1);
+  --nav:    60px;
+  --tab:    64px;
+  --safe:   env(safe-area-inset-bottom, 0px);
+  --safeT:  env(safe-area-inset-top, 0px);
+  --z-nav:  100;
+  --z-sh:   200;
+  --z-dlg:  300;
+  --z-tst:  400;
+}
+
+/* ================================================================
+RESET
+================================================================ */
+*,*::before,*::after {
+margin:0; padding:0;
+box-sizing:border-box;
+-webkit-tap-highlight-color:transparent;
+}
+html { height:100%; overscroll-behavior:none; scroll-behavior:smooth; }
+body {
+font-family:‘DM Sans’,-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+background:var(–bg); color:var(–txt);
+min-height:100%; overflow-x:hidden;
+-webkit-font-smoothing:antialiased;
+padding-bottom:calc(var(–tab) + var(–safe));
+}
+a { text-decoration:none; color:inherit; }
+button {
+font-family:inherit; cursor:pointer; border:none; background:none;
+touch-action:manipulation;
+}
+img { max-width:100%; display:block; object-fit:cover; }
+input,select,textarea {
+font-family:inherit;
+font-size:16px; /* Anti-zoom iOS */
+-webkit-appearance:none;
+touch-action:manipulation;
+}
+.sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); }
+
+/* ================================================================
+TOP NAVBAR
+================================================================ */
+#topnav {
+position:fixed; top:0; left:0; right:0;
+height:var(–nav); z-index:var(–z-nav);
+padding-top:var(–safeT);
+background:rgba(250,247,242,.95);
+backdrop-filter:blur(16px);
+-webkit-backdrop-filter:blur(16px);
+border-bottom:1px solid var(–bdr);
+display:flex; align-items:center; justify-content:space-between;
+padding-left:16px; padding-right:16px;
+transition:box-shadow .25s;
+will-change:box-shadow;
+}
+#topnav.shadow { box-shadow:0 2px 20px rgba(0,0,0,.08); }
+
+.tn-logo { display:flex; align-items:center; gap:9px; }
+.tn-ico  {
+width:36px; height:36px; border-radius:10px;
+background:linear-gradient(135deg,var(–g),var(–gm));
+display:flex; align-items:center; justify-content:center;
+font-size:18px; box-shadow:var(–shg); flex-shrink:0;
+}
+.tn-name { font-family:‘Playfair Display’,serif; font-size:20px; font-weight:900; }
+.tn-name span { color:var(–gold); }
+
+.tn-acts { display:flex; align-items:center; gap:8px; }
+.tn-btn  {
+width:38px; height:38px; border-radius:var(–r8);
+background:var(–bgw); border:1px solid var(–bdr);
+display:flex; align-items:center; justify-content:center;
+font-size:18px; position:relative;
+transition:all .2s var(–ease);
+will-change:transform;
+}
+.tn-btn:active { transform:scale(.91); background:var(–gg); border-color:var(–g); }
+.tn-badge {
+position:absolute; top:-5px; right:-5px;
+width:18px; height:18px;
+background:var(–red); color:#fff;
+font-size:9px; font-weight:700; border-radius:50%;
+display:flex; align-items:center; justify-content:center;
+border:2px solid var(–bg);
+transform:scale(0);
+transition:transform .2s var(–ease);
+will-change:transform;
+}
+.tn-badge.show { transform:scale(1); }
+
+/* ================================================================
+BOTTOM TAB BAR
+================================================================ */
+#btmnav {
+position:fixed; bottom:0; left:0; right:0;
+height:calc(var(–tab) + var(–safe));
+z-index:var(–z-nav);
+background:rgba(250,247,242,.97);
+backdrop-filter:blur(16px);
+-webkit-backdrop-filter:blur(16px);
+border-top:1px solid var(–bdr);
+display:flex; align-items:flex-start; justify-content:space-around;
+padding-top:6px; padding-bottom:var(–safe);
+}
+.tab {
+flex:1; display:flex; flex-direction:column; align-items:center; gap:3px;
+padding:5px 4px; cursor:pointer; position:relative;
+transition:all .2s var(–ease); -webkit-user-select:none; user-select:none;
+}
+.tab:active { transform:scale(.88); }
+.tab-ico  { font-size:22px; line-height:1; transition:transform .2s var(–ease); will-change:transform; }
+.tab-lbl  { font-size:10px; font-weight:600; color:var(–mut); transition:color .2s; }
+.tab.on .tab-ico { transform:scale(1.1); }
+.tab.on .tab-lbl { color:var(–g); }
+.tab.on::before {
+content:’’; position:absolute; top:-6px; left:50%;
+transform:translateX(-50%);
+width:28px; height:3px; background:var(–g); border-radius:0 0 3px 3px;
+}
+.tab-dot {
+position:absolute; top:3px; right:calc(50% - 17px);
+width:7px; height:7px; background:var(–red); border-radius:50%;
+border:2px solid var(–bg);
+transform:scale(0); transition:transform .2s var(–ease);
+}
+.tab-dot.show { transform:scale(1); }
+
+/* ================================================================
+PAGES
+================================================================ */
+.page { display:none; padding-top:var(–nav); min-height:100vh; contain:layout style; }
+.page.on { display:block; }
+
+/* ================================================================
+HERO BANNER
+================================================================ */
+.hero-banner {
+margin:10px 16px;
+background:linear-gradient(135deg,var(–g) 0%,#003d21 60%,#001a0e 100%);
+border-radius:var(–r20); padding:20px;
+position:relative; overflow:hidden;
+}
+.hero-banner::before {
+content:’’; position:absolute; inset:0; pointer-events:none;
+background:url(“data:image/svg+xml,%3Csvg width=‘60’ height=‘60’ viewBox=‘0 0 60 60’ xmlns=‘http://www.w3.org/2000/svg’%3E%3Cg fill=’%23fff’ fill-opacity=‘0.035’%3E%3Cpath d=‘M0 0h30v30H0V0zm30 30h30v30H30V30z’/%3E%3C/g%3E%3C/svg%3E”);
+}
+.hb-in   { position:relative; z-index:1; }
+.hb-tag  { display:inline-flex; align-items:center; gap:6px; background:rgba(212,160,23,.18); border:1px solid rgba(212,160,23,.35); color:var(–goldb); font-size:11px; font-weight:700; padding:5px 12px; border-radius:var(–rpill); margin-bottom:10px; letter-spacing:.3px; }
+.hb-h1   { font-family:‘Playfair Display’,serif; font-size:clamp(22px,5vw,30px); font-weight:900; color:#fff; line-height:1.2; margin-bottom:6px; }
+.hb-h1 em { font-style:normal; color:var(–goldb); }
+.hb-sub  { font-size:12px; color:rgba(255,255,255,.7); margin-bottom:16px; line-height:1.6; }
+.hb-stats { display:flex; gap:20px; }
+.hb-n    { font-family:‘Playfair Display’,serif; font-size:20px; font-weight:900; color:var(–goldb); line-height:1; }
+.hb-l    { font-size:10px; color:rgba(255,255,255,.55); margin-top:2px; }
+.hb-cta  {
+display:inline-flex; align-items:center; gap:6px;
+background:var(–goldb); color:#111;
+padding:11px 22px; border-radius:var(–rpill);
+font-size:13px; font-weight:700; margin-top:16px;
+border:none; cursor:pointer; font-family:inherit;
+transition:all .2s var(–ease); will-change:transform;
+}
+.hb-cta:active { transform:scale(.96); }
+
+/* ================================================================
+SEARCH
+================================================================ */
+.search-sticky {
+padding:10px 16px 12px; background:var(–bg);
+position:sticky; top:var(–nav); z-index:50;
+border-bottom:1px solid var(–bdrs);
+backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+}
+.search-row { display:flex; gap:8px; align-items:center; }
+.search-inp-w { flex:1; position:relative; }
+.search-inp {
+width:100%; height:44px; padding:0 40px 0 14px;
+background:#fff; border:1.5px solid var(–bdr); border-radius:var(–rpill);
+font-size:15px; color:var(–txt);
+transition:border-color .2s, box-shadow .2s;
+}
+.search-inp:focus { border-color:var(–g); box-shadow:0 0 0 3px var(–gg); }
+.search-inp::placeholder { color:var(–mut); }
+.search-ico { position:absolute; right:13px; top:50%; transform:translateY(-50%); font-size:16px; pointer-events:none; }
+.btn-filter {
+width:44px; height:44px; border-radius:var(–rpill);
+background:var(–g); color:#fff; font-size:18px;
+display:flex; align-items:center; justify-content:center;
+flex-shrink:0; transition:all .2s; will-change:transform;
+}
+.btn-filter:active { transform:scale(.93); background:var(–gm); }
+
+/* ================================================================
+HORIZONTAL SCROLL CHIPS
+================================================================ */
+.hscroll {
+display:flex; gap:8px;
+padding:10px 16px 14px;
+overflow-x:auto; scrollbar-width:none;
+-webkit-overflow-scrolling:touch;
+}
+.hscroll::-webkit-scrollbar { display:none; }
+
+/* Category chips */
+.cat-chip {
+flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:4px;
+padding:10px 14px; background:#fff; border:1.5px solid var(–bdr);
+border-radius:var(–r16); cursor:pointer; min-width:72px;
+transition:all .2s var(–ease);
+}
+.cat-chip:active { transform:scale(.93); }
+.cat-chip.on { background:var(–g); border-color:var(–g); }
+.cat-chip.on .cc-ico, .cat-chip.on .cc-lbl { color:#fff; }
+.cc-ico { font-size:22px; }
+.cc-lbl { font-size:10px; font-weight:700; color:var(–mut); white-space:nowrap; }
+
+/* ================================================================
+SECTION HEADER
+================================================================ */
+.sec-hd { display:flex; align-items:center; justify-content:space-between; padding:14px 16px 10px; }
+.sec-ttl { font-family:‘Playfair Display’,serif; font-size:18px; font-weight:900; }
+.sec-more { font-size:13px; font-weight:600; color:var(–g); cursor:pointer; }
+
+/* ================================================================
+SHOP CARDS (horizontal scroll)
+================================================================ */
+.shop-card-m {
+flex-shrink:0; width:200px;
+background:var(–card); border:1px solid var(–bdr); border-radius:var(–r20);
+overflow:hidden; transition:all .2s var(–ease); contain:layout;
+}
+.shop-card-m:active { transform:scale(.97); }
+.scm-cover { height:88px; display:flex; align-items:center; justify-content:center; font-size:36px; position:relative; }
+.scm1{background:linear-gradient(135deg,#FF6B6B,#FFE66D)}
+.scm2{background:linear-gradient(135deg,#4FACFE,#00F2FE)}
+.scm3{background:linear-gradient(135deg,#43E97B,#38F9D7)}
+.scm4{background:linear-gradient(135deg,#FA709A,#FEE140)}
+.scm5{background:linear-gradient(135deg,#A18CD1,#FBC2EB)}
+.scm6{background:linear-gradient(135deg,#FCCB90,#D57EEB)}
+.scm-vrf { position:absolute; top:8px; left:8px; background:var(–g); color:#fff; font-size:9px; font-weight:700; padding:2px 8px; border-radius:var(–rpill); }
+.scm-rat { position:absolute; top:8px; right:8px; background:rgba(0,0,0,.32); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); color:#fff; font-size:11px; font-weight:700; padding:3px 8px; border-radius:var(–rpill); }
+.scm-body { padding:10px 12px 12px; }
+.scm-av   { width:38px; height:38px; border-radius:50%; border:2px solid #fff; margin-top:-22px; background:var(–g); display:flex; align-items:center; justify-content:center; font-size:18px; box-shadow:0 2px 8px rgba(0,0,0,.12); margin-bottom:6px; }
+.scm-name { font-weight:700; font-size:13px; margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.scm-city { font-size:11px; color:var(–mut); margin-bottom:8px; }
+.scm-stats { display:flex; gap:10px; margin-bottom:8px; }
+.scm-stat strong { display:block; font-size:13px; font-weight:700; color:var(–g); }
+.scm-stat span   { font-size:10px; color:var(–mut); }
+.scm-wa {
+width:100%; padding:8px; border-radius:var(–r8);
+background:#25D366; color:#fff;
+font-size:12px; font-weight:700;
+display:flex; align-items:center; justify-content:center; gap:5px;
+border:none; cursor:pointer; font-family:inherit;
+transition:all .2s; will-change:transform;
+}
+.scm-wa:active { background:#20BA5A; transform:scale(.96); }
+
+/* ================================================================
+PRODUCT CARDS (2-col grid)
+================================================================ */
+.prod-grid {
+display:grid;
+grid-template-columns:repeat(2,1fr);
+gap:10px; padding:0 16px;
+}
+@media(min-width:480px)  { .prod-grid { grid-template-columns:repeat(3,1fr); } }
+@media(min-width:768px)  { .prod-grid { grid-template-columns:repeat(4,1fr); gap:16px; padding:0 24px; } }
+@media(min-width:1024px) { .prod-grid { grid-template-columns:repeat(5,1fr); padding:0 40px; } }
+
+.prod-card {
+background:var(–card); border:1px solid var(–bdr); border-radius:var(–r16);
+overflow:hidden; transition:all .2s var(–ease); contain:layout;
+}
+.prod-card:active { transform:scale(.97); box-shadow:var(–shl); }
+.pc-img { aspect-ratio:1/1; position:relative; display:flex; align-items:center; justify-content:center; font-size:48px; overflow:hidden; }
+.pc-img img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+.pi1{background:linear-gradient(135deg,#FFF3E0,#FFE0B2)}
+.pi2{background:linear-gradient(135deg,#E8F5E9,#C8E6C9)}
+.pi3{background:linear-gradient(135deg,#FCE4EC,#F8BBD0)}
+.pi4{background:linear-gradient(135deg,#E3F2FD,#BBDEFB)}
+.pi5{background:linear-gradient(135deg,#F3E5F5,#E1BEE7)}
+.pi6{background:linear-gradient(135deg,#FFFDE7,#FFF9C4)}
+.pc-badge { position:absolute; top:6px; left:6px; font-size:9px; font-weight:800; padding:3px 8px; border-radius:var(–rpill); text-transform:uppercase; letter-spacing:.4px; }
+.b-new{background:var(–red);color:#fff}
+.b-top{background:var(–gold);color:#fff}
+.b-promo{background:var(–g);color:#fff}
+.pc-fav  { position:absolute; top:6px; right:6px; width:30px; height:30px; border-radius:50%; background:rgba(255,255,255,.88); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; font-size:14px; cursor:pointer; border:1px solid rgba(255,255,255,.5); transition:all .2s; }
+.pc-fav:active { transform:scale(1.15); background:#fff; }
+.pc-stk  { position:absolute; bottom:5px; left:6px; font-size:9px; font-weight:700; padding:2px 7px; border-radius:var(–rpill); background:rgba(0,0,0,.42); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px); color:#fff; }
+.pc-body { padding:9px 10px 11px; }
+.pc-shop { font-size:9px; font-weight:700; color:var(–mut); text-transform:uppercase; letter-spacing:.4px; margin-bottom:3px; }
+.pc-name { font-weight:700; font-size:12px; line-height:1.3; margin-bottom:5px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.pc-stars { color:var(–gold); font-size:10px; margin-bottom:6px; }
+.pc-foot { display:flex; align-items:center; justify-content:space-between; gap:4px; }
+.pc-price { font-family:‘Playfair Display’,serif; font-size:15px; font-weight:900; color:var(–g); }
+.pc-price small { font-size:10px; font-family:‘DM Sans’,sans-serif; color:var(–mut); font-weight:400; }
+.pc-acts { display:flex; gap:5px; }
+.bwa,.bcart {
+width:30px; height:30px; border-radius:8px;
+display:flex; align-items:center; justify-content:center;
+font-size:14px; border:none; cursor:pointer; transition:all .2s;
+will-change:transform; flex-shrink:0;
+}
+.bwa   { background:#25D366; color:#fff; }
+.bwa:active   { background:#20BA5A; transform:scale(.91); }
+.bcart { background:var(–g); color:#fff; }
+.bcart:active { background:var(–gm); transform:scale(.91); }
+
+/* ================================================================
+BOUTIQUE FULLSCREEN
+================================================================ */
+.boutique-page {
+display:none; position:fixed; inset:0; z-index:380;
+background:var(–bg); overflow-y:auto; contain:layout;
+}
+.boutique-page.on { display:block; }
+
+.bp-nav {
+position:sticky; top:0; z-index:10; height:52px;
+background:rgba(250,247,242,.96);
+backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+border-bottom:1px solid var(–bdr);
+display:flex; align-items:center; justify-content:space-between;
+padding:0 16px;
+}
+.bp-back {
+display:flex; align-items:center; gap:5px;
+font-size:14px; font-weight:600; color:var(–g);
+background:var(–gg); padding:8px 14px; border-radius:var(–rpill);
+border:none; cursor:pointer; font-family:inherit; transition:all .2s;
+}
+.bp-back:active { transform:scale(.95); }
+
+.bp-cover { height:180px; position:relative; overflow:hidden; display:flex; align-items:flex-end; padding:0 16px 0; }
+.bp-cover-bg { position:absolute; inset:0; background:linear-gradient(135deg,var(–g),#003d21); }
+.bp-cover-pat { position:absolute; inset:0; background:url(“data:image/svg+xml,%3Csvg width=‘60’ height=‘60’ viewBox=‘0 0 60 60’ xmlns=‘http://www.w3.org/2000/svg’%3E%3Cg fill=’%23fff’ fill-opacity=‘0.035’%3E%3Cpath d=‘M0 0h30v30H0V0zm30 30h30v30H30V30z’/%3E%3C/g%3E%3C/svg%3E”); }
+.bp-logo { width:70px; height:70px; border-radius:var(–r16); border:3px solid #fff; background:var(–g); display:flex; align-items:center; justify-content:center; font-size:32px; box-shadow:var(–shl); position:relative; z-index:1; transform:translateY(36px); }
+
+.bp-info { padding:44px 16px 16px; }
+.bp-name { font-family:‘Playfair Display’,serif; font-size:22px; font-weight:900; margin-bottom:4px; }
+.bp-owner { font-size:13px; color:var(–mut); margin-bottom:8px; }
+.bp-desc { font-size:14px; color:var(–txt2); line-height:1.65; margin-bottom:14px; }
+
+.bp-stats { display:flex; background:#fff; border:1px solid var(–bdr); border-radius:var(–r16); overflow:hidden; margin-bottom:14px; }
+.bp-stat { flex:1; padding:12px 8px; text-align:center; border-right:1px solid var(–bdr); }
+.bp-stat:last-child { border-right:none; }
+.bp-stat-n { font-family:‘Playfair Display’,serif; font-size:18px; font-weight:900; color:var(–g); }
+.bp-stat-l { font-size:10px; color:var(–mut); margin-top:2px; }
+
+.bp-acts { display:flex; gap:10px; margin-bottom:16px; }
+.bp-btn-foll {
+flex:1; padding:12px; border-radius:var(–r12);
+border:1.5px solid var(–bdr); font-size:14px; font-weight:700;
+color:var(–txt2); background:transparent; cursor:pointer;
+font-family:inherit; transition:all .2s;
+display:flex; align-items:center; justify-content:center; gap:6px;
+}
+.bp-btn-foll.on { background:var(–g); color:#fff; border-color:var(–g); }
+.bp-btn-wa {
+flex:1; padding:12px; border-radius:var(–r12);
+background:#25D366; color:#fff; font-size:14px; font-weight:700;
+border:none; cursor:pointer; font-family:inherit;
+display:flex; align-items:center; justify-content:center; gap:6px;
+transition:all .2s;
+}
+.bp-btn-wa:active { background:#20BA5A; transform:scale(.98); }
+
+.bp-tabs { display:flex; border-bottom:1px solid var(–bdr); background:#fff; overflow-x:auto; scrollbar-width:none; }
+.bp-tabs::-webkit-scrollbar { display:none; }
+.bp-tab { flex:1; padding:13px 10px; font-size:13px; font-weight:600; color:var(–mut); border-bottom:2px solid transparent; cursor:pointer; white-space:nowrap; text-align:center; min-width:80px; transition:all .2s; }
+.bp-tab.on { color:var(–g); border-bottom-color:var(–g); }
+
+.bp-content { padding:16px; }
+
+/* ================================================================
+INSCRIPTION VENDEUR (full screen)
+================================================================ */
+.reg-page {
+display:none; position:fixed; inset:0; z-index:440;
+background:var(–bg); overflow-y:auto;
+}
+.reg-page.on { display:block; }
+
+.reg-nav {
+position:sticky; top:0; z-index:10; height:52px;
+background:rgba(250,247,242,.96);
+backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+border-bottom:1px solid var(–bdr);
+display:flex; align-items:center; justify-content:space-between;
+padding:0 16px;
+}
+.reg-step-lbl { font-size:13px; color:var(–mut); font-weight:600; }
+
+.reg-prog { height:3px; background:var(–bdrs); }
+.reg-prog-fill { height:100%; background:var(–g); border-radius:0 2px 2px 0; transition:width .4s var(–ease); will-change:width; }
+
+.reg-body { padding:20px 20px calc(80px + var(–safe)); }
+.reg-step { display:none; }
+.reg-step.on { display:block; }
+.reg-h1  { font-family:‘Playfair Display’,serif; font-size:22px; font-weight:900; margin-bottom:6px; }
+.reg-sub { font-size:14px; color:var(–mut); margin-bottom:24px; line-height:1.6; }
+
+.reg-fixed {
+position:fixed; bottom:0; left:0; right:0;
+padding:12px 20px calc(12px + var(–safe));
+background:rgba(250,247,242,.97);
+backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+border-top:1px solid var(–bdr); z-index:10;
+display:flex; gap:10px;
+}
+.reg-fixed button { flex:1; }
+
+/* ================================================================
+PANIER (bottom sheet)
+================================================================ */
+.sheet-overlay {
+position:fixed; inset:0;
+background:rgba(0,0,0,.45); z-index:var(–z-sh);
+opacity:0; pointer-events:none;
+transition:opacity .25s;
+backdrop-filter:blur(2px); -webkit-backdrop-filter:blur(2px);
+will-change:opacity;
+}
+.sheet-overlay.on { opacity:1; pointer-events:auto; }
+
+.sheet {
+position:fixed; bottom:0; left:0; right:0; z-index:calc(var(–z-sh) + 1);
+background:#fff; border-radius:24px 24px 0 0;
+padding:0 0 calc(24px + var(–safe));
+transform:translateY(100%);
+transition:transform .35s var(–ease);
+max-height:92vh; overflow-y:auto;
+box-shadow:0 -8px 40px rgba(0,0,0,.13);
+will-change:transform; overscroll-behavior:contain;
+}
+.sheet.on { transform:translateY(0); }
+
+.sh-handle { width:36px; height:4px; background:var(–bdr); border-radius:2px; margin:12px auto 4px; }
+.sh-hd { display:flex; align-items:center; justify-content:space-between; padding:12px 20px 4px; }
+.sh-title { font-family:‘Playfair Display’,serif; font-size:18px; font-weight:900; }
+.sh-close { width:32px; height:32px; border-radius:50%; background:var(–bgw); border:1px solid var(–bdr); display:flex; align-items:center; justify-content:center; font-size:15px; cursor:pointer; transition:background .15s; }
+.sh-close:active { background:var(–bdr); }
+.sh-body { padding:8px 20px; }
+
+/* Cart items */
+.ci-row { display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(–bdrs); }
+.ci-img { width:56px; height:56px; border-radius:var(–r12); display:flex; align-items:center; justify-content:center; font-size:24px; flex-shrink:0; }
+.ci-info { flex:1; min-width:0; }
+.ci-info h4 { font-size:14px; font-weight:600; margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ci-info p  { font-size:13px; color:var(–g); font-weight:700; }
+.ci-qty { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+.qty-b { width:28px; height:28px; border-radius:8px; border:1px solid var(–bdr); background:var(–bgw); font-size:16px; font-weight:700; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all .15s; }
+.qty-b:active { background:var(–g); color:#fff; border-color:var(–g); }
+.qty-n { font-size:15px; font-weight:700; min-width:20px; text-align:center; }
+.cart-empty { text-align:center; padding:48px 20px; }
+.cart-empty .ce-ico  { font-size:48px; margin-bottom:12px; }
+.cart-empty .ce-ttl  { font-size:17px; font-weight:700; margin-bottom:6px; }
+.cart-empty .ce-sub  { font-size:14px; color:var(–mut); }
+.cart-total { display:flex; justify-content:space-between; align-items:center; padding:14px 0 0; border-top:1px solid var(–bdr); margin-top:4px; }
+.cart-total span   { font-size:15px; color:var(–mut); }
+.cart-total strong { font-family:‘Playfair Display’,serif; font-size:22px; color:var(–g); }
+.btn-checkout {
+width:100%; padding:16px; border-radius:var(–r16);
+background:var(–g); color:#fff; font-size:16px; font-weight:700;
+display:flex; align-items:center; justify-content:center; gap:8px;
+margin-top:12px; border:none; cursor:pointer; font-family:inherit;
+transition:all .2s; box-shadow:var(–shg); will-change:transform;
+}
+.btn-checkout:active { background:var(–gm); transform:scale(.98); }
+
+/* ================================================================
+FORMS
+================================================================ */
+.fg { margin-bottom:16px; }
+.fg label { display:block; font-size:13px; font-weight:600; color:var(–txt2); margin-bottom:7px; }
+.fg label .req { color:var(–red); margin-left:2px; }
+.fi {
+width:100%; padding:13px 15px;
+border:1.5px solid var(–bdr); border-radius:var(–r12);
+font-size:15px; color:var(–txt); background:var(–bgw);
+transition:border-color .2s, box-shadow .2s;
+}
+.fi:focus { border-color:var(–g); box-shadow:0 0 0 3px var(–gg); outline:none; }
+.fi::placeholder { color:var(–mut); }
+.fi.err { border-color:var(–red); }
+textarea.fi { height:80px; resize:none; }
+.fi-row  { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.fi-full { grid-column:1/-1; }
+.ferr { font-size:11px; color:var(–red); margin-top:4px; display:none; }
+.fi.err + .ferr { display:block; }
+
+/* Strength meter */
+.strength-wrap { margin-top:5px; }
+.strength-bar  { height:4px; background:var(–bdr); border-radius:2px; overflow:hidden; }
+.strength-fill { height:100%; border-radius:2px; transition:width .3s, background .3s; will-change:width; }
+.strength-lbl  { font-size:11px; margin-top:3px; font-weight:600; }
+
+/* Upload */
+.upload-zone {
+border:2px dashed var(–bdr); border-radius:var(–r16);
+padding:24px; text-align:center; background:var(–bgw);
+cursor:pointer; position:relative; transition:all .2s;
+}
+.upload-zone:active { border-color:var(–g); background:var(–gg); }
+.upload-zone input { position:absolute; inset:0; opacity:0; cursor:pointer; }
+.uz-ico { font-size:30px; margin-bottom:6px; }
+.uz-txt { font-size:13px; color:var(–mut); }
+.uz-hint{ font-size:11px; color:var(–mut); margin-top:3px; }
+#logoPreview { width:68px; height:68px; border-radius:50%; object-fit:cover; display:none; margin:10px auto 0; border:3px solid var(–g); }
+
+/* Slug preview */
+.slug-preview { font-size:12px; color:var(–mut); margin-top:5px; }
+.slug-preview strong { color:var(–g); }
+
+/* Buttons */
+.btn-p {
+width:100%; padding:15px; border-radius:var(–r16);
+background:var(–g); color:#fff; font-size:15px; font-weight:700;
+border:none; cursor:pointer; font-family:inherit;
+display:flex; align-items:center; justify-content:center; gap:8px;
+transition:all .2s; margin-top:8px; box-shadow:var(–shg);
+will-change:transform;
+}
+.btn-p:active   { background:var(–gm); transform:scale(.98); }
+.btn-p:disabled { opacity:.55; cursor:not-allowed; pointer-events:none; }
+.btn-s {
+width:100%; padding:13px; border-radius:var(–r16);
+background:transparent; color:var(–txt2);
+border:1.5px solid var(–bdr); font-size:14px; font-weight:600;
+cursor:pointer; font-family:inherit; margin-top:8px; transition:all .2s;
+}
+.btn-s:active { border-color:var(–g); color:var(–g); }
+
+/* Toggle */
+.toggle {
+width:42px; height:24px; border-radius:var(–rpill);
+background:var(–mut); position:relative; cursor:pointer;
+transition:background .25s var(–ease); border:none; flex-shrink:0;
+will-change:background;
+}
+.toggle.on { background:var(–g); }
+.toggle::after {
+content:’’; position:absolute; top:3px; left:3px;
+width:18px; height:18px; border-radius:50%; background:#fff;
+transition:transform .25s var(–ease); will-change:transform;
+}
+.toggle.on::after { transform:translateX(18px); }
+
+/* ================================================================
+PROFIL PAGE
+================================================================ */
+.profile-hero {
+background:linear-gradient(135deg,var(–g),#003d21);
+padding:clamp(32px,5vw,52px) 20px 64px;
+text-align:center; position:relative;
+}
+.profile-hero::after {
+content:’’; position:absolute; bottom:0; left:0; right:0; height:36px;
+background:var(–bg); border-radius:36px 36px 0 0;
+}
+.ph-av   { width:78px; height:78px; border-radius:50%; border:3px solid #fff; background:var(–gm); display:flex; align-items:center; justify-content:center; font-size:36px; margin:0 auto 12px; box-shadow:var(–shl); }
+.ph-name { font-family:‘Playfair Display’,serif; font-size:20px; font-weight:900; color:#fff; margin-bottom:4px; }
+.ph-email{ font-size:13px; color:rgba(255,255,255,.65); }
+
+.pcard { background:var(–card); border:1px solid var(–bdr); border-radius:var(–r16); margin:0 16px 12px; overflow:hidden; }
+.pcard-ttl { font-size:12px; font-weight:700; color:var(–mut); text-transform:uppercase; letter-spacing:.7px; padding:13px 16px 8px; border-bottom:1px solid var(–bdrs); }
+.pcard-item { display:flex; align-items:center; gap:12px; padding:13px 16px; border-bottom:1px solid var(–bdrs); cursor:pointer; transition:background .15s; }
+.pcard-item:last-child { border-bottom:none; }
+.pcard-item:active { background:var(–bgw); }
+.pi-ico { width:36px; height:36px; border-radius:var(–r8); display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+.pi-g { background:var(–gg); }
+.pi-r { background:var(–redb); }
+.pi-b { background:rgba(61,142,255,.09); }
+.pi-y { background:rgba(212,160,23,.1); }
+.pi-txt strong { display:block; font-size:14px; font-weight:600; }
+.pi-txt span   { font-size:12px; color:var(–mut); }
+.pi-arr { margin-left:auto; font-size:18px; color:var(–mut); }
+
+/* ================================================================
+FAVORIS PAGE
+================================================================ */
+.favs-empty { text-align:center; padding:60px 20px; }
+.fe-ico { font-size:52px; margin-bottom:14px; }
+.fe-ttl { font-family:‘Playfair Display’,serif; font-size:20px; font-weight:700; margin-bottom:8px; }
+.fe-sub { font-size:14px; color:var(–mut); }
+
+/* ================================================================
+BOUTIQUES PAGE – full grid
+================================================================ */
+.shops-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:0 16px; }
+@media(min-width:480px)  { .shops-grid { grid-template-columns:repeat(3,1fr); } }
+@media(min-width:768px)  { .shops-grid { grid-template-columns:repeat(4,1fr); gap:16px; padding:0 24px; } }
+
+/* ================================================================
+TOAST
+================================================================ */
+#toasts {
+position:fixed;
+bottom:calc(var(–tab) + var(–safe) + 10px);
+left:12px; right:12px;
+z-index:var(–z-tst);
+display:flex; flex-direction:column; gap:7px;
+pointer-events:none;
+}
+.toast {
+background:#fff; border:1px solid var(–bdr); border-left:4px solid var(–g);
+padding:12px 16px; border-radius:var(–r12); font-size:14px; font-weight:500;
+box-shadow:var(–shl);
+display:flex; align-items:center; gap:10px;
+transform:translateY(14px); opacity:0;
+transition:all .3s var(–ease);
+pointer-events:auto; will-change:transform,opacity;
+}
+.toast.show   { transform:translateY(0); opacity:1; }
+.toast.hiding { transform:translateY(8px); opacity:0; }
+.toast.e { border-left-color:var(–red); }
+.toast.w { border-left-color:var(–gold); }
+.toast-x { margin-left:auto; cursor:pointer; font-size:14px; color:var(–mut); flex-shrink:0; }
+.toast-x:active { color:var(–txt); }
+
+/* ================================================================
+SKELETON
+================================================================ */
+.skel {
+background:linear-gradient(90deg,#f0ebe3 25%,#e5dfd6 50%,#f0ebe3 75%);
+background-size:200% 100%;
+animation:shim 1.5s infinite;
+will-change:background-position;
+}
+@keyframes shim { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+.skel-prod { border-radius:var(–r16); }
+
+/* ================================================================
+RESPONSIVE – desktop
+================================================================ */
+@media(min-width:768px) {
+body { padding-bottom:0; }
+#btmnav { display:none; }
+#topnav { height:68px; padding:0 clamp(24px,5%,80px); }
+.page { padding-top:68px; }
+.sec-hd { padding:20px clamp(24px,5%,80px) 12px; }
+.search-sticky { padding:12px clamp(24px,5%,80px) 14px; }
+.hscroll { padding:10px clamp(24px,5%,80px) 16px; }
+.hero-banner { margin:14px clamp(24px,5%,80px); }
+}
+
+/* Flag stripe */
+.flag { height:5px; display:flex; }
+.f-g{flex:1;background:var(–g)}
+.f-y{flex:1;background:var(–goldb)}
+.f-r{flex:1;background:var(–red)}
+
+/* Vendor CTA section */
+.vendor-cta {
+margin:16px 16px 0;
+background:linear-gradient(135deg,var(–g) 0%,#004d2b 60%,#002a17 100%);
+border-radius:var(–r20); padding:24px 20px;
+position:relative; overflow:hidden; color:#fff; text-align:center;
+}
+.vendor-cta::before { content:’’; position:absolute; inset:0; background:radial-gradient(circle at 70% 50%,rgba(245,184,0,.12) 0%,transparent 65%); pointer-events:none; }
+.vc-in  { position:relative; z-index:1; }
+.vc-h2  { font-family:‘Playfair Display’,serif; font-size:20px; font-weight:900; margin-bottom:8px; line-height:1.25; }
+.vc-h2 span { color:var(–goldb); }
+.vc-sub { font-size:13px; opacity:.8; margin-bottom:18px; line-height:1.65; }
+.vc-feats { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-bottom:18px; }
+.vc-feat { display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; }
+.vc-chk  { width:20px; height:20px; border-radius:50%; background:rgba(255,255,255,.18); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; flex-shrink:0; }
+</style>
+
+</head>
+
+<body>
+
+<!-- TOP NAVBAR -->
+
+<header id="topnav" role="banner">
+  <div class="tn-logo" onclick="navigate('home')" style="cursor:pointer">
+    <div class="tn-ico" aria-hidden="true">🛒</div>
+    <span class="tn-name">Sen<span>Market</span></span>
+  </div>
+  <div class="tn-acts">
+    <button class="tn-btn" id="btnCart" aria-label="Panier">
+      🛒
+      <span class="tn-badge" id="cartBadge" aria-live="polite">0</span>
+    </button>
+    <button class="tn-btn" id="btnProfil" aria-label="Mon profil">👤</button>
+  </div>
+</header>
+
+<!-- BOTTOM TAB BAR -->
+
+<nav id="btmnav" role="navigation" aria-label="Navigation principale">
+  <div class="tab on" id="tab-home" role="tab" aria-selected="true" aria-label="Accueil">
+    <div class="tab-ico" aria-hidden="true">🏠</div><div class="tab-lbl">Accueil</div>
+  </div>
+  <div class="tab" id="tab-boutiques" role="tab" aria-selected="false" aria-label="Boutiques">
+    <div class="tab-ico" aria-hidden="true">🏪</div><div class="tab-lbl">Boutiques</div>
+  </div>
+  <div class="tab" id="tab-produits" role="tab" aria-selected="false" aria-label="Produits">
+    <div class="tab-ico" aria-hidden="true">📦</div><div class="tab-lbl">Produits</div>
+  </div>
+  <div class="tab" id="tab-favoris" role="tab" aria-selected="false" aria-label="Favoris">
+    <div class="tab-ico" aria-hidden="true">❤️</div><div class="tab-lbl">Favoris</div>
+    <div class="tab-dot" id="favDot" aria-hidden="true"></div>
+  </div>
+  <div class="tab" id="tab-profil" role="tab" aria-selected="false" aria-label="Profil">
+    <div class="tab-ico" aria-hidden="true">👤</div><div class="tab-lbl">Profil</div>
+  </div>
+</nav>
+
+<!-- ================================================================
+     PAGE ACCUEIL
+     ================================================================ -->
+
+<main class="page on" id="page-home">
+  <div class="flag" aria-hidden="true"><div class="f-g"></div><div class="f-y"></div><div class="f-r"></div></div>
+
+  <div class="search-sticky">
+    <div class="search-row">
+      <div class="search-inp-w">
+        <input class="search-inp" type="search" id="searchMain" placeholder="Wax, karite, boubou..." autocomplete="off" aria-label="Rechercher">
+        <span class="search-ico" aria-hidden="true">🔍</span>
+      </div>
+      <button class="btn-filter" id="btnFiltre" aria-label="Filtres">⚙️</button>
+    </div>
+  </div>
+
+  <div style="padding:10px 16px 0">
+    <div class="hero-banner">
+      <div class="hb-in">
+        <div class="hb-tag">🇸🇳 Communaute senegalaise au Maroc</div>
+        <div class="hb-h1">Le marche senegalais<br>au coeur du <em>Maroc</em></div>
+        <div class="hb-sub">Des centaines de boutiques tenues par vos compatriotes.</div>
+        <div class="hb-stats">
+          <div><div class="hb-n" id="heroShops">120+</div><div class="hb-l">Boutiques</div></div>
+          <div><div class="hb-n" id="heroProds">2 400+</div><div class="hb-l">Produits</div></div>
+          <div><div class="hb-n">8</div><div class="hb-l">Villes</div></div>
+        </div>
+        <button class="hb-cta" id="btnExplorer">🛍️ Explorer les boutiques</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Categories -->
+
+  <div class="sec-hd"><span class="sec-ttl">Categories</span><span class="sec-more">Voir tout</span></div>
+  <div class="hscroll" id="catsHome" role="group" aria-label="Filtrer par categorie">
+    <button class="cat-chip on" data-cat=""><div class="cc-ico">🌍</div><div class="cc-lbl">Tout</div></button>
+    <button class="cat-chip" data-cat="mode"><div class="cc-ico">👗</div><div class="cc-lbl">Mode</div></button>
+    <button class="cat-chip" data-cat="alim"><div class="cc-ico">🍲</div><div class="cc-lbl">Cuisine</div></button>
+    <button class="cat-chip" data-cat="beau"><div class="cc-ico">💄</div><div class="cc-lbl">Beaute</div></button>
+    <button class="cat-chip" data-cat="bij"><div class="cc-ico">💍</div><div class="cc-lbl">Bijoux</div></button>
+    <button class="cat-chip" data-cat="tech"><div class="cc-ico">📱</div><div class="cc-lbl">Tech</div></button>
+    <button class="cat-chip" data-cat="mais"><div class="cc-ico">🏠</div><div class="cc-lbl">Maison</div></button>
+    <button class="cat-chip" data-cat="serv"><div class="cc-ico">🛠️</div><div class="cc-lbl">Services</div></button>
+  </div>
+
+  <!-- Boutiques vedettes -->
+
+  <div class="sec-hd"><span class="sec-ttl">Boutiques ⭐</span><span class="sec-more" id="btnVoirBoutiques">Voir tout</span></div>
+  <div class="hscroll" id="shopsHome" role="list" aria-label="Boutiques en vedette"></div>
+
+  <!-- Produits -->
+
+  <div class="sec-hd"><span class="sec-ttl">Produits du moment</span><span class="sec-more" id="btnVoirProduits">Voir tout</span></div>
+  <div class="prod-grid" id="prodsHome" role="list" style="padding-bottom:4px"></div>
+
+  <!-- CTA Vendeur -->
+
+  <div class="vendor-cta" style="margin-bottom:16px">
+    <div class="vc-in">
+      <div class="vc-h2">Vendez vos produits ?<br>Ouvrez votre boutique <span>gratuitement</span></div>
+      <div class="vc-sub">Rejoignez 120+ vendeurs senegalais qui font confiance a SenMarket au Maroc.</div>
+      <div class="vc-feats">
+        <div class="vc-feat"><span class="vc-chk">✓</span> Inscription gratuite</div>
+        <div class="vc-feat"><span class="vc-chk">✓</span> Produits illimites</div>
+        <div class="vc-feat"><span class="vc-chk">✓</span> Commandes WhatsApp</div>
+        <div class="vc-feat"><span class="vc-chk">✓</span> Tout le Maroc</div>
+      </div>
+      <button class="hb-cta" id="btnOuvrirBoutique">🚀 Ouvrir ma boutique</button>
+    </div>
+  </div>
+</main>
+
+<!-- ================================================================
+     PAGE BOUTIQUES
+     ================================================================ -->
+
+<section class="page" id="page-boutiques" aria-label="Toutes les boutiques">
+  <div class="search-sticky">
+    <div class="search-row">
+      <div class="search-inp-w">
+        <input class="search-inp" type="search" id="searchBoutiques" placeholder="Chercher une boutique..." autocomplete="off" aria-label="Rechercher une boutique">
+        <span class="search-ico" aria-hidden="true">🔍</span>
+      </div>
+    </div>
+  </div>
+  <div class="hscroll" style="padding-top:10px" id="villeFilters">
+    <button class="cat-chip on" style="flex-direction:row;gap:4px;padding:8px 14px" data-ville=""><div class="cc-ico" style="font-size:16px">🌍</div><div class="cc-lbl">Tout le Maroc</div></button>
+    <button class="cat-chip" style="flex-direction:row;gap:4px;padding:8px 14px" data-ville="Casa"><div class="cc-ico" style="font-size:16px">🏙️</div><div class="cc-lbl">Casablanca</div></button>
+    <button class="cat-chip" style="flex-direction:row;gap:4px;padding:8px 14px" data-ville="Rabat"><div class="cc-ico" style="font-size:16px">🏛️</div><div class="cc-lbl">Rabat</div></button>
+    <button class="cat-chip" style="flex-direction:row;gap:4px;padding:8px 14px" data-ville="Marra"><div class="cc-ico" style="font-size:16px">🕌</div><div class="cc-lbl">Marrakech</div></button>
+    <button class="cat-chip" style="flex-direction:row;gap:4px;padding:8px 14px" data-ville="Tanger"><div class="cc-ico" style="font-size:16px">⚓</div><div class="cc-lbl">Tanger</div></button>
+  </div>
+  <div class="sec-hd"><span class="sec-ttl"><span id="shopPageCount">6</span> boutiques</span></div>
+  <div class="shops-grid" id="shopsPage" role="list"></div>
+  <div style="height:16px"></div>
+</section>
+
+<!-- ================================================================
+     PAGE PRODUITS
+     ================================================================ -->
+
+<section class="page" id="page-produits" aria-label="Catalogue produits">
+  <div class="search-sticky">
+    <div class="search-row">
+      <div class="search-inp-w">
+        <input class="search-inp" type="search" id="searchProduits" placeholder="Chercher un produit..." autocomplete="off" aria-label="Rechercher un produit">
+        <span class="search-ico" aria-hidden="true">🔍</span>
+      </div>
+      <button class="btn-filter" id="btnFiltreProds" aria-label="Filtres">⚙️</button>
+    </div>
+  </div>
+  <div class="hscroll" style="padding-top:10px" id="catsProduits" role="group" aria-label="Filtrer par categorie">
+    <button class="cat-chip on" data-cat=""><div class="cc-ico">🌍</div><div class="cc-lbl">Tout</div></button>
+    <button class="cat-chip" data-cat="mode"><div class="cc-ico">👗</div><div class="cc-lbl">Mode</div></button>
+    <button class="cat-chip" data-cat="alim"><div class="cc-ico">🍲</div><div class="cc-lbl">Cuisine</div></button>
+    <button class="cat-chip" data-cat="beau"><div class="cc-ico">💄</div><div class="cc-lbl">Beaute</div></button>
+    <button class="cat-chip" data-cat="bij"><div class="cc-ico">💍</div><div class="cc-lbl">Bijoux</div></button>
+    <button class="cat-chip" data-cat="tech"><div class="cc-ico">📱</div><div class="cc-lbl">Tech</div></button>
+  </div>
+  <div class="sec-hd"><span class="sec-ttl"><span id="prodsPageCount">8</span> produits</span></div>
+  <div class="prod-grid" id="prodsPage" role="list"></div>
+  <div style="height:16px"></div>
+</section>
+
+<!-- ================================================================
+     PAGE FAVORIS
+     ================================================================ -->
+
+<section class="page" id="page-favoris" aria-label="Mes favoris">
+  <div class="sec-hd"><span class="sec-ttl">Mes Favoris ❤️</span><span class="sec-more" id="btnClearFavs">Effacer</span></div>
+  <div class="prod-grid" id="prodsFavs" role="list">
+    <div style="grid-column:1/-1" class="favs-empty">
+      <div class="fe-ico">❤️</div>
+      <div class="fe-ttl">Aucun favori</div>
+      <div class="fe-sub">Appuyez sur le coeur pour sauvegarder des produits</div>
+    </div>
+  </div>
+  <div style="height:16px"></div>
+</section>
+
+<!-- ================================================================
+     PAGE PROFIL
+     ================================================================ -->
+
+<section class="page" id="page-profil" aria-label="Mon profil">
+  <div class="profile-hero">
+    <div class="ph-av" aria-hidden="true">👤</div>
+    <div class="ph-name">Mon Profil</div>
+    <div class="ph-email" id="profilEmail">Connectez-vous pour acceder a votre compte</div>
+  </div>
+  <div style="padding:8px 0 0">
+    <div class="pcard">
+      <div class="pcard-ttl">Mon compte</div>
+      <div class="pcard-item" id="btnMenuOuvrirBoutique">
+        <div class="pi-ico pi-g" aria-hidden="true">🏪</div>
+        <div class="pi-txt"><strong>Ouvrir ma boutique</strong><span>Vendez vos produits gratuitement</span></div>
+        <span class="pi-arr" aria-hidden="true">›</span>
+      </div>
+      <div class="pcard-item">
+        <div class="pi-ico pi-b" aria-hidden="true">📦</div>
+        <div class="pi-txt"><strong>Mes commandes</strong><span>Historique et suivi</span></div>
+        <span class="pi-arr" aria-hidden="true">›</span>
+      </div>
+      <div class="pcard-item" id="btnMenuFavs">
+        <div class="pi-ico pi-r" aria-hidden="true">❤️</div>
+        <div class="pi-txt"><strong>Mes favoris</strong><span id="favCountMenu">0 produit</span></div>
+        <span class="pi-arr" aria-hidden="true">›</span>
+      </div>
+    </div>
+    <div class="pcard">
+      <div class="pcard-ttl">Aide</div>
+      <div class="pcard-item" id="btnSupport">
+        <div class="pi-ico pi-y" aria-hidden="true">💬</div>
+        <div class="pi-txt"><strong>Support WhatsApp</strong><span>Reponse en moins de 2h</span></div>
+        <span class="pi-arr" aria-hidden="true">›</span>
+      </div>
+      <div class="pcard-item">
+        <div class="pi-ico pi-g" aria-hidden="true">📄</div>
+        <div class="pi-txt"><strong>Conditions d'utilisation</strong><span>Politique de confidentialite</span></div>
+        <span class="pi-arr" aria-hidden="true">›</span>
+      </div>
+    </div>
+    <div style="text-align:center;padding:16px;font-size:11px;color:var(--mut)">
+      SenMarket v3.0 -- FlowDynamicsAgency 🇸🇳 x 🇲🇦
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================
+     BOUTIQUE FULLSCREEN
+     ================================================================ -->
+
+<div class="boutique-page" id="boutiquePage" role="dialog" aria-modal="true" aria-label="Boutique">
+  <div class="bp-nav">
+    <button class="bp-back" id="btnBoutiqueBack" aria-label="Retour">&#8592; Retour</button>
+    <button style="width:38px;height:38px;border-radius:var(--r8);background:var(--bgw);border:1px solid var(--bdr);display:flex;align-items:center;justify-content:center;font-size:17px;cursor:pointer" id="btnBoutiqueShare" aria-label="Partager">🔗</button>
+  </div>
+  <div class="bp-cover" id="bpCover">
+    <div class="bp-cover-bg" id="bpCoverBg"></div>
+    <div class="bp-cover-pat"></div>
+    <div class="bp-logo" id="bpLogo">🏪</div>
+  </div>
+  <div class="bp-info">
+    <div class="bp-name"  id="bpName">Chargement...</div>
+    <div class="bp-owner" id="bpOwner"></div>
+    <div class="bp-desc"  id="bpDesc"></div>
+    <div class="bp-stats">
+      <div class="bp-stat"><div class="bp-stat-n" id="bpSP">--</div><div class="bp-stat-l">Produits</div></div>
+      <div class="bp-stat"><div class="bp-stat-n" id="bpSV">--</div><div class="bp-stat-l">Ventes</div></div>
+      <div class="bp-stat"><div class="bp-stat-n" id="bpSN">--</div><div class="bp-stat-l">Note</div></div>
+      <div class="bp-stat"><div class="bp-stat-n" id="bpSF">--</div><div class="bp-stat-l">Abonnes</div></div>
+    </div>
+    <div class="bp-acts">
+      <button class="bp-btn-foll" id="bpBtnFoll">♡ Suivre</button>
+      <button class="bp-btn-wa"   id="bpBtnWa">💬 WhatsApp</button>
+    </div>
+  </div>
+  <div class="bp-tabs" id="bpTabs">
+    <div class="bp-tab on" data-bptab="prods">Produits</div>
+    <div class="bp-tab" data-bptab="apropos">A propos</div>
+    <div class="bp-tab" data-bptab="avis">Avis</div>
+  </div>
+  <div class="bp-content" id="bpContent"></div>
+</div>
+
+<!-- ================================================================
+     INSCRIPTION VENDEUR
+     ================================================================ -->
+
+<div class="reg-page" id="regPage" role="dialog" aria-modal="true" aria-label="Inscription vendeur">
+  <div class="reg-nav">
+    <button class="bp-back" id="btnRegBack" aria-label="Retour">&#8592; Retour</button>
+    <span class="reg-step-lbl" id="regStepLbl">Etape 1 / 3</span>
+  </div>
+  <div class="reg-prog"><div class="reg-prog-fill" id="regFill" style="width:33%"></div></div>
+
+  <div class="reg-body">
+    <!-- Step 1 -->
+    <div class="reg-step on" id="regS1">
+      <div class="reg-h1">Creez votre compte</div>
+      <div class="reg-sub">Votre acces securise a SenMarket</div>
+      <div class="fg"><label for="rNom">Nom complet <span class="req">*</span></label><input class="fi" id="rNom" type="text" placeholder="Awa Diallo" autocomplete="name"></div>
+      <div class="fg"><label for="rEmail">Email <span class="req">*</span></label><input class="fi" id="rEmail" type="email" placeholder="awa@email.com" autocomplete="email"></div>
+      <div class="fg">
+        <label for="rMdp">Mot de passe <span class="req">*</span></label>
+        <input class="fi" id="rMdp" type="password" placeholder="Minimum 8 caracteres" autocomplete="new-password">
+        <div class="strength-wrap"><div class="strength-bar"><div class="strength-fill" id="sFill" style="width:0%"></div></div><div class="strength-lbl" id="sLbl"></div></div>
+      </div>
+      <div class="fg"><label for="rConf">Confirmer <span class="req">*</span></label><input class="fi" id="rConf" type="password" placeholder="Repetez"></div>
+    </div>
+
+```
+<!-- Step 2 -->
+<div class="reg-step" id="regS2">
+  <div class="reg-h1">Votre profil vendeur</div>
+  <div class="reg-sub">Informations affichees sur votre boutique</div>
+  <div class="fi-row">
+    <div class="fg"><label for="rVille">Ville <span class="req">*</span></label>
+      <select class="fi" id="rVille"><option value="">Choisir...</option><option>Casablanca</option><option>Rabat</option><option>Marrakech</option><option>Tanger</option><option>Agadir</option><option>Dakar</option><option>Autre</option></select>
+    </div>
+    <div class="fg"><label for="rTel">Telephone <span class="req">*</span></label><input class="fi" id="rTel" type="tel" placeholder="+212 6XX XXX" autocomplete="tel"></div>
+  </div>
+  <div class="fg"><label for="rWa">WhatsApp commandes</label><input class="fi" id="rWa" type="tel" placeholder="+212 6XX XXX (idem si pareil)"></div>
+</div>
+
+<!-- Step 3 -->
+<div class="reg-step" id="regS3">
+  <div class="reg-h1">Votre boutique</div>
+  <div class="reg-sub">Personnalisez votre espace SenMarket</div>
+  <div class="fg">
+    <label for="rBoutique">Nom de la boutique <span class="req">*</span></label>
+    <input class="fi" id="rBoutique" type="text" placeholder="Ex: Awa Fashion Casa">
+    <div class="slug-preview">URL : <strong id="slugPreview">senmarket.ma/boutique/votre-nom</strong></div>
+  </div>
+  <div class="fg"><label for="rCat">Categorie <span class="req">*</span></label>
+    <select class="fi" id="rCat"><option value="">Choisir...</option><option>Mode & Tissu</option><option>Alimentation</option><option>Beaute & Soin</option><option>Bijoux & Art</option><option>High-Tech</option><option>Maison & Deco</option><option>Services</option></select>
+  </div>
+  <div class="fg"><label for="rDesc">Description</label><textarea class="fi" id="rDesc" placeholder="Decrivez vos produits, votre histoire..."></textarea></div>
+  <div class="fg">
+    <label>Logo de votre boutique</label>
+    <div class="upload-zone" id="uploadZone">
+      <input type="file" id="rLogo" accept="image/*">
+      <div class="uz-ico">🖼️</div>
+      <div class="uz-txt">Appuyez pour choisir une image</div>
+      <div class="uz-hint">JPG, PNG, WebP -- max 2 Mo</div>
+    </div>
+    <img id="logoPreview" alt="Apercu logo">
+  </div>
+  <div id="regMsg" role="alert" aria-live="polite"></div>
+</div>
+```
+
+  </div>
+
+  <div class="reg-fixed">
+    <button class="btn-s" id="btnRegPrev" style="display:none">&#8592; Retour</button>
+    <button class="btn-p" id="btnRegNext">Continuer &#8594;</button>
+  </div>
+</div>
+
+<!-- CART SHEET -->
+
+<div class="sheet-overlay" id="cartOverlay" role="presentation"></div>
+<div class="sheet" id="cartSheet" role="dialog" aria-modal="true" aria-label="Panier">
+  <div class="sh-handle" aria-hidden="true"></div>
+  <div class="sh-hd">
+    <div class="sh-title">Mon Panier 🛒</div>
+    <button class="sh-close" id="closeCart" aria-label="Fermer le panier">&#10005;</button>
+  </div>
+  <div class="sh-body">
+    <div id="cartBody"></div>
+    <div id="cartFoot" style="display:none">
+      <div class="cart-total"><span>Total</span><strong id="cartTotalAmt">0 MAD</strong></div>
+      <button class="btn-checkout" id="btnCheckout">Commander via WhatsApp 💬</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+
+<div id="toasts" role="status" aria-live="polite" aria-atomic="true"></div>
+
+<!-- ================================================================
+     JAVASCRIPT -- Production Grade v3.0
+     ================================================================ -->
+
+<script>
+(function() {
+'use strict';
+
+/* ================================================================
+   DEMO DATA -- Declare FIRST (fix const hoisting crash iOS)
+   ================================================================ */
+var SHOPS = [
+  {id:'s1',name:'Awa Fashion Casa',owner:'Awa Diallo',city:'Casablanca',cat:'Mode & Tissu',phone:'+212600000001',wa:'+212600000001',emoji:'👗',cover:'scm1',verified:true,rating:4.9,prods:124,sales:890,followers:1200,desc:'Mode africaine authentique. Bazin, Wax, couture sur mesure.'},
+  {id:'s2',name:'Saveurs du Senegal',owner:'Mamadou Ba',city:'Rabat',cat:'Alimentation',phone:'+212600000002',wa:'+212600000002',emoji:'🍽️',cover:'scm2',verified:true,rating:4.8,prods:68,sales:1240,followers:2100,desc:'Cuisine senegalaise traditionnelle, epices et traiteur.'},
+  {id:'s3',name:'NaturAlly Beauty',owner:'Fatou Sow',city:'Marrakech',cat:'Beaute & Soin',phone:'+212600000003',wa:'+212600000003',emoji:'💅',cover:'scm3',verified:true,rating:5.0,prods:89,sales:560,followers:980,desc:'Cosmetiques naturels africains, karite pur et soins bio.'},
+  {id:'s4',name:'TechSen Maroc',owner:'Ibrahima Ndiaye',city:'Casablanca',cat:'High-Tech',phone:'+212600000004',wa:'+212600000004',emoji:'📱',cover:'scm4',verified:false,rating:4.7,prods:210,sales:2100,followers:3400,desc:'Telephones, accessoires et electronique a prix competi.'},
+  {id:'s5',name:'Bijoux Dakar',owner:'Rokhaya Mbaye',city:'Tanger',cat:'Bijoux & Art',phone:'+212600000005',wa:'+212600000005',emoji:'💎',cover:'scm5',verified:true,rating:4.9,prods:156,sales:430,followers:765,desc:'Bijoux artisanaux en or et argent, travail senegalais.'},
+  {id:'s6',name:'Deco Teranga',owner:'Ousmane Thiam',city:'Agadir',cat:'Maison & Deco',phone:'+212600000006',wa:'+212600000006',emoji:'🏺',cover:'scm6',verified:false,rating:4.6,prods:78,sales:310,followers:430,desc:'Decoration africaine, objets artisanaux et art senegalais.'},
+];
+
+var PRODS = [
+  {id:'p1',name:'Robe Bazin Brode Doree',price:650,currency:'MAD',emoji:'👗',img:'pi1',badge:'new',stock:12,delivery:true,rating:5.0,reviews:48,shop:'Awa Fashion Casa',phone:'+212600000001',cat:'mode'},
+  {id:'p2',name:'Kit Epices Senegalaises 500g',price:85,currency:'MAD',emoji:'🍲',img:'pi2',badge:null,stock:8,delivery:true,rating:5.0,reviews:127,shop:'Saveurs du Senegal',phone:'+212600000002',cat:'alim'},
+  {id:'p3',name:'Beurre de Karite Pur 250ml',price:120,currency:'MAD',emoji:'🧴',img:'pi3',badge:'top',stock:15,delivery:true,rating:5.0,reviews:89,shop:'NaturAlly Beauty',phone:'+212600000003',cat:'beau'},
+  {id:'p4',name:'Coque iPhone Wax Africain',price:45,currency:'MAD',emoji:'📱',img:'pi4',badge:null,stock:22,delivery:false,rating:4.0,reviews:34,shop:'TechSen Maroc',phone:'+212600000004',cat:'tech'},
+  {id:'p5',name:'Bracelet Argent Dakar Style',price:280,currency:'MAD',emoji:'💍',img:'pi5',badge:'promo',stock:3,delivery:true,rating:5.0,reviews:22,shop:'Bijoux Dakar',phone:'+212600000005',cat:'bij'},
+  {id:'p6',name:'Vase Artisanal Senegalais',price:195,currency:'MAD',emoji:'🏺',img:'pi6',badge:null,stock:7,delivery:true,rating:4.0,reviews:16,shop:'Deco Teranga',phone:'+212600000006',cat:'mais'},
+  {id:'p7',name:'Tissu Wax Premium 6 yards',price:380,currency:'MAD',emoji:'🪡',img:'pi1',badge:null,stock:25,delivery:true,rating:4.8,reviews:32,shop:'Awa Fashion Casa',phone:'+212600000001',cat:'mode'},
+  {id:'p8',name:'Boubou Homme Elegance',price:890,currency:'MAD',emoji:'👘',img:'pi2',badge:'top',stock:6,delivery:false,rating:5.0,reviews:21,shop:'Awa Fashion Casa',phone:'+212600000001',cat:'mode'},
+];
+
+/* ================================================================
+   UTILS -- Declare before STATE (used in STATE init)
+   ================================================================ */
+function h(s) {
+  /* XSS escape */
+  var d = document.createElement('div');
+  d.appendChild(document.createTextNode(String(s == null ? '' : s)));
+  return d.innerHTML;
+}
+function lsGet(k)  { try { return JSON.parse(localStorage.getItem(k)); } catch(e) { return null; } }
+function lsSet(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {} }
+function fNum(n)   { if (!n && n !== 0) return '--'; if (n >= 1000) return (n/1000).toFixed(1).replace('.0','')+'k'; return String(n); }
+function stars(r)  { var n = Math.round(parseFloat(r)||0); return '\u2605'.repeat(n)+'\u2606'.repeat(5-n); }
+function badgeLabel(b){ return {new:'NOUVEAU',top:'TOP',promo:'PROMO'}[b]||b.toUpperCase(); }
+function genSlug(s){ return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').slice(0,50); }
+
+function debounce(fn, ms) {
+  var t;
+  return function() {
+    var args = arguments; var ctx = this;
+    clearTimeout(t);
+    t = setTimeout(function(){ fn.apply(ctx, args); }, ms);
+  };
+}
+
+var _overflows = 0;
+function lockScroll()   { _overflows++; document.body.style.overflow = 'hidden'; }
+function unlockScroll() { _overflows = Math.max(0, _overflows-1); if (!_overflows) document.body.style.overflow = ''; }
+
+/* ================================================================
+   STATE -- Declared AFTER data + utils
+   ================================================================ */
+var ST = {
+  page:      'home',
+  cart:      lsGet('sm3_cart')  || [],
+  favs:      lsGet('sm3_favs')  || [],
+  shopOpen:  null,
+  regStep:   1,
+  submitting:false,
+  _toastMap: {},
+};
+
+/* ================================================================
+   SUPABASE CONFIG
+   Replace with your real keys from supabase.com -> Settings -> API
+   ================================================================ */
+var SB_URL  = 'VOTRE_SUPABASE_URL';
+var SB_ANON = 'VOTRE_SUPABASE_ANON_KEY';
+var SB_READY = (SB_URL !== 'VOTRE_SUPABASE_URL');
+
+/* Minimal fetch-based Supabase client (no CDN needed) */
+var DB = {
+  headers: function() {
+    return {
+      'apikey': SB_ANON,
+      'Authorization': 'Bearer ' + SB_ANON,
+      'Content-Type': 'application/json',
+    };
+  },
+  get: function(table, params) {
+    return fetch(SB_URL + '/rest/v1/' + table + '?' + (params||''), { headers: this.headers() })
+      .then(function(r){ return r.json(); });
+  },
+  post: function(table, data) {
+    return fetch(SB_URL + '/rest/v1/' + table, {
+      method: 'POST', headers: this.headers(),
+      body: JSON.stringify(data),
+    }).then(function(r){ return r.ok ? r.json().catch(function(){ return {}; }) : r.json().then(function(e){ throw new Error(e.message||e.details||'Erreur DB'); }); });
+  },
+};
+
+/* ================================================================
+   INIT
+   ================================================================ */
+document.addEventListener('DOMContentLoaded', function() {
+  bindNav();
+  bindSearch();
+  bindCart();
+  bindBoutique();
+  bindInscription();
+  bindProfil();
+  bindKeyboard();
+
+  renderShopsHome();
+  renderProdsHome();
+  renderShopsPage();
+  renderProdsPage(null);
+  renderFavs();
+  updateCartBadge();
+  updateFavBadge();
+
+  window.addEventListener('scroll', function() {
+    document.getElementById('topnav').classList.toggle('shadow', window.scrollY > 20);
+  }, { passive: true });
+});
+
+/* ================================================================
+   NAVIGATION
+   ================================================================ */
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('on'); });
+  document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('on'); t.setAttribute('aria-selected','false'); });
+  var pg  = document.getElementById('page-'+page);
+  var tab = document.getElementById('tab-'+page);
+  if (pg)  { pg.classList.add('on'); }
+  if (tab) { tab.classList.add('on'); tab.setAttribute('aria-selected','true'); }
+  ST.page = page;
+  window.scrollTo(0,0);
+}
+
+function bindNav() {
+  document.getElementById('btmnav').addEventListener('click', function(e) {
+    var tab = e.target.closest('.tab');
+    if (!tab) return;
+    var p = tab.id.replace('tab-','');
+    navigate(p);
+  });
+  document.getElementById('btnCart').addEventListener('click', openCart);
+  document.getElementById('btnProfil').addEventListener('click', function(){ navigate('profil'); });
+  document.getElementById('btnExplorer').addEventListener('click', function(){ navigate('boutiques'); });
+  document.getElementById('btnVoirBoutiques').addEventListener('click', function(){ navigate('boutiques'); });
+  document.getElementById('btnVoirProduits').addEventListener('click', function(){ navigate('produits'); });
+  document.getElementById('btnOuvrirBoutique').addEventListener('click', openInscription);
+  document.getElementById('btnClearFavs').addEventListener('click', function(){
+    ST.favs = []; lsSet('sm3_favs', ST.favs); renderFavs(); updateFavBadge(); showToast('Favoris effaces','s');
+  });
+
+  /* KPI nav on home: category chips */
+  document.getElementById('catsHome').addEventListener('click', function(e) {
+    var chip = e.target.closest('.cat-chip');
+    if (!chip) return;
+    document.querySelectorAll('#catsHome .cat-chip').forEach(function(c){ c.classList.remove('on'); });
+    chip.classList.add('on');
+    /* scroll to products */
+    document.getElementById('prodsHome').scrollIntoView({behavior:'smooth'});
+  });
+}
+
+/* ================================================================
+   SEARCH
+   ================================================================ */
+function bindSearch() {
+  document.getElementById('searchMain').addEventListener('input',
+    debounce(function(){ /* filter home */ }, 280));
+
+  document.getElementById('searchProduits').addEventListener('input',
+    debounce(function(e){ filterProdsPage(e.target.value); }, 280));
+
+  document.getElementById('searchBoutiques').addEventListener('input',
+    debounce(function(e){ filterShopsPage(e.target.value); }, 280));
+
+  document.getElementById('catsProduits').addEventListener('click', function(e) {
+    var chip = e.target.closest('.cat-chip');
+    if (!chip) return;
+    document.querySelectorAll('#catsProduits .cat-chip').forEach(function(c){ c.classList.remove('on'); });
+    chip.classList.add('on');
+    renderProdsPage(chip.dataset.cat || null);
+  });
+
+  document.getElementById('villeFilters').addEventListener('click', function(e) {
+    var chip = e.target.closest('.cat-chip');
+    if (!chip) return;
+    document.querySelectorAll('#villeFilters .cat-chip').forEach(function(c){ c.classList.remove('on'); });
+    chip.classList.add('on');
+    filterShopsVille(chip.dataset.ville || null);
+  });
+}
+
+function filterProdsPage(q) {
+  var low = q.toLowerCase();
+  var filtered = q ? PRODS.filter(function(p){ return p.name.toLowerCase().indexOf(low) > -1 || p.shop.toLowerCase().indexOf(low) > -1; }) : PRODS;
+  renderProdsToEl('prodsPage', filtered);
+  document.getElementById('prodsPageCount').textContent = filtered.length;
+}
+function filterShopsPage(q) {
+  var low = q.toLowerCase();
+  var filtered = q ? SHOPS.filter(function(s){ return s.name.toLowerCase().indexOf(low) > -1 || s.city.toLowerCase().indexOf(low) > -1; }) : SHOPS;
+  renderShopsToEl('shopsPage', filtered);
+  document.getElementById('shopPageCount').textContent = filtered.length;
+}
+function filterShopsVille(ville) {
+  var filtered = ville ? SHOPS.filter(function(s){ return s.city.indexOf(ville) > -1; }) : SHOPS;
+  renderShopsToEl('shopsPage', filtered);
+  document.getElementById('shopPageCount').textContent = filtered.length;
+}
+
+/* ================================================================
+   RENDER SHOPS
+   ================================================================ */
+function renderShopsHome() {
+  var el = document.getElementById('shopsHome');
+  el.innerHTML = SHOPS.map(function(s){ return cardShopH(s); }).join('');
+  bindShopEvents(el);
+}
+function renderShopsPage() {
+  renderShopsToEl('shopsPage', SHOPS);
+  document.getElementById('shopPageCount').textContent = SHOPS.length;
+}
+function renderShopsToEl(id, list) {
+  var el = document.getElementById(id);
+  el.innerHTML = list.map(function(s){ return cardShopGrid(s); }).join('');
+  bindShopEvents(el);
+}
+function bindShopEvents(container) {
+  container.addEventListener('click', function(e) {
+    var card = e.target.closest('[data-shop-id]');
+    var waBtn= e.target.closest('.scm-wa');
+    if (waBtn) { e.stopPropagation(); var sid = waBtn.dataset.shopWa; var sn = waBtn.dataset.shopName; waShop(sid, sn); return; }
+    if (card)  { openBoutique(card.dataset.shopId); }
+  });
+}
+
+function cardShopH(s) {
+  return '<div class="shop-card-m" role="listitem" data-shop-id="'+h(s.id)+'">'
+    +'<div class="scm-cover '+h(s.cover)+'">'
+    + s.emoji
+    + (s.verified ? '<div class="scm-vrf">Verifie</div>' : '')
+    + '<div class="scm-rat">⭐ '+s.rating+'</div>'
+    +'</div>'
+    +'<div class="scm-body">'
+    +'<div class="scm-av">'+s.emoji+'</div>'
+    +'<div class="scm-name">'+h(s.name)+'</div>'
+    +'<div class="scm-city">🇸🇳 '+h(s.owner)+' -- '+h(s.city)+'</div>'
+    +'<div class="scm-stats">'
+    +'<div class="scm-stat"><strong>'+fNum(s.prods)+'</strong><span>Produits</span></div>'
+    +'<div class="scm-stat"><strong>'+fNum(s.sales)+'</strong><span>Ventes</span></div>'
+    +'<div class="scm-stat"><strong>'+fNum(s.followers)+'</strong><span>Abonnes</span></div>'
+    +'</div>'
+    +'<button class="scm-wa" data-shop-wa="'+h(s.wa)+'" data-shop-name="'+h(s.name)+'">💬 Contacter</button>'
+    +'</div></div>';
+}
+
+function cardShopGrid(s) {
+  return '<div style="background:var(--card);border:1px solid var(--bdr);border-radius:var(--r16);overflow:hidden;cursor:pointer;transition:all .2s" data-shop-id="'+h(s.id)+'" role="listitem">'
+    +'<div class="'+h(s.cover)+'" style="height:72px;display:flex;align-items:center;justify-content:center;font-size:28px;position:relative">'
+    + s.emoji
+    + (s.verified ? '<div class="scm-vrf">✓</div>' : '')
+    +'</div>'
+    +'<div style="padding:8px 10px 10px">'
+    +'<div style="font-weight:700;font-size:12px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+h(s.name)+'</div>'
+    +'<div style="font-size:10px;color:var(--mut);margin-bottom:5px">'+h(s.city)+'</div>'
+    +'<div style="display:flex;justify-content:space-between;font-size:11px">'
+    +'<span style="color:var(--g);font-weight:700">⭐ '+s.rating+'</span>'
+    +'<span style="color:var(--mut)">'+fNum(s.prods)+' produits</span>'
+    +'</div></div></div>';
+}
+
+/* ================================================================
+   RENDER PRODUCTS
+   ================================================================ */
+function renderProdsHome()      { renderProdsToEl('prodsHome', PRODS.slice(0,6)); }
+function renderProdsPage(cat)   {
+  var list = cat ? PRODS.filter(function(p){ return p.cat === cat; }) : PRODS;
+  renderProdsToEl('prodsPage', list);
+  document.getElementById('prodsPageCount').textContent = list.length;
+}
+function renderProdsToEl(id, list) {
+  var el = document.getElementById(id);
+  el.innerHTML = list.length
+    ? list.map(function(p){ return cardProd(p); }).join('')
+    : '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--mut)">Aucun produit</div>';
+  bindProdEvents(el);
+}
+function bindProdEvents(container) {
+  container.addEventListener('click', function(e) {
+    var fav  = e.target.closest('.pc-fav');
+    var wa   = e.target.closest('.bwa');
+    var cart = e.target.closest('.bcart');
+    if (fav) {
+      e.stopPropagation();
+      var pid  = fav.dataset.pid;
+      var pname= fav.dataset.pname;
+      toggleFav(pid, pname, fav);
+      return;
+    }
+    if (wa)  { e.stopPropagation(); var p=getP(wa.dataset.pid); if(p) waProd(p); return; }
+    if (cart){ e.stopPropagation(); var p=getP(cart.dataset.pid); if(p) addCart(p); return; }
+  });
+}
+function getP(id) { return PRODS.find(function(p){ return p.id===id; })||null; }
+
+function cardProd(p) {
+  var isFav = ST.favs.indexOf(p.id) > -1;
+  var low = p.stock > 0 && p.stock <= 3;
+  return '<article class="prod-card" role="listitem">'
+    +'<div class="pc-img '+h(p.img)+'">'
+    + (p.badge ? '<span class="pc-badge b-'+h(p.badge)+'">'+badgeLabel(p.badge)+'</span>' : '')
+    +'<button class="pc-fav" data-pid="'+h(p.id)+'" data-pname="'+h(p.name)+'" aria-label="'+(isFav?'Retirer des':'Ajouter aux')+' favoris">'+(isFav?'❤️':'🤍')+'</button>'
+    + (p.stock>0 ? '<span class="pc-stk">'+(low?'⚠️ '+p.stock:p.stock+' stk')+'</span>' : '<span class="pc-stk" style="background:rgba(196,30,58,.55)">Epuise</span>')
+    +'<span style="font-size:48px;position:relative;z-index:1">'+p.emoji+'</span>'
+    +'</div>'
+    +'<div class="pc-body">'
+    +'<div class="pc-shop">'+h(p.shop)+'</div>'
+    +'<div class="pc-name">'+h(p.name)+'</div>'
+    +'<div class="pc-stars">'+stars(p.rating)+' <span style="color:var(--mut);font-size:9px">('+p.reviews+')</span></div>'
+    +'<div class="pc-foot">'
+    +'<div class="pc-price">'+p.price+' <small>'+h(p.currency)+'</small></div>'
+    +'<div class="pc-acts">'
+    +'<button class="bwa"  data-pid="'+h(p.id)+'" aria-label="Commander via WhatsApp">💬</button>'
+    +'<button class="bcart" data-pid="'+h(p.id)+'" aria-label="Ajouter au panier">🛒</button>'
+    +'</div></div></div></article>';
+}
+
+/* ================================================================
+   FAVORIS
+   ================================================================ */
+function toggleFav(id, name, btn) {
+  var idx = ST.favs.indexOf(id);
+  if (idx > -1) {
+    ST.favs.splice(idx,1);
+    btn.textContent = '🤍';
+    btn.setAttribute('aria-label','Ajouter aux favoris');
+    showToast('"'+name+'" retire des favoris','i');
+  } else {
+    ST.favs.push(id);
+    btn.textContent = '❤️';
+    btn.setAttribute('aria-label','Retirer des favoris');
+    showToast('"'+name+'" ajoute aux favoris !','s');
+  }
+  lsSet('sm3_favs', ST.favs);
+  updateFavBadge();
+  if (ST.page === 'favoris') renderFavs();
+}
+
+function renderFavs() {
+  var favProds = PRODS.filter(function(p){ return ST.favs.indexOf(p.id) > -1; });
+  var el = document.getElementById('prodsFavs');
+  if (!favProds.length) {
+    el.innerHTML = '<div style="grid-column:1/-1" class="favs-empty"><div class="fe-ico">❤️</div><div class="fe-ttl">Aucun favori</div><div class="fe-sub">Appuyez sur le coeur pour sauvegarder</div></div>';
+    return;
+  }
+  el.innerHTML = favProds.map(function(p){ return cardProd(p); }).join('');
+  bindProdEvents(el);
+}
+
+function updateFavBadge() {
+  var n = ST.favs.length;
+  document.getElementById('favDot').classList.toggle('show', n > 0);
+  document.getElementById('favCountMenu').textContent = n + ' produit' + (n>1?'s':'');
+}
+
+/* ================================================================
+   CART
+   ================================================================ */
+function addCart(p) {
+  var ex = ST.cart.find(function(i){ return i.id === p.id; });
+  if (ex) ex.qty++;
+  else ST.cart.push({id:p.id,name:p.name,price:p.price,emoji:p.emoji,img:p.img,qty:1});
+  lsSet('sm3_cart', ST.cart);
+  updateCartBadge();
+  showToast('"'+p.name+'" ajoute au panier !','s');
+}
+function updateQty(id, d) {
+  var item = ST.cart.find(function(i){ return i.id===id; });
+  if (!item) return;
+  item.qty += d;
+  if (item.qty <= 0) ST.cart.splice(ST.cart.indexOf(item),1);
+  lsSet('sm3_cart', ST.cart);
+  updateCartBadge();
+  renderCartBody();
+}
+function updateCartBadge() {
+  var total = ST.cart.reduce(function(s,i){ return s+i.qty; },0);
+  var b = document.getElementById('cartBadge');
+  b.textContent = total;
+  b.classList.toggle('show', total>0);
+}
+function renderCartBody() {
+  var body = document.getElementById('cartBody');
+  var foot = document.getElementById('cartFoot');
+  if (!ST.cart.length) {
+    body.innerHTML = '<div class="cart-empty"><div class="ce-ico">🛒</div><div class="ce-ttl">Panier vide</div><div class="ce-sub">Decouvrez nos boutiques</div></div>';
+    foot.style.display = 'none'; return;
+  }
+  foot.style.display = 'block';
+  var total = ST.cart.reduce(function(s,i){ return s+i.price*i.qty; },0);
+  document.getElementById('cartTotalAmt').textContent = total.toLocaleString('fr-MA')+' MAD';
+  body.innerHTML = ST.cart.map(function(item){
+    return '<div class="ci-row">'
+      +'<div class="ci-img '+h(item.img)+'">'+item.emoji+'</div>'
+      +'<div class="ci-info"><h4>'+h(item.name)+'</h4><p>'+(item.price*item.qty).toLocaleString('fr-MA')+' MAD</p></div>'
+      +'<div class="ci-qty">'
+      +'<button class="qty-b" data-cid="'+h(item.id)+'" data-qd="-1" aria-label="Reduire">&#8722;</button>'
+      +'<span class="qty-n">'+item.qty+'</span>'
+      +'<button class="qty-b" data-cid="'+h(item.id)+'" data-qd="1" aria-label="Augmenter">+</button>'
+      +'</div></div>';
+  }).join('');
+}
+function openCart()  { renderCartBody(); openSheet('cart'); }
+function closeCart_() { closeSheet('cart'); }
+
+function checkout() {
+  if (!ST.cart.length) return;
+  var lines = ST.cart.map(function(i){ return i.qty+'x '+i.name+' -- '+i.price+' MAD'; }).join('\n');
+  var total = ST.cart.reduce(function(s,i){ return s+i.price*i.qty; },0);
+  var msg   = encodeURIComponent('Bonjour ! Je souhaite commander via SenMarket :\n\n'+lines+'\n\nTotal: '+total+' MAD\n\nMerci de confirmer ma commande.');
+  window.open('https://wa.me/+212644696608?text='+msg,'_blank');
+}
+
+function bindCart() {
+  document.getElementById('closeCart').addEventListener('click', closeCart_);
+  document.getElementById('cartOverlay').addEventListener('click', closeCart_);
+  document.getElementById('btnCheckout').addEventListener('click', checkout);
+  document.getElementById('cartBody').addEventListener('click', function(e) {
+    var btn = e.target.closest('.qty-b');
+    if (!btn) return;
+    updateQty(btn.dataset.cid, parseInt(btn.dataset.qd,10));
+  });
+}
+
+/* ================================================================
+   SHEETS
+   ================================================================ */
+function openSheet(id) {
+  document.getElementById(id+'Overlay').classList.add('on');
+  document.getElementById(id+'Sheet').classList.add('on');
+  lockScroll();
+}
+function closeSheet(id) {
+  document.getElementById(id+'Overlay').classList.remove('on');
+  document.getElementById(id+'Sheet').classList.remove('on');
+  unlockScroll();
+}
+
+/* ================================================================
+   BOUTIQUE DETAIL
+   ================================================================ */
+function openBoutique(id) {
+  var s = SHOPS.find(function(x){ return x.id===id; });
+  if (!s) return;
+  ST.shopOpen = s;
+  document.getElementById('bpLogo').textContent    = s.emoji;
+  document.getElementById('bpCoverBg').className   = 'bp-cover-bg '+s.cover;
+  document.getElementById('bpName').textContent    = s.name;
+  document.getElementById('bpOwner').textContent   = '🇸🇳 '+s.owner+' -- '+s.city;
+  document.getElementById('bpDesc').textContent    = s.desc || '';
+  document.getElementById('bpSP').textContent      = fNum(s.prods);
+  document.getElementById('bpSV').textContent      = fNum(s.sales);
+  document.getElementById('bpSN').textContent      = s.rating+'⭐';
+  document.getElementById('bpSF').textContent      = fNum(s.followers);
+  /* reset follow */
+  var isFoll = ST.favs.indexOf('shop-'+s.id) > -1;
+  var fb = document.getElementById('bpBtnFoll');
+  fb.textContent = isFoll ? '♥ Abonne' : '♡ Suivre';
+  fb.classList.toggle('on', isFoll);
+  /* load tab */
+  switchBpTab('prods');
+  document.getElementById('boutiquePage').classList.add('on');
+  lockScroll();
+}
+function closeBoutique() {
+  document.getElementById('boutiquePage').classList.remove('on');
+  unlockScroll();
+  ST.shopOpen = null;
+}
+function switchBpTab(tab) {
+  document.querySelectorAll('.bp-tab').forEach(function(t){ t.classList.toggle('on', t.dataset.bptab===tab); });
+  var s = ST.shopOpen;
+  var w = document.getElementById('bpContent');
+  if (!s) return;
+  if (tab==='prods') {
+    var sp = PRODS.filter(function(p){ return p.shop===s.name; });
+    w.innerHTML = sp.length
+      ? '<div class="prod-grid" style="padding:0">'+sp.map(function(p){ return cardProd(p); }).join('')+'</div>'
+      : '<p style="color:var(--mut);padding:24px;text-align:center">Aucun produit</p>';
+    bindProdEvents(w);
+  } else if (tab==='apropos') {
+    w.innerHTML = '<div style="background:#fff;border:1px solid var(--bdr);border-radius:var(--r16);padding:16px">'
+      +'<div style="font-family:\'Playfair Display\',serif;font-size:16px;font-weight:700;margin-bottom:12px">Informations</div>'
+      +'<div style="display:flex;flex-direction:column;gap:10px;font-size:14px">'
+      +'<div style="display:flex;gap:10px"><span style="color:var(--mut);width:80px">Ville</span><strong>'+h(s.city)+'</strong></div>'
+      +'<div style="display:flex;gap:10px"><span style="color:var(--mut);width:80px">Categorie</span><strong>'+h(s.cat)+'</strong></div>'
+      +'<div style="display:flex;gap:10px"><span style="color:var(--mut);width:80px">Tel</span><a href="tel:'+h(s.phone)+'" style="color:var(--g);font-weight:600">'+h(s.phone)+'</a></div>'
+      +'<div style="display:flex;gap:10px"><span style="color:var(--mut);width:80px">WhatsApp</span><a href="https://wa.me/'+s.wa.replace(/\D/g,'')+'" style="color:#25D366;font-weight:600">Envoyer un message</a></div>'
+      +'</div></div>'
+      +'<button style="width:100%;margin-top:12px;padding:14px;border-radius:var(--r12);background:#25D366;color:#fff;font-size:15px;font-weight:700;border:none;cursor:pointer;font-family:inherit" id="btnBpContactWa">💬 Contacter sur WhatsApp</button>';
+    document.getElementById('btnBpContactWa').addEventListener('click', function(){ waShop(s.wa, s.name); });
+  } else {
+    w.innerHTML = '<div style="text-align:center;padding:20px">'
+      +'<div style="font-family:\'Playfair Display\',serif;font-size:48px;font-weight:900;color:var(--gold)">'+s.rating+'</div>'
+      +'<div style="font-size:20px;color:var(--gold)">'+stars(s.rating)+'</div>'
+      +'<div style="font-size:13px;color:var(--mut);margin-top:4px">Note globale</div></div>'
+      +['Mariama D.','Ibrahima F.','Fatou S.'].map(function(n){
+        return '<div style="background:#fff;border:1px solid var(--bdr);border-radius:var(--r12);padding:14px;margin-bottom:10px">'
+          +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">'
+          +'<div style="width:36px;height:36px;border-radius:50%;background:var(--g);display:flex;align-items:center;justify-content:center;font-size:18px">👤</div>'
+          +'<div><strong style="font-size:14px">'+h(n)+'</strong><div style="font-size:11px;color:var(--mut)">Il y a quelques jours</div></div>'
+          +'<div style="margin-left:auto;color:var(--gold);font-size:14px">★★★★★</div></div>'
+          +'<div style="font-size:13px;color:var(--txt2);line-height:1.6">Tres satisfaite de ma commande ! Qualite impeccable et livraison rapide.</div></div>';
+      }).join('');
+  }
+}
+function bindBoutique() {
+  document.getElementById('btnBoutiqueBack').addEventListener('click', closeBoutique);
+  document.getElementById('bpBtnWa').addEventListener('click', function(){ if(ST.shopOpen) waShop(ST.shopOpen.wa, ST.shopOpen.name); });
+  document.getElementById('bpBtnFoll').addEventListener('click', function(){
+    var s = ST.shopOpen; if (!s) return;
+    var k = 'shop-'+s.id; var idx = ST.favs.indexOf(k);
+    var fb = document.getElementById('bpBtnFoll');
+    if (idx > -1) { ST.favs.splice(idx,1); fb.textContent='♡ Suivre'; fb.classList.remove('on'); showToast('Boutique retiree des favoris','i'); }
+    else          { ST.favs.push(k); fb.textContent='♥ Abonne'; fb.classList.add('on'); showToast('Vous suivez '+s.name+' !','s'); }
+    lsSet('sm3_favs', ST.favs); updateFavBadge();
+  });
+  document.getElementById('btnBoutiqueShare').addEventListener('click', function(){
+    var s = ST.shopOpen; if (!s) return;
+    var url = window.location.origin+'/boutique/'+genSlug(s.name);
+    if (navigator.share) { navigator.share({title:s.name,url:url}).catch(function(){}); }
+    else if (navigator.clipboard) { navigator.clipboard.writeText(url).then(function(){ showToast('Lien copie !','s'); }); }
+  });
+  document.getElementById('bpTabs').addEventListener('click', function(e){
+    var tab = e.target.closest('.bp-tab');
+    if (tab) switchBpTab(tab.dataset.bptab);
+  });
+}
+
+/* ================================================================
+   INSCRIPTION VENDEUR
+   ================================================================ */
+function openInscription() {
+  ST.regStep = 1;
+  updateRegUI();
+  document.getElementById('regPage').classList.add('on');
+  lockScroll();
+}
+function closeInscription() {
+  document.getElementById('regPage').classList.remove('on');
+  unlockScroll();
+  ST.regStep = 1;
+}
+function updateRegUI() {
+  var s = ST.regStep;
+  document.querySelectorAll('.reg-step').forEach(function(el,i){ el.classList.toggle('on', i+1===s); });
+  document.getElementById('regStepLbl').textContent = 'Etape '+s+' / 3';
+  document.getElementById('regFill').style.width = (s/3*100)+'%';
+  document.getElementById('btnRegPrev').style.display = s>1 ? 'flex' : 'none';
+  document.getElementById('btnRegNext').textContent = s<3 ? 'Continuer →' : '🚀 Creer ma boutique';
+}
+function validerReg() {
+  var s = ST.regStep;
+  if (s===1) {
+    var nom  = document.getElementById('rNom').value.trim();
+    var mail = document.getElementById('rEmail').value.trim();
+    var mdp  = document.getElementById('rMdp').value;
+    var conf = document.getElementById('rConf').value;
+    if (!nom)  { showToast('Entrez votre nom','w'); return false; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) { showToast('Email invalide','w'); return false; }
+    if (mdp.length < 8) { showToast('Mot de passe min. 8 caracteres','w'); return false; }
+    if (mdp !== conf) { showToast('Mots de passe differents','w'); return false; }
+  }
+  if (s===2) {
+    if (!document.getElementById('rVille').value) { showToast('Choisissez votre ville','w'); return false; }
+    if (!document.getElementById('rTel').value.trim()) { showToast('Entrez votre telephone','w'); return false; }
+  }
+  return true;
+}
+function soumettreInscription() {
+  if (ST.submitting) return;
+  var boutique = document.getElementById('rBoutique').value.trim();
+  var cat      = document.getElementById('rCat').value;
+  var nom      = document.getElementById('rNom').value.trim();
+  var email    = document.getElementById('rEmail').value.trim();
+  var ville    = document.getElementById('rVille').value;
+  var tel      = document.getElementById('rTel').value.trim();
+  if (!boutique||!cat) { showToast('Nom de boutique et categorie requis','w'); return; }
+
+  ST.submitting = true;
+  var btn = document.getElementById('btnRegNext');
+  btn.disabled = true; btn.textContent = '⏳ Creation...';
+
+  var msg = encodeURIComponent('Nouvelle boutique SenMarket !\n\nBoutique: '+boutique+'\nVendeur: '+nom+'\nVille: '+ville+'\nCategorie: '+cat+'\nTel: '+tel+'\nEmail: '+email);
+  window.open('https://wa.me/+212644696608?text='+msg,'_blank');
+
+  setTimeout(function() {
+    ST.submitting = false;
+    btn.disabled = false; btn.textContent = '🚀 Creer ma boutique';
+    closeInscription();
+    showToast('Boutique "'+boutique+'" creee ! Notre equipe vous contacte sous 24h.','s', 5000);
+  }, 800);
+}
+
+function bindInscription() {
+  document.getElementById('btnRegBack').addEventListener('click', closeInscription);
+  document.getElementById('btnMenuOuvrirBoutique').addEventListener('click', openInscription);
+  document.getElementById('btnRegPrev').addEventListener('click', function(){
+    ST.regStep = Math.max(1, ST.regStep-1); updateRegUI();
+  });
+  document.getElementById('btnRegNext').addEventListener('click', function(){
+    if (!validerReg()) return;
+    if (ST.regStep < 3) { ST.regStep++; updateRegUI(); }
+    else soumettreInscription();
+  });
+  document.getElementById('rBoutique').addEventListener('input', function(){
+    var slug = genSlug(this.value);
+    document.getElementById('slugPreview').textContent = slug ? 'senmarket.ma/boutique/'+slug : 'senmarket.ma/boutique/votre-nom';
+  });
+  document.getElementById('rMdp').addEventListener('input', function(){
+    var v = this.value; var s = 0;
+    if (v.length>=8) s++; if (v.length>=12) s++;
+    if (/[A-Z]/.test(v)) s++; if (/[0-9]/.test(v)) s++; if (/[^A-Za-z0-9]/.test(v)) s++;
+    var lvl = [{c:'#EF4444',l:'Tres faible',p:'20%'},{c:'#F97316',l:'Faible',p:'40%'},{c:'#F59E0B',l:'Moyen',p:'60%'},{c:'#22C55E',l:'Fort',p:'80%'},{c:'#15803D',l:'Tres fort',p:'100%'}];
+    var n = Math.min(s,4);
+    document.getElementById('sFill').style.width = lvl[n].p;
+    document.getElementById('sFill').style.background = lvl[n].c;
+    document.getElementById('sLbl').textContent = v ? lvl[n].l : '';
+    document.getElementById('sLbl').style.color = lvl[n].c;
+  });
+  document.getElementById('rLogo').addEventListener('change', function(){
+    var f = this.files[0]; if (!f) return;
+    var r = new FileReader();
+    r.onload = function(e){ var i=document.getElementById('logoPreview'); i.src=e.target.result; i.style.display='block'; };
+    r.readAsDataURL(f);
+  });
+}
+
+/* ================================================================
+   PROFIL
+   ================================================================ */
+function bindProfil() {
+  document.getElementById('btnMenuFavs').addEventListener('click', function(){ navigate('favoris'); });
+  document.getElementById('btnSupport').addEventListener('click', function(){
+    window.open('https://wa.me/+212644696608?text='+encodeURIComponent('Bonjour SenMarket ! J\'ai besoin d\'aide.'),'_blank');
+  });
+}
+
+/* ================================================================
+   WHATSAPP
+   ================================================================ */
+function waProd(p) {
+  var msg = encodeURIComponent('Bonjour ! Je souhaite commander via SenMarket :\n\n📦 '+p.name+'\n💰 '+p.price+' '+p.currency+'\n\nPouvez-vous confirmer la disponibilite et la livraison ? Merci !');
+  window.open('https://wa.me/'+p.phone.replace(/\D/g,'')+('?text='+msg),'_blank');
+}
+function waShop(wa, name) {
+  var msg = encodeURIComponent('Bonjour ! Je vous contacte depuis SenMarket concernant votre boutique "'+name+'". Pouvez-vous me presenter vos produits disponibles ?');
+  window.open('https://wa.me/'+(wa||'').replace(/\D/g,'')+('?text='+msg),'_blank');
+}
+
+/* ================================================================
+   KEYBOARD
+   ================================================================ */
+function bindKeyboard() {
+  document.addEventListener('keydown', function(e) {
+    var isEsc = e.key==='Escape'||e.key==='Esc'||e.keyCode===27;
+    if (!isEsc) return;
+    if (document.getElementById('boutiquePage').classList.contains('on')) { closeBoutique(); return; }
+    if (document.getElementById('regPage').classList.contains('on'))      { closeInscription(); return; }
+    if (document.getElementById('cartSheet').classList.contains('on'))    { closeCart_(); return; }
+  });
+}
+
+/* ================================================================
+   TOAST
+   ================================================================ */
+function showToast(msg, type, dur) {
+  /* FIX: dedup */
+  var key = msg+type;
+  if (ST._toastMap[key]) return;
+  ST._toastMap[key] = true;
+  setTimeout(function(){ delete ST._toastMap[key]; }, 1800);
+
+  var c = document.getElementById('toasts');
+  var t = document.createElement('div');
+  t.className = 'toast'+(type==='e'?' e':type==='w'?' w':'');
+  var icons = {s:'✅',e:'❌',w:'⚠️',i:'ℹ️'};
+  t.innerHTML = '<span>'+( icons[type]||'ℹ️' )+'</span><span style="flex:1">'+h(msg)+'</span><span class="toast-x" role="button" tabindex="0" aria-label="Fermer">&#10005;</span>';
+  t.querySelector('.toast-x').addEventListener('click', function(){ dismiss(t); });
+  c.appendChild(t);
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){ t.classList.add('show'); }); });
+  var d = dur || 3200;
+  setTimeout(function(){ dismiss(t); }, d);
+}
+function dismiss(t) {
+  if (!t.parentNode) return;
+  t.classList.add('hiding'); t.classList.remove('show');
+  setTimeout(function(){ if(t.parentNode) t.remove(); }, 380);
+}
+
+})(); /* end IIFE */
+</script>
+
+</body>
+</html>

@@ -1,0 +1,21 @@
+# SenMarket -- Netlify Redirects
+# Format: source  destination  status_code
+
+# Dashboard vendeur -- URL propre sans espaces
+/dashboard    /tableau%20de%20bord.html    200
+/dashboard/   /tableau%20de%20bord.html    200
+
+# Boutique publique
+/boutique/:slug    /boutique.html?slug=:slug    200
+
+# Inscription vendeur
+/inscription    /inscription.html    200
+
+# Messages
+/messages    /messages.html    200
+
+# Connexion
+/connexion    /connexion.html    200
+
+# Fallback 404 -> accueil
+/*    /index.html    200

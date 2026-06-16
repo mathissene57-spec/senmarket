@@ -1,0 +1,8 @@
+# SenMarket -- Netlify Redirects
+/dashboard     /tableau_de_bord.html    200
+/dashboard/    /tableau_de_bord.html    200
+/login         /login.html              200
+/inscription   /inscription.html        200
+/boutique/:slug /boutique.html?slug=:slug 200
+/messages      /messages.html           200
+/*             /index.html              200

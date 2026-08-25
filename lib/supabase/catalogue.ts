@@ -44,37 +44,66 @@ export type Boutique = {
  * condition) ni les produits par le statut de leur boutique -- ce filtrage
  * est donc fait ici, cote requete, pas garanti par la base. Voir CLAUDE.md
  * ("RLS / ownership model") pour le detail de ce comportement reel.
+ *
+ * Deux requetes separees plutot qu'un embed PostgREST `boutiques -> produits` :
+ * `produits.boutique_id` n'a pas de contrainte de cle etrangere vers
+ * `boutiques.id` dans le schema reel (verifie sur pg_constraint), donc
+ * PostgREST ne peut pas resoudre cette relation ("Could not find a
+ * relationship between 'boutiques' and 'produits' in the schema cache").
+ * L'embed `produit_images` reste utilisable : sa FK vers `produits` existe.
  */
 export async function getCatalogue(): Promise<Boutique[]> {
   const supabase = await createClient()
 
-  const { data, error } = await supabase
+  const { data: boutiquesData, error: erreurBoutiques } = await supabase
     .from('boutiques')
     .select(
-      `
-      id, nom, description, ville, categorie, whatsapp, emoji,
-      verifie, note, actif, logo_url, banniere_url, devise,
-      produits (
-        id, boutique_id, nom, description, prix, stock, categorie,
-        badge, emoji, image_url, livraison,
-        produit_images ( id, url, ordre )
-      )
-      `
+      `id, nom, description, ville, categorie, whatsapp, emoji,
+      verifie, note, actif, logo_url, banniere_url, devise`
     )
     .eq('actif', true)
-    .eq('produits.actif', true)
     .order('nom', { ascending: true })
 
-  if (error) {
-    throw new Error(`Impossible de charger le catalogue : ${error.message}`)
+  if (erreurBoutiques) {
+    throw new Error(`Impossible de charger le catalogue : ${erreurBoutiques.message}`)
   }
 
-  return (data ?? []).map((boutique) => ({
-    ...boutique,
-    produits: (boutique.produits ?? []).map((produit) => ({
+  const boutiques = boutiquesData ?? []
+  if (boutiques.length === 0) {
+    return []
+  }
+
+  const { data: produitsData, error: erreurProduits } = await supabase
+    .from('produits')
+    .select(
+      `id, boutique_id, nom, description, prix, stock, categorie,
+      badge, emoji, image_url, livraison,
+      produit_images ( id, url, ordre )`
+    )
+    .eq('actif', true)
+    .in(
+      'boutique_id',
+      boutiques.map((boutique) => boutique.id)
+    )
+
+  if (erreurProduits) {
+    throw new Error(`Impossible de charger le catalogue : ${erreurProduits.message}`)
+  }
+
+  const produitsParBoutique = new Map<string, Produit[]>()
+  for (const produit of produitsData ?? []) {
+    const produitTrie = {
       ...produit,
       produit_images: [...(produit.produit_images ?? [])].sort((a, b) => a.ordre - b.ordre),
-    })),
+    } as Produit
+    const liste = produitsParBoutique.get(produit.boutique_id) ?? []
+    liste.push(produitTrie)
+    produitsParBoutique.set(produit.boutique_id, liste)
+  }
+
+  return boutiques.map((boutique) => ({
+    ...boutique,
+    produits: produitsParBoutique.get(boutique.id) ?? [],
   })) as Boutique[]
 }
 
@@ -94,48 +123,51 @@ export type ProduitDetail = Produit & {
  * dont la boutique est actif = false est traite comme introuvable (null),
  * pour rester coherent avec ce qui est (ou n'est pas) visible dans le
  * catalogue.
+ *
+ * Deux requetes separees (produit, puis boutique) pour la meme raison que
+ * getCatalogue() : pas de FK `produits.boutique_id -> boutiques.id` dans le
+ * schema reel, donc l'embed `boutique:boutiques(...)` est irresoluble par
+ * PostgREST.
  */
 export async function getProduit(id: string): Promise<ProduitDetail | null> {
   const supabase = await createClient()
 
-  const { data, error } = await supabase
+  const { data: produitData, error: erreurProduit } = await supabase
     .from('produits')
     .select(
-      `
-      id, boutique_id, nom, description, prix, stock, categorie,
+      `id, boutique_id, nom, description, prix, stock, categorie,
       badge, emoji, image_url, livraison,
-      produit_images ( id, url, ordre ),
-      boutique:boutiques ( id, nom, devise, logo_url, emoji, whatsapp, ville, categorie, verifie, note, actif )
-      `
+      produit_images ( id, url, ordre )`
     )
     .eq('id', id)
     .eq('actif', true)
     .maybeSingle()
 
-  if (error) {
-    throw new Error(`Impossible de charger le produit : ${error.message}`)
+  if (erreurProduit) {
+    throw new Error(`Impossible de charger le produit : ${erreurProduit.message}`)
   }
 
-  if (!data) {
+  if (!produitData) {
     return null
   }
 
-  // Sans types generes depuis le schema, supabase-js type la relation
-  // embarquee `boutique` comme un tableau, alors qu'a l'execution PostgREST
-  // renvoie un seul objet pour une relation many-to-one (produits.boutique_id
-  // -> boutiques.id). On normalise ici pour gerer les deux formes possibles.
-  const boutiqueRaw = data.boutique as unknown
-  const boutique = (Array.isArray(boutiqueRaw) ? boutiqueRaw[0] : boutiqueRaw) as BoutiqueResume | undefined
+  const { data: boutique, error: erreurBoutique } = await supabase
+    .from('boutiques')
+    .select('id, nom, devise, logo_url, emoji, whatsapp, ville, categorie, verifie, note, actif')
+    .eq('id', produitData.boutique_id)
+    .maybeSingle()
+
+  if (erreurBoutique) {
+    throw new Error(`Impossible de charger le produit : ${erreurBoutique.message}`)
+  }
 
   if (!boutique || boutique.actif !== true) {
     return null
   }
 
-  const { boutique: _ignore, ...produit } = data as unknown as Produit & { boutique: unknown }
-
   return {
-    ...produit,
-    boutique,
-    produit_images: [...(produit.produit_images ?? [])].sort((a, b) => a.ordre - b.ordre),
+    ...produitData,
+    boutique: boutique as BoutiqueResume,
+    produit_images: [...(produitData.produit_images ?? [])].sort((a, b) => a.ordre - b.ordre),
   }
 }

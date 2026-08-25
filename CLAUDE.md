@@ -81,6 +81,10 @@ Required env vars (see `lib/supabase/client.ts`, `lib/supabase/server.ts`, `midd
 - `rechercher_mes_commandes` has no OTP — a product/security decision, not yet made.
 - No audit trail for `avis` moderation (there's no status column at all — every inserted review is immediately public).
 
+## Known backend bug (discovered in Phase 3B.4, not fixed)
+
+`stats_clients_boutique(p_boutique_id)` **fails for every caller, unconditionally** — this is not an RLS/permissions issue. The function is declared `STABLE` but its body contains `create temp table tmp_cv on commit drop as select ...`, and PostgreSQL forbids `CREATE TABLE AS` (a side-effecting/volatile operation) inside a `STABLE` function: `ERROR: 0A000: CREATE TABLE AS is not allowed in a non-volatile function`. Confirmed by direct execution against the live database — it has apparently never worked for anyone. `top_produits_boutique` is unaffected (pure `LANGUAGE sql STABLE`, no temp table). The Next.js dashboard (`lib/supabase/dashboard.ts`) works around this by treating a failed call as "no stats available" rather than crashing, but the RPC itself has not been touched — fixing it (e.g. `STABLE` → `VOLATILE`, or dropping the temp table in favor of CTEs) needs explicit sign-off before being applied to Supabase, same governance as everything else backend-related in this file.
+
 ## Known issues fixed so far
 
 - `app/login/page.tsx` originally had invalid smart-quote syntax and stray Markdown code fences that broke compilation — fixed (straight quotes, no logic changes).

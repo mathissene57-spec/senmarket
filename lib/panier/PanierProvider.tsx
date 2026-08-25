@@ -8,6 +8,7 @@ export type PanierItem = {
   produitId: string
   boutiqueId: string
   boutiqueNom: string
+  boutiqueWhatsapp: string | null
   devise: string
   nom: string
   prix: number

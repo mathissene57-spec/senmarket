@@ -7,6 +7,7 @@ type Props = {
   produitId: string
   boutiqueId: string
   boutiqueNom: string
+  boutiqueWhatsapp: string | null
   devise: string
   nom: string
   prix: number
@@ -29,6 +30,7 @@ export function AjouterAuPanier(props: Props) {
         produitId: props.produitId,
         boutiqueId: props.boutiqueId,
         boutiqueNom: props.boutiqueNom,
+        boutiqueWhatsapp: props.boutiqueWhatsapp,
         devise: props.devise,
         nom: props.nom,
         prix: props.prix,
@@ -55,6 +57,7 @@ export function AjouterAuPanier(props: Props) {
         produitId: props.produitId,
         boutiqueId: props.boutiqueId,
         boutiqueNom: props.boutiqueNom,
+        boutiqueWhatsapp: props.boutiqueWhatsapp,
         devise: props.devise,
         nom: props.nom,
         prix: props.prix,

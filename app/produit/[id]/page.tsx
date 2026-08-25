@@ -84,6 +84,7 @@ export default async function ProduitPage({ params }: { params: { id: string } }
             produitId={produit.id}
             boutiqueId={produit.boutique.id}
             boutiqueNom={produit.boutique.nom}
+            boutiqueWhatsapp={produit.boutique.whatsapp}
             devise={produit.boutique.devise}
             nom={produit.nom}
             prix={produit.prix}

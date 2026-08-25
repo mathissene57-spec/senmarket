@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { getCatalogue } from '@/lib/supabase/catalogue'
 
 export const metadata = {
@@ -67,7 +68,7 @@ export default async function CataloguePage() {
                 const image = produit.produit_images[0]?.url ?? produit.image_url
                 const epuise = produit.stock <= 0
                 return (
-                  <div key={produit.id} style={styles.carteProduit}>
+                  <Link key={produit.id} href={`/produit/${produit.id}`} style={styles.carteProduit}>
                     {image ? (
                       <img src={image} alt={produit.nom} style={styles.imageProduitImg} />
                     ) : (
@@ -80,7 +81,7 @@ export default async function CataloguePage() {
                       </span>
                       {epuise && <div style={styles.badgeEpuise}>Épuisé</div>}
                     </div>
-                  </div>
+                  </Link>
                 )
               })}
             </div>
@@ -149,6 +150,9 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: 14,
     overflow: 'hidden',
     background: '#FFFFFF',
+    display: 'block',
+    textDecoration: 'none',
+    color: 'inherit',
   },
   imageProduit: {
     width: '100%',

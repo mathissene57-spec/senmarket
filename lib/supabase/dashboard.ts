@@ -113,12 +113,10 @@ export async function getDashboard(): Promise<DashboardVendeur> {
       throw new Error(`Impossible de charger les commandes de ${boutique.nom} : ${commandesRes.error.message}`)
     }
 
-    // stats_clients_boutique() echoue actuellement pour tout appelant (bug
-    // reel cote backend : la fonction est declaree STABLE mais contient un
-    // CREATE TABLE AS, interdit pour ce type de fonction en PostgreSQL --
-    // "CREATE TABLE AS is not allowed in a non-volatile function"). On
-    // degrade proprement plutot que de faire planter tout le tableau de
-    // bord : les stats de cette boutique restent simplement absentes.
+    // Corrigee cote backend (voir CLAUDE.md), mais on garde une degradation
+    // propre par precaution : un echec ponctuel de cette RPC ne doit pas
+    // faire planter tout le tableau de bord, seulement priver cette
+    // boutique de ses stats.
     let stats: StatsBoutique | null = null
     const statsRes = await supabase.rpc('stats_clients_boutique', { p_boutique_id: boutique.id }).maybeSingle()
     if (!statsRes.error) {

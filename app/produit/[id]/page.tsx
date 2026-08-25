@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getProduit } from '@/lib/supabase/catalogue'
+import { AjouterAuPanier } from './AjouterAuPanier'
 
 export async function generateMetadata({ params }: { params: { id: string } }) {
   try {
@@ -78,6 +79,18 @@ export default async function ProduitPage({ params }: { params: { id: string } }
           ) : (
             <div style={styles.stock}>{produit.stock} en stock</div>
           )}
+
+          <AjouterAuPanier
+            produitId={produit.id}
+            boutiqueId={produit.boutique.id}
+            boutiqueNom={produit.boutique.nom}
+            devise={produit.boutique.devise}
+            nom={produit.nom}
+            prix={produit.prix}
+            image={images[0]?.url ?? null}
+            emoji={produit.emoji}
+            stock={produit.stock}
+          />
 
           {produit.description && <p style={styles.description}>{produit.description}</p>}
 

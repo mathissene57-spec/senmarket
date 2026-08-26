@@ -36,4 +36,32 @@
       link.classList.add('active');
     }
   });
+
+  // Contact form: build a pre-filled WhatsApp message instead of a server submission (static site, no backend).
+  const contactForm = document.querySelector('.contact-form[data-whatsapp-number]');
+  if (contactForm) {
+    contactForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const number = contactForm.dataset.whatsappNumber;
+      const get = (name) => (contactForm.elements[name]?.value || '').trim();
+
+      const lines = [
+        'Nouvelle demande de projet — FlowDynamicsAgency',
+        `Nom : ${get('name')}`,
+      ];
+      const company = get('company');
+      if (company) lines.push(`Entreprise / Boutique : ${company}`);
+      const whatsappNumber = get('whatsapp-number');
+      if (whatsappNumber) lines.push(`Numéro WhatsApp : ${whatsappNumber}`);
+      lines.push(`Type de projet : ${get('need')}`);
+      lines.push(`Message : ${get('message')}`);
+
+      const text = encodeURIComponent(lines.join('\n'));
+      window.open(`https://wa.me/${number}?text=${text}`, '_blank', 'noopener');
+
+      const note = contactForm.querySelector('.form-note');
+      if (note) note.style.display = 'block';
+      contactForm.reset();
+    });
+  }
 })();

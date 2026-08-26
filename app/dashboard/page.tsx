@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { getDashboard } from '@/lib/supabase/dashboard'
+import { NouvelleVente } from './NouvelleVente'
 
 export const metadata = {
   title: 'Tableau de bord vendeur — SenMarket',
@@ -79,6 +80,8 @@ export default async function DashboardPage() {
               {boutique.nb_ventes > 1 ? 's' : ''}
             </div>
           </div>
+
+          <NouvelleVente boutiqueId={boutique.id} devise={boutique.devise} produits={produits} />
 
           {stats && (
             <div style={styles.statsGrille}>
@@ -170,29 +173,47 @@ export default async function DashboardPage() {
             {commandes.length === 0 ? (
               <p style={styles.vide}>Aucune commande pour cette boutique.</p>
             ) : (
-              <div style={styles.tableWrap}>
-                <table style={styles.table}>
-                  <thead>
-                    <tr>
-                      <th style={styles.th}>Client</th>
-                      <th style={styles.th}>Téléphone</th>
-                      <th style={styles.th}>Statut</th>
-                      <th style={styles.th}>Origine</th>
-                      <th style={styles.th}>Date</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {commandes.map((c) => (
-                      <tr key={c.id}>
-                        <td style={styles.td}>{c.client_nom ?? '—'}</td>
-                        <td style={styles.td}>{c.client_telephone ?? '—'}</td>
-                        <td style={styles.td}>{STATUTS_LABEL[c.statut] ?? c.statut}</td>
-                        <td style={styles.td}>{c.origine}</td>
-                        <td style={styles.td}>{new Date(c.created_at).toLocaleDateString('fr-FR')}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div style={styles.listeCommandes}>
+                {commandes.map((c) => {
+                  const totalCommande = c.items.reduce((s, l) => s + (l.prix_ligne ?? l.prix_unitaire * l.quantite), 0)
+                  return (
+                    <div key={c.id} style={styles.carteCommande}>
+                      <div style={styles.enteteCommande}>
+                        <div>
+                          <strong>{c.client_nom ?? 'Client anonyme'}</strong>
+                          {c.client_telephone && <span style={styles.telCommande}> · {c.client_telephone}</span>}
+                        </div>
+                        <div style={styles.metaCommande}>
+                          {STATUTS_LABEL[c.statut] ?? c.statut} · {c.origine} ·{' '}
+                          {new Date(c.created_at).toLocaleDateString('fr-FR')}
+                        </div>
+                      </div>
+                      {c.items.length > 0 && (
+                        <table style={styles.tableItems}>
+                          <tbody>
+                            {c.items.map((item) => (
+                              <tr key={item.id}>
+                                <td style={styles.tdItem}>
+                                  {item.produit_id === null && <span style={styles.badgeLibreHistorique}>Article libre</span>}
+                                  {item.nom_produit}
+                                </td>
+                                <td style={styles.tdItemChiffre}>
+                                  {item.quantite} × {item.prix_unitaire} {boutique.devise}
+                                </td>
+                                <td style={styles.tdItemChiffre}>
+                                  {item.prix_ligne ?? item.prix_unitaire * item.quantite} {boutique.devise}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                      <div style={styles.totalCommande}>
+                        Total : {totalCommande} {boutique.devise}
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
@@ -258,6 +279,37 @@ const styles: { [key: string]: React.CSSProperties } = {
   ligneListe: { marginBottom: 4 },
   tableWrap: { overflowX: 'auto' },
   table: { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
+  listeCommandes: { display: 'flex', flexDirection: 'column', gap: 10 },
+  carteCommande: {
+    background: '#F9F6F0',
+    border: '1px solid #E8E2D9',
+    borderRadius: 10,
+    padding: '10px 14px',
+  },
+  enteteCommande: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 6,
+    fontSize: 13,
+    marginBottom: 8,
+  },
+  telCommande: { color: '#7A7A7A' },
+  metaCommande: { color: '#7A7A7A', fontSize: 12 },
+  tableItems: { width: '100%', borderCollapse: 'collapse', fontSize: 12 },
+  tdItem: { padding: '4px 0', color: '#3D3D3D' },
+  tdItemChiffre: { padding: '4px 0', textAlign: 'right', color: '#3D3D3D', whiteSpace: 'nowrap' },
+  badgeLibreHistorique: {
+    display: 'inline-block',
+    fontSize: 10,
+    fontWeight: 700,
+    color: '#fff',
+    background: '#D4A017',
+    borderRadius: 6,
+    padding: '2px 6px',
+    marginRight: 6,
+  },
+  totalCommande: { textAlign: 'right', fontWeight: 800, fontSize: 12, color: '#006B3C', marginTop: 6 },
   th: {
     textAlign: 'left',
     padding: '8px 10px',

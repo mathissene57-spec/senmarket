@@ -20,6 +20,15 @@ export type ProduitVendeur = {
   ventes: number
 }
 
+export type LigneCommande = {
+  id: string
+  produit_id: string | null
+  nom_produit: string
+  prix_unitaire: number
+  quantite: number
+  prix_ligne: number | null
+}
+
 export type CommandeVendeur = {
   id: string
   client_nom: string | null
@@ -27,6 +36,7 @@ export type CommandeVendeur = {
   statut: string
   created_at: string
   origine: string
+  items: LigneCommande[]
 }
 
 export type StatsBoutique = {
@@ -113,6 +123,35 @@ export async function getDashboard(): Promise<DashboardVendeur> {
       throw new Error(`Impossible de charger les commandes de ${boutique.nom} : ${commandesRes.error.message}`)
     }
 
+    const commandeIds = (commandesRes.data ?? []).map((c) => c.id)
+    let itemsParCommande = new Map<string, LigneCommande[]>()
+    if (commandeIds.length > 0) {
+      const itemsRes = await supabase
+        .from('commande_items')
+        .select('id, commande_id, produit_id, nom_produit, prix_unitaire, quantite, prix_ligne')
+        .in('commande_id', commandeIds)
+      if (itemsRes.error) {
+        throw new Error(`Impossible de charger le detail des commandes de ${boutique.nom} : ${itemsRes.error.message}`)
+      }
+      for (const item of itemsRes.data ?? []) {
+        const liste = itemsParCommande.get(item.commande_id) ?? []
+        liste.push({
+          id: item.id,
+          produit_id: item.produit_id,
+          nom_produit: item.nom_produit,
+          prix_unitaire: item.prix_unitaire,
+          quantite: item.quantite,
+          prix_ligne: item.prix_ligne,
+        })
+        itemsParCommande.set(item.commande_id, liste)
+      }
+    }
+
+    const commandesAvecItems: CommandeVendeur[] = (commandesRes.data ?? []).map((c) => ({
+      ...c,
+      items: itemsParCommande.get(c.id) ?? [],
+    }))
+
     // Corrigee cote backend (voir CLAUDE.md), mais on garde une degradation
     // propre par precaution : un echec ponctuel de cette RPC ne doit pas
     // faire planter tout le tableau de bord, seulement priver cette
@@ -131,7 +170,7 @@ export async function getDashboard(): Promise<DashboardVendeur> {
     resultats.push({
       boutique,
       produits: produitsRes.data ?? [],
-      commandes: commandesRes.data ?? [],
+      commandes: commandesAvecItems,
       stats,
       topProduits: topRes.data ?? [],
     })

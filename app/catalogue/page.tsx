@@ -76,9 +76,18 @@ export default async function CataloguePage() {
                     )}
                     <div style={styles.corpsProduit}>
                       <p style={styles.nomProduit}>{produit.nom}</p>
-                      <span style={styles.prixProduit}>
-                        {produit.prix} {boutique.devise}
-                      </span>
+                      {produit.prixPromo != null ? (
+                        <span style={styles.prixProduit}>
+                          <span style={styles.prixBarre}>
+                            {produit.prix} {boutique.devise}
+                          </span>{' '}
+                          {produit.prixPromo} {boutique.devise}
+                        </span>
+                      ) : (
+                        <span style={styles.prixProduit}>
+                          {produit.prix} {boutique.devise}
+                        </span>
+                      )}
                       {epuise && <div style={styles.badgeEpuise}>Épuisé</div>}
                     </div>
                   </Link>
@@ -173,6 +182,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   corpsProduit: { padding: '10px 12px' },
   nomProduit: { fontSize: 13, fontWeight: 700, margin: '0 0 4px', lineHeight: 1.3 },
   prixProduit: { fontSize: 14, fontWeight: 900, color: '#006B3C' },
+  prixBarre: { textDecoration: 'line-through', color: '#7A7A7A', fontWeight: 400, fontSize: 12 },
   badgeEpuise: {
     display: 'inline-block',
     fontSize: 10,

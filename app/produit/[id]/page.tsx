@@ -70,9 +70,18 @@ export default async function ProduitPage({ params }: { params: { id: string } }
             {produit.boutique.verifie && ' ✅'}
           </p>
 
-          <div style={styles.prix}>
-            {produit.prix} {produit.boutique.devise}
-          </div>
+          {produit.prixPromo != null ? (
+            <div style={styles.prix}>
+              <span style={styles.prixBarre}>
+                {produit.prix} {produit.boutique.devise}
+              </span>{' '}
+              {produit.prixPromo} {produit.boutique.devise}
+            </div>
+          ) : (
+            <div style={styles.prix}>
+              {produit.prix} {produit.boutique.devise}
+            </div>
+          )}
 
           {epuise ? (
             <div style={styles.badgeEpuise}>Épuisé</div>
@@ -80,6 +89,10 @@ export default async function ProduitPage({ params }: { params: { id: string } }
             <div style={styles.stock}>{produit.stock} en stock</div>
           )}
 
+          {/* prix plein volontairement, pas prixPromo : creer_commande_complete
+              recalcule prix_unitaire depuis produits.prix cote serveur et ne
+              consulte jamais la table promotions -- afficher le prix reduit
+              ici promettrait une remise que la commande ne tiendra pas. */}
           <AjouterAuPanier
             produitId={produit.id}
             boutiqueId={produit.boutique.id}
@@ -153,6 +166,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   nom: { fontFamily: "'Playfair Display', serif", fontSize: 24, fontWeight: 900, margin: 0 },
   boutiqueLigne: { color: '#7A7A7A', fontSize: 14, margin: 0 },
   prix: { fontSize: 26, fontWeight: 900, color: '#006B3C' },
+  prixBarre: { textDecoration: 'line-through', color: '#7A7A7A', fontWeight: 400, fontSize: 15 },
   badgeEpuise: {
     display: 'inline-block',
     alignSelf: 'flex-start',

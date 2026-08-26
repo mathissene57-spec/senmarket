@@ -53,10 +53,10 @@
 
 <section id="whatsapp">
   <div class="container contact-grid">
-    <form class="contact-form reveal" onsubmit="event.preventDefault(); this.querySelector('.form-note').style.display='block';">
+    <form class="contact-form reveal" data-whatsapp-number="212644696608">
       <div class="eyebrow">Démarrer un projet</div>
       <h2 style="margin-bottom:10px;">Décrivez votre besoin</h2>
-      <p style="margin-bottom:10px;">Laissez-nous vos coordonnées, y compris votre numéro WhatsApp — nous vous recontactons rapidement pour en discuter.</p>
+      <p style="margin-bottom:10px;">Laissez-nous vos coordonnées — le formulaire ouvre WhatsApp avec votre demande pré-remplie, il ne vous reste qu'à l'envoyer.</p>
 
       <div class="field">
         <label for="name">Nom complet</label>
@@ -87,7 +87,7 @@
         <textarea id="message" name="message" placeholder="Quel problème business souhaitez-vous résoudre ?" required></textarea>
       </div>
       <button type="submit" class="btn btn-primary" style="align-self:flex-start;">Envoyer <span class="arrow">→</span></button>
-      <p class="form-note" style="display:none; color:var(--forest); font-weight:600;">Merci — nous revenons vers vous très vite.</p>
+      <p class="form-note" style="display:none; color:var(--forest); font-weight:600;">Merci — un onglet WhatsApp s'est ouvert avec votre demande, il ne reste plus qu'à l'envoyer.</p>
     </form>
 
     <div class="reveal reveal-delay-1">

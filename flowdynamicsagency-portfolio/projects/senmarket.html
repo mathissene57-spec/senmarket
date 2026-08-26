@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SenMarket — FlowDynamicsAgency</title>
+<meta name="description" content="SenMarket, la marketplace qui connecte les commerçants sénégalais et leurs clients entre le Sénégal et la diaspora. Étude de cas FlowDynamicsAgency.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/global.css">
+<link rel="stylesheet" href="../css/components.css">
+<link rel="stylesheet" href="../css/responsive.css">
+<noscript><style>.reveal{opacity:1!important;transform:none!important;}</style></noscript>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="container nav-inner">
+    <a href="../index.html" class="brand"><span class="brand-mark">F</span> FlowDynamicsAgency</a>
+    <div class="nav-links">
+      <a href="../index.html">Accueil</a>
+      <a href="../about.html">À propos</a>
+      <a href="../projects.html" class="active">Projets</a>
+      <a href="../services.html">Services</a>
+      <a href="../about.html#methode">Méthode</a>
+      <a href="../contact.html">Contact</a>
+    </div>
+    <div class="nav-cta">
+      <a href="../contact.html" class="btn btn-primary btn-sm">Démarrer un projet</a>
+      <button class="nav-toggle" aria-label="Ouvrir le menu" aria-expanded="false"><span></span><span></span><span></span></button>
+    </div>
+  </div>
+</nav>
+
+<div class="mobile-menu">
+  <a href="../index.html">Accueil</a>
+  <a href="../about.html">À propos</a>
+  <a href="../projects.html">Projets</a>
+  <a href="../services.html">Services</a>
+  <a href="../about.html#methode">Méthode</a>
+  <a href="../contact.html">Contact</a>
+  <a href="../contact.html" class="btn btn-gold">Démarrer un projet</a>
+</div>
+
+<header class="case-hero">
+  <div class="container">
+    <div class="eyebrow reveal in-view">Projet phare · Marketplace</div>
+    <h1 class="reveal reveal-delay-1 in-view">SenMarket</h1>
+    <p class="lede reveal reveal-delay-2 in-view">La marketplace qui connecte les commerces sénégalais au digital. SenMarket est pensée pour connecter les commerçants sénégalais et leurs clients, notamment autour du commerce entre le Sénégal et la diaspora.</p>
+    <div class="case-meta reveal reveal-delay-3">
+      <div><span class="k">Catégorie</span><span class="v">Marketplace</span></div>
+      <div><span class="k">Frontend</span><span class="v">Vanilla JavaScript</span></div>
+      <div><span class="k">Backend</span><span class="v">Supabase</span></div>
+      <div><span class="k">Base de données</span><span class="v">PostgreSQL</span></div>
+      <div><span class="k">Communication</span><span class="v">WhatsApp Business</span></div>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="container case-section-grid">
+    <div class="reveal">
+      <div class="eyebrow">Le problème</div>
+      <h2>Un catalogue dispersé, des commandes difficiles à suivre.</h2>
+      <p class="lede">De nombreux commerçants vendent encore principalement via WhatsApp, Facebook, Instagram, appels téléphoniques et commandes manuelles.</p>
+    </div>
+    <div class="reveal reveal-delay-1">
+      <ul class="check-list">
+        <li>WhatsApp</li>
+        <li>Facebook</li>
+        <li>Instagram</li>
+        <li>Appels téléphoniques</li>
+        <li>Commandes manuelles</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section style="background:var(--white); border-top:1px solid var(--line); border-bottom:1px solid var(--line);">
+  <div class="container case-section-grid">
+    <div class="reveal">
+      <div class="eyebrow">La solution</div>
+      <h2>Une plateforme pensée pour le commerce réel.</h2>
+    </div>
+    <div class="reveal reveal-delay-1">
+      <ul class="check-list">
+        <li>Créer des boutiques</li>
+        <li>Publier des produits</li>
+        <li>Gérer les catalogues</li>
+        <li>Afficher les prix dans différentes devises</li>
+        <li>Gérer un panier</li>
+        <li>Créer des commandes</li>
+        <li>Rediriger vers WhatsApp Business</li>
+        <li>Gérer les boutiques depuis un dashboard</li>
+        <li>Gérer les stocks</li>
+        <li>Préparer l'évolution vers le POS</li>
+        <li>Préparer la monétisation par abonnement</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <div class="section-head center reveal">
+      <div class="eyebrow">Architecture</div>
+      <h2>Une architecture pensée pour évoluer.</h2>
+      <p class="lede">SenMarket n'est pas seulement une marketplace. Le projet évolue vers un système de commerce unifié.</p>
+    </div>
+    <div class="stack-grid">
+      <div class="stack-col reveal"><h4>Frontend</h4><ul><li>Vanilla JavaScript</li></ul></div>
+      <div class="stack-col reveal reveal-delay-1"><h4>Backend</h4><ul><li>Supabase</li></ul></div>
+      <div class="stack-col reveal reveal-delay-2"><h4>Database</h4><ul><li>PostgreSQL</li></ul></div>
+      <div class="stack-col reveal reveal-delay-3"><h4>Authentication</h4><ul><li>Supabase Auth</li></ul></div>
+      <div class="stack-col reveal"><h4>Storage</h4><ul><li>Supabase Storage</li></ul></div>
+      <div class="stack-col reveal reveal-delay-1"><h4>Commerce</h4><ul><li>Panier + commandes + POS</li></ul></div>
+      <div class="stack-col reveal reveal-delay-2"><h4>Communication</h4><ul><li>WhatsApp Business</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<section style="background:var(--black); color:var(--white);">
+  <div class="container">
+    <div class="quote-band reveal" style="background:transparent; border:1px solid rgba(255,255,255,0.15);">
+      <div class="eyebrow" style="color:var(--gold-light); justify-content:center;">Une vision plus large</div>
+      <h2 style="color:var(--white);">Marketplace + Boutique physique + WhatsApp + Vente manuelle + POS, dans un même système de vente.</h2>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <div class="section-head center reveal">
+      <div class="eyebrow">Résultat</div>
+      <h2>Une base technique capable d'évoluer progressivement.</h2>
+    </div>
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);">
+      <div class="stat-card reveal" style="background:var(--white); border:1px solid var(--line);"><div class="stat-number" style="color:var(--forest);">10</div><div class="stat-label" style="color:var(--ink-soft);">boutiques</div></div>
+      <div class="stat-card reveal reveal-delay-1" style="background:var(--white); border:1px solid var(--line);"><div class="stat-number" style="color:var(--forest);">50</div><div class="stat-label" style="color:var(--ink-soft);">boutiques</div></div>
+      <div class="stat-card reveal reveal-delay-2" style="background:var(--white); border:1px solid var(--line);"><div class="stat-number" style="color:var(--forest);">200</div><div class="stat-label" style="color:var(--ink-soft);">boutiques</div></div>
+      <div class="stat-card reveal reveal-delay-3" style="background:var(--white); border:1px solid var(--line);"><div class="stat-number" style="color:var(--forest);">1 000+</div><div class="stat-label" style="color:var(--ink-soft);">boutiques (vision)</div></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <div class="cta-band reveal">
+      <h2>Un projet marketplace en tête ?</h2>
+      <p>Parlons de votre catalogue, de vos boutiques et de votre parcours de commande.</p>
+      <div class="cta-actions">
+        <a href="../contact.html" class="btn btn-gold">Démarrer un projet</a>
+        <a href="../projects.html" class="btn btn-outline-light">Voir les autres projets</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a href="../index.html" class="brand"><span class="brand-mark">F</span> FlowDynamicsAgency</a>
+        <p class="footer-tag">Build what moves business. Think. Build. Automate. Scale.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Navigation</h4>
+        <a href="../index.html">Accueil</a>
+        <a href="../about.html">À propos</a>
+        <a href="../projects.html">Projets</a>
+        <a href="../services.html">Services</a>
+      </div>
+      <div class="footer-col">
+        <h4>Projets</h4>
+        <a href="senmarket.html">SenMarket</a>
+        <a href="flowpos.html">FlowPOS</a>
+        <a href="crm.html">CRM Mobile Ultimate</a>
+        <a href="felwine-home.html">Felwine Home</a>
+      </div>
+      <div class="footer-col">
+        <h4>Contact</h4>
+        <a href="../contact.html">Démarrer un projet</a>
+        <a href="../contact.html#whatsapp">WhatsApp</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span class="footer-signature">FlowDynamicsAgency — Digital Solutions for Business.</span>
+      <span>© 2026 FlowDynamicsAgency. Tous droits réservés.</span>
+    </div>
+  </div>
+</footer>
+
+<script src="../js/main.js"></script>
+<script src="../js/animations.js"></script>
+<script src="../js/projects.js"></script>
+</body>
+</html>

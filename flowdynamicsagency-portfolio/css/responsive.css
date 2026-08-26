@@ -1,0 +1,50 @@
+/* ==========================================================================
+   FlowDynamicsAgency — responsive.css
+   ========================================================================== */
+
+@media (max-width: 1080px) {
+  .stats-grid, .method-grid, .services-grid, .stack-grid, .mini-grid, .audience-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .method-grid::before { display: none; }
+  .hero-grid { grid-template-columns: 1fr; }
+  .hero-visual { height: 420px; margin-top: 20px; }
+  .case-section-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 900px) {
+  .nav-links { display: none; }
+  .nav-cta .btn:not(.nav-toggle-only) { display: none; }
+  .nav-toggle { display: flex; }
+
+  .footer-grid { grid-template-columns: 1fr 1fr; gap: 30px; }
+
+  .project-card { grid-template-columns: 1fr; padding: 40px 30px; }
+  .project-shot { order: -1; }
+
+  .contact-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  section { padding: 70px 0; }
+  .container { padding: 0 22px; }
+  .hero { padding: 150px 0 80px; }
+  .hero-actions { flex-direction: column; align-items: stretch; }
+  .hero-actions .btn { justify-content: center; }
+  .hero-visual { height: 340px; }
+  .float-card { transform: scale(0.82); }
+  .fc-senmarket { left: -6%; top: 0; }
+  .fc-flowpos { right: -8%; }
+  .fc-crm { left: 4%; }
+  .fc-whatsapp { display: none; }
+
+  .stats-grid, .method-grid, .services-grid, .stack-grid, .mini-grid, .audience-grid {
+    grid-template-columns: 1fr;
+  }
+  .footer-grid { grid-template-columns: 1fr; gap: 34px; }
+  .footer-bottom { flex-direction: column; align-items: flex-start; }
+
+  .quote-band, .cta-band { padding: 46px 26px; border-radius: 20px; }
+  .process-item { grid-template-columns: 1fr; gap: 8px; }
+  .case-meta { gap: 24px; }
+}

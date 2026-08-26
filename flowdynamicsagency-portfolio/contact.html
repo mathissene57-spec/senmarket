@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contact — FlowDynamicsAgency</title>
+<meta name="description" content="Parlons de votre projet digital : marketplace, e-commerce, CRM, automatisation WhatsApp ou POS. Contactez FlowDynamicsAgency.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/global.css">
+<link rel="stylesheet" href="css/components.css">
+<link rel="stylesheet" href="css/responsive.css">
+<noscript><style>.reveal{opacity:1!important;transform:none!important;}</style></noscript>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="container nav-inner">
+    <a href="index.html" class="brand"><span class="brand-mark">F</span> FlowDynamicsAgency</a>
+    <div class="nav-links">
+      <a href="index.html">Accueil</a>
+      <a href="about.html">À propos</a>
+      <a href="projects.html">Projets</a>
+      <a href="services.html">Services</a>
+      <a href="about.html#methode">Méthode</a>
+      <a href="contact.html" class="active">Contact</a>
+    </div>
+    <div class="nav-cta">
+      <a href="contact.html" class="btn btn-primary btn-sm">Démarrer un projet</a>
+      <button class="nav-toggle" aria-label="Ouvrir le menu" aria-expanded="false"><span></span><span></span><span></span></button>
+    </div>
+  </div>
+</nav>
+
+<div class="mobile-menu">
+  <a href="index.html">Accueil</a>
+  <a href="about.html">À propos</a>
+  <a href="projects.html">Projets</a>
+  <a href="services.html">Services</a>
+  <a href="about.html#methode">Méthode</a>
+  <a href="contact.html">Contact</a>
+  <a href="contact.html" class="btn btn-gold">Démarrer un projet</a>
+</div>
+
+<header class="case-hero">
+  <div class="container">
+    <div class="eyebrow reveal in-view">Contact</div>
+    <h1 class="reveal reveal-delay-1 in-view">Vous avez un projet ? Parlons-en.</h1>
+    <p class="lede reveal reveal-delay-2 in-view">Digitaliser votre commerce, automatiser votre activité, créer un CRM, lancer une marketplace, développer un POS ou construire votre présence digitale — nous pouvons concevoir la solution avec vous.</p>
+  </div>
+</header>
+
+<section id="whatsapp">
+  <div class="container contact-grid">
+    <form class="contact-form reveal" onsubmit="event.preventDefault(); this.querySelector('.form-note').style.display='block';">
+      <div class="eyebrow">Démarrer un projet</div>
+      <h2 style="margin-bottom:10px;">Décrivez votre besoin</h2>
+      <p style="margin-bottom:10px;">Laissez-nous vos coordonnées, y compris votre numéro WhatsApp — nous vous recontactons rapidement pour en discuter.</p>
+
+      <div class="field">
+        <label for="name">Nom complet</label>
+        <input type="text" id="name" name="name" placeholder="Votre nom" required>
+      </div>
+      <div class="field">
+        <label for="company">Entreprise / Boutique</label>
+        <input type="text" id="company" name="company" placeholder="Nom de votre activité">
+      </div>
+      <div class="field">
+        <label for="whatsapp-number">Numéro WhatsApp</label>
+        <input type="tel" id="whatsapp-number" name="whatsapp-number" placeholder="+212 ...">
+      </div>
+      <div class="field">
+        <label for="need">Type de projet</label>
+        <select id="need" name="need">
+          <option>Marketplace</option>
+          <option>E-commerce</option>
+          <option>CRM</option>
+          <option>POS</option>
+          <option>Automatisation WhatsApp</option>
+          <option>Branding / Landing page</option>
+          <option>Autre</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="message">Votre projet</label>
+        <textarea id="message" name="message" placeholder="Quel problème business souhaitez-vous résoudre ?" required></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary" style="align-self:flex-start;">Envoyer <span class="arrow">→</span></button>
+      <p class="form-note" style="display:none; color:var(--forest); font-weight:600;">Merci — nous revenons vers vous très vite.</p>
+    </form>
+
+    <div class="reveal reveal-delay-1">
+      <div class="contact-info-card">
+        <h3>FlowDynamicsAgency</h3>
+        <div class="contact-line"><span>Positionnement</span><span>Digital Solutions for Business</span></div>
+        <div class="contact-line"><span>Expertises</span><span>Marketplace · CRM · POS · WhatsApp</span></div>
+        <div class="contact-line"><span>Zone</span><span>Sénégal · Maroc · Diaspora</span></div>
+        <div class="contact-line"><span>Réponse</span><span>Sous 24h ouvrées</span></div>
+      </div>
+
+      <div style="margin-top:30px;">
+        <h3 style="margin-bottom:16px;">Notre processus</h3>
+        <div class="process-list">
+          <div class="process-item" style="padding:16px 0;"><div class="process-num" style="font-size:1.1rem;">01</div><div><h3 style="font-size:1rem;">Discovery</h3><p style="font-size:0.88rem;">Compréhension du besoin.</p></div></div>
+          <div class="process-item" style="padding:16px 0;"><div class="process-num" style="font-size:1.1rem;">02</div><div><h3 style="font-size:1rem;">Architecture & Design</h3><p style="font-size:0.88rem;">Parcours et identité visuelle.</p></div></div>
+          <div class="process-item" style="padding:16px 0;"><div class="process-num" style="font-size:1.1rem;">03</div><div><h3 style="font-size:1rem;">Development & Testing</h3><p style="font-size:0.88rem;">Construction et scénarios réels.</p></div></div>
+          <div class="process-item" style="padding:16px 0; border-bottom:none;"><div class="process-num" style="font-size:1.1rem;">04</div><div><h3 style="font-size:1rem;">Launch & Optimization</h3><p style="font-size:0.88rem;">Mise en production et amélioration continue.</p></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a href="index.html" class="brand"><span class="brand-mark">F</span> FlowDynamicsAgency</a>
+        <p class="footer-tag">Build what moves business. Think. Build. Automate. Scale.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Navigation</h4>
+        <a href="index.html">Accueil</a>
+        <a href="about.html">À propos</a>
+        <a href="projects.html">Projets</a>
+        <a href="services.html">Services</a>
+      </div>
+      <div class="footer-col">
+        <h4>Projets</h4>
+        <a href="projects/senmarket.html">SenMarket</a>
+        <a href="projects/flowpos.html">FlowPOS</a>
+        <a href="projects/crm.html">CRM Mobile Ultimate</a>
+        <a href="projects/felwine-home.html">Felwine Home</a>
+      </div>
+      <div class="footer-col">
+        <h4>Contact</h4>
+        <a href="contact.html">Démarrer un projet</a>
+        <a href="contact.html#whatsapp">WhatsApp</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span class="footer-signature">FlowDynamicsAgency — Digital Solutions for Business.</span>
+      <span>© 2026 FlowDynamicsAgency. Tous droits réservés.</span>
+    </div>
+  </div>
+</footer>
+
+<script src="js/main.js"></script>
+<script src="js/animations.js"></script>
+<script src="js/projects.js"></script>
+</body>
+</html>

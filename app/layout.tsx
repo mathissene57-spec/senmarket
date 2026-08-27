@@ -4,7 +4,7 @@ import { PanierProvider } from '@/lib/panier/PanierProvider'
 import { Entete } from '@/components/Entete'
 
 export const metadata: Metadata = {
-  title: 'SenMarket -- Dashboard Vendeur',
+  title: 'SenMarket -- La marketplace senegalaise au Maroc',
   description: 'Marketplace senegalaise au Maroc',
 }
 

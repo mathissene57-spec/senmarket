@@ -226,6 +226,37 @@ create trigger trg_shipments_tracking_code
   for each row execute function generate_shipment_tracking_code();
 
 -- ---------------------------------------------------------------------------
+-- Verrouillage IMMEDIAT des privileges par defaut sur shipments (place ici,
+-- juste apres la creation de la table, plutot qu'en fin de fichier) :
+-- Supabase accorde par defaut arwdDxtm (quasi tous les privileges, y compris
+-- SELECT et UPDATE complets) a authenticated ET anon sur toute nouvelle table
+-- de public — confirme empiriquement via pg_default_acl sur le projet reel
+-- (thduksfosaylbjimrgrn) avant redaction de ce correctif. Sans ce verrou ICI,
+-- delivery_otp serait lisible ET modifiable en clair par authenticated et
+-- anon pendant toute la duree d'execution du reste de cette migration.
+-- ---------------------------------------------------------------------------
+revoke select on shipments from authenticated, anon;
+grant select (
+  id, tracking_code, client_user_id, created_by, sender_name, sender_phone,
+  sender_address, origin_city, origin_country, recipient_name, recipient_phone,
+  recipient_address, destination_city, destination_country, category,
+  weight_declared_kg, weight_real_kg, dimensions_cm, declared_value, currency,
+  photo_url, status, current_hub_id, current_pickup_point_id,
+  assigned_transporter_id, lot_id, qr_code_data, delivered_at, created_at, updated_at
+) on shipments to authenticated;
+-- delivery_otp volontairement absente. anon ne recoit aucun acces direct —
+-- get_public_tracking() (SECURITY DEFINER) reste son unique chemin.
+
+revoke update on shipments from authenticated;
+grant update (
+  weight_real_kg, dimensions_cm, current_hub_id, current_pickup_point_id,
+  assigned_transporter_id, lot_id
+) on shipments to authenticated;
+-- delivery_otp et delivered_at volontairement absentes — exclusivement
+-- positionnees par record_shipment_event() (Migration 1, non encore
+-- appliquee), jamais modifiables directement par un client authentifie.
+
+-- ---------------------------------------------------------------------------
 -- shipment_events — journal de preuve/audit, append-only (sections 3 et 16)
 -- ---------------------------------------------------------------------------
 create table shipment_events (
@@ -548,14 +579,10 @@ create policy incidents_admin_update on incidents for update using (is_admin());
 create policy notifications_self_select on notifications for select using (user_id = auth.uid() or is_admin());
 
 -- ---------------------------------------------------------------------------
--- Verrouillage au niveau colonne : le statut n'est jamais accordable
--- directement aux clients/opérateurs
+-- Verrouillage des privileges shipments : deplace juste apres la creation de
+-- la table (voir plus haut, section "shipments (colis)") pour eliminer toute
+-- fenetre d'exposition, meme temporaire, de delivery_otp.
 -- ---------------------------------------------------------------------------
-revoke update on shipments from authenticated;
-grant update (
-  weight_real_kg, dimensions_cm, current_hub_id, current_pickup_point_id,
-  assigned_transporter_id, lot_id, delivery_otp, delivered_at
-) on shipments to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- Suivi public — sous-ensemble sûr uniquement, pas de PII, pas d'auth requise

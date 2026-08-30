@@ -49,11 +49,19 @@ revoke insert on shipments from anon;
 revoke delete on shipments from anon;
 
 -- ---------------------------------------------------------------------------
--- 2. record_shipment_event() : fermer l'EXECUTE implicite accordé à PUBLIC
+-- 2. record_shipment_event() : fermer l'EXECUTE implicite
+--    CORRECTIF (post-verification) : "revoke ... from public" seul est
+--    INSUFFISANT sur Supabase. Confirme via pg_proc.proacl apres une
+--    premiere tentative : Supabase accorde EXECUTE directement a anon et
+--    authenticated (proacl = {postgres=X/postgres,anon=X/postgres,
+--    authenticated=X/postgres,service_role=X/postgres}), pas seulement a
+--    PUBLIC -- meme mecanisme que le privilege de table par defaut
+--    (pg_default_acl), mais applique aux fonctions. Il faut revoquer
+--    anon EXPLICITEMENT, pas seulement public.
 -- ---------------------------------------------------------------------------
 revoke execute on function record_shipment_event(
   uuid, text, text, text, numeric, numeric, jsonb, text, text, jsonb
-) from public;
+) from public, anon;
 grant execute on function record_shipment_event(
   uuid, text, text, text, numeric, numeric, jsonb, text, text, jsonb
 ) to authenticated;
@@ -61,9 +69,9 @@ grant execute on function record_shipment_event(
 -- ---------------------------------------------------------------------------
 -- 3. handle_new_user() : fonction trigger uniquement, jamais destinée à un
 --    appel RPC direct (aucune autre référence trouvée que le trigger
---    trg_handle_new_user sur auth.users)
+--    trg_handle_new_user sur auth.users). Meme correctif : anon explicite.
 -- ---------------------------------------------------------------------------
-revoke execute on function handle_new_user() from public;
+revoke execute on function handle_new_user() from public, anon;
 
 -- ---------------------------------------------------------------------------
 -- 4. Hardening search_path sur les 3 fonctions qui n'en avaient pas encore

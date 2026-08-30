@@ -8,7 +8,7 @@
   Prototype HTML/CSS/JS autonome, sans framework ni etape de build,
   au meme titre que le prototype SenMarket a la racine du depot
   (README.md). Aucun appel Supabase ici : donnees de demonstration
-  codees en dur (SHIPMENTS), persistance locale via localStorage
+  codees en dur (SEED_SHIPMENTS), persistance locale via localStorage
   uniquement. Base sur le document de reference SENLINK
   (FlowDynamicsAgency, aout 2026) -- voir senlink/docs/blueprint.md
   pour le cycle de vie complet, les roles et les preuves requises.
@@ -95,6 +95,7 @@ img { max-width:100%; display:block; object-fit:cover; }
 input,select,textarea {
   font-family:inherit; font-size:16px; -webkit-appearance:none; touch-action:manipulation;
 }
+input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width:auto; font-size:inherit; }
 .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); }
 
 /* ================================================================
@@ -181,9 +182,10 @@ input,select,textarea {
 .hb-h1 { font-family:'Playfair Display',serif; font-size:clamp(22px,5vw,30px); font-weight:900; color:#fff; line-height:1.25; margin-bottom:8px; }
 .hb-h1 em { font-style:normal; color:var(--goldb); }
 .hb-sub { font-size:13px; color:rgba(255,255,255,.72); margin-bottom:16px; line-height:1.6; }
-.hb-stats { display:flex; gap:22px; margin-bottom:16px; }
+.hb-stats { display:flex; gap:22px; margin-bottom:6px; }
 .hb-n { font-family:'Playfair Display',serif; font-size:20px; font-weight:900; color:var(--goldb); line-height:1; }
 .hb-l { font-size:10px; color:rgba(255,255,255,.55); margin-top:2px; }
+.hb-demo-tag { font-size:10px; color:rgba(255,255,255,.4); font-style:italic; margin-bottom:16px; }
 .hb-ctas { display:flex; gap:10px; flex-wrap:wrap; }
 .hb-cta {
   display:inline-flex; align-items:center; gap:6px; background:var(--g); color:#04150c;
@@ -399,6 +401,26 @@ input,select,textarea {
 .toast-x { cursor:pointer; opacity:.7; font-size:12px; }
 
 /* ================================================================
+   CODE DE RETRAIT (destinataire) -- affiche uniquement cote suivi,
+   jamais cote agent
+   ================================================================ */
+.otp-box { background:var(--gg); border:1.5px dashed var(--g); border-radius:var(--r16); padding:18px; margin-bottom:16px; text-align:center; }
+.otp-lbl { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--gm); margin-bottom:6px; }
+.otp-code { font-family:'Playfair Display',serif; font-size:30px; font-weight:900; letter-spacing:6px; color:var(--gd); margin-bottom:8px; }
+.otp-hint { font-size:11.5px; color:var(--txt2); line-height:1.5; }
+
+/* ================================================================
+   ECRAN AGENT (demo)
+   ================================================================ */
+.agent-back { display:inline-flex; align-items:center; gap:4px; font-size:12.5px; font-weight:600; color:var(--gm); padding:0 16px 4px; }
+.field-check { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--txt2); padding:4px 0; }
+.field-check input { margin:0; }
+.pp-row { display:flex; align-items:center; gap:10px; padding:12px 16px; border-top:1px solid var(--bdrs); font-size:13px; }
+.pp-row:first-child { border-top:none; }
+.pp-row .pp-ico { font-size:16px; }
+.pp-row .pp-city { margin-left:auto; color:var(--mut); font-size:11.5px; }
+
+/* ================================================================
    DESKTOP
    ================================================================ */
 @media (min-width:768px) {
@@ -461,10 +483,11 @@ input,select,textarea {
         <div class="hb-h1">La couche numerique de <em>confiance</em> du corridor logistique Maroc-Senegal</div>
         <div class="hb-sub">Chaque colis. Chaque etape. Depot, controle, transport, douane, hub, point relais, livraison -- tout est trace et prouve.</div>
         <div class="hb-stats">
-          <div><div class="hb-n" id="statColis">312</div><div class="hb-l">Colis suivis</div></div>
-          <div><div class="hb-n" id="statRelais">5</div><div class="hb-l">Points relais</div></div>
-          <div><div class="hb-n" id="statTaux">98%</div><div class="hb-l">Livres a temps</div></div>
+          <div><div class="hb-n" id="statColis">--</div><div class="hb-l">Colis suivis</div></div>
+          <div><div class="hb-n" id="statRelais">--</div><div class="hb-l">Points relais</div></div>
+          <div><div class="hb-n" id="statTaux">--</div><div class="hb-l">Livres a temps</div></div>
         </div>
+        <div class="hb-demo-tag">Chiffres de demonstration, recalcules en direct depuis les colis ci-dessous -- pas des donnees reelles.</div>
         <div class="hb-ctas">
           <button class="hb-cta" id="btnHeroSuivre">🔍 Suivre mon colis</button>
           <button class="hb-cta2" id="btnHeroExpedier">✉️ Expedier un colis</button>
@@ -576,6 +599,18 @@ input,select,textarea {
 </section>
 
 <!-- ================================================================
+     PAGE AGENT (demo) -- ecran de scan/preuve, hors barre d'onglets
+     client (persona differente), accessible depuis le Profil
+     ================================================================ -->
+<section class="page" id="page-agent" aria-label="Espace agent (demo)">
+  <div class="agent-back" onclick="navigate('profil')" role="button" style="cursor:pointer">← Retour au profil</div>
+  <div class="sec-hd"><span class="sec-ttl">🚚 Espace agent (démo)</span></div>
+  <div class="sec-sub">Simulation du scan et de la preuve a chaque etape -- aucune donnee reelle, aucun appel reseau. Le code de retrait n'est jamais affiche ici : seul le destinataire le voit, sur la page Suivre.</div>
+  <div class="ship-list" id="agentPicker" role="list"></div>
+  <div id="agentStepWrap"></div>
+</section>
+
+<!-- ================================================================
      PAGE PROFIL
      ================================================================ -->
 <section class="page" id="page-profil" aria-label="Mon profil">
@@ -601,6 +636,15 @@ input,select,textarea {
       <div class="pi-txt"><strong>Signaler un incident</strong><span>Colis endommage, retard, adresse...</span></div>
       <span class="pi-arr" aria-hidden="true">›</span>
     </div>
+    <div class="pcard-item" id="btnMenuAgentDemo">
+      <div class="pi-ico pi-g" aria-hidden="true">🚚</div>
+      <div class="pi-txt"><strong>Ecran agent (demo)</strong><span>Scan, preuve, code de retrait -- simulation</span></div>
+      <span class="pi-arr" aria-hidden="true">›</span>
+    </div>
+  </div>
+  <div class="pcard">
+    <div class="pcard-ttl">Points relais (démo)</div>
+    <div id="pickupPointsList"></div>
   </div>
   <div class="pcard">
     <div class="pcard-ttl">Devenir partenaire</div>
@@ -627,6 +671,9 @@ input,select,textarea {
       <div class="pi-txt"><strong>Conditions d'utilisation</strong><span>Politique de confidentialite</span></div>
       <span class="pi-arr" aria-hidden="true">›</span>
     </div>
+  </div>
+  <div style="text-align:center;padding:20px 16px 4px">
+    <button id="btnResetDemo" style="font-size:12px;color:var(--mut);text-decoration:underline">Reinitialiser les donnees de demo</button>
   </div>
   <div style="height:16px"></div>
 </section>
@@ -769,14 +816,52 @@ var STATUS_META = {
 };
 
 /* ----------------------------------------------------------------
-   DONNEES DE DEMO -- colis (codees en dur, jamais issues d'un backend)
+   POINTS RELAIS (demo) -- reference du document : 2-3 a Casablanca,
+   quelques-uns a Dakar + 1 hub
    ---------------------------------------------------------------- */
-var SHIPMENTS = [
+var PICKUP_POINTS = [
+  { name:'Point relais Maarif', city:'Casablanca' },
+  { name:'Point relais Gauthier', city:'Casablanca' },
+  { name:'Point relais Ain Sebaa', city:'Casablanca' },
+  { name:'Point relais Sandaga', city:'Dakar' },
+  { name:'Point relais Plateau', city:'Dakar' }
+];
+
+/* ----------------------------------------------------------------
+   MACHINE A ETATS (miroir simplifie, cote demo uniquement -- la
+   version qui fait autorite est celle de Migration 1, cote SQL,
+   jamais appliquee. Ne pas utiliser ceci comme source de verite.)
+   ---------------------------------------------------------------- */
+var TRANSITIONS = {
+  created: ['dropped_off'],
+  dropped_off: ['inspected'],
+  inspected: ['departed_origin'],
+  departed_origin: ['in_transit_international'],
+  in_transit_international: ['customs_clearance', 'arrived_destination'],
+  customs_clearance: ['arrived_destination'],
+  arrived_destination: ['at_hub'],
+  at_hub: ['at_pickup_point'],
+  at_pickup_point: ['delivered']
+};
+var PROOF_REQUIRED = ['dropped_off','inspected','departed_origin','arrived_destination','at_hub','at_pickup_point','delivered'];
+
+function locForStatus(s, status) {
+  if (status === 'dropped_off' || status === 'inspected') return s.originCity;
+  if (status === 'departed_origin' || status === 'in_transit_international' || status === 'customs_clearance') return 'En transit';
+  return s.destCity;
+}
+
+/* ----------------------------------------------------------------
+   DONNEES DE DEMO -- colis (codees en dur, jamais issues d'un backend)
+   Mutables une fois chargees dans ST.shipments (voir plus bas) --
+   ce tableau-ci n'est que le "seed" initial, jamais modifie lui-meme.
+   ---------------------------------------------------------------- */
+var SEED_SHIPMENTS = [
   {
     code:'SL-MA-SN-847291', status:'delivered',
     originCity:'Casablanca', destCity:'Dakar',
     senderName:'Youssef El Amrani', recipientName:'Aissatou Diallo',
-    category:'Textile', weight:3.2, value:450,
+    category:'Textile', weight:3.2, value:450, deliveryOtp:null,
     timeline:[
       { key:'created', lbl:'Cree', ico:'✅', loc:'Casablanca', actor:'Youssef (expediteur)', time:'12 aout, 09:14', proof:false },
       { key:'dropped_off', lbl:'Depose a Casablanca', ico:'✅', loc:'Point relais Maarif', actor:'Agent Karim B.', time:'12 aout, 11:02', proof:true },
@@ -794,7 +879,7 @@ var SHIPMENTS = [
     code:'SL-MA-SN-118420', status:'in_transit_international',
     originCity:'Casablanca', destCity:'Dakar',
     senderName:'Salma Bennis', recipientName:'Cheikh Fall',
-    category:'Electronique', weight:1.4, value:1200,
+    category:'Electronique', weight:1.4, value:1200, deliveryOtp:null,
     timeline:[
       { key:'created', lbl:'Cree', ico:'✅', loc:'Casablanca', actor:'Salma (expediteur)', time:'22 aout, 08:02', proof:false },
       { key:'dropped_off', lbl:'Depose a Casablanca', ico:'✅', loc:'Point relais Gauthier', actor:'Agent Rania S.', time:'22 aout, 10:30', proof:true },
@@ -807,7 +892,7 @@ var SHIPMENTS = [
     code:'SL-MA-SN-556310', status:'customs_clearance',
     originCity:'Casablanca', destCity:'Dakar',
     senderName:'Hamza Idrissi', recipientName:'Fatou Ndiaye',
-    category:'Documents', weight:0.4, value:0,
+    category:'Documents', weight:0.4, value:0, deliveryOtp:null,
     timeline:[
       { key:'created', lbl:'Cree', ico:'✅', loc:'Casablanca', actor:'Hamza (expediteur)', time:'24 aout, 13:20', proof:false },
       { key:'dropped_off', lbl:'Depose a Casablanca', ico:'✅', loc:'Point relais Maarif', actor:'Agent Karim B.', time:'24 aout, 15:10', proof:true },
@@ -821,9 +906,25 @@ var SHIPMENTS = [
     code:'SL-MA-SN-902174', status:'created',
     originCity:'Casablanca', destCity:'Dakar',
     senderName:'Nadia Alaoui', recipientName:'Ousmane Sarr',
-    category:'Cosmetique', weight:2.0, value:300,
+    category:'Cosmetique', weight:2.0, value:300, deliveryOtp:null,
     timeline:[
       { key:'created', lbl:'Cree', ico:'✅', loc:'Casablanca', actor:'Nadia (expediteur)', time:'29 aout, 17:40', proof:false }
+    ]
+  },
+  {
+    code:'SL-MA-SN-334187', status:'at_pickup_point',
+    originCity:'Casablanca', destCity:'Dakar',
+    senderName:'Omar Benjelloun', recipientName:'Mariama Sow',
+    category:'Textile', weight:1.8, value:280, deliveryOtp:'618452',
+    timeline:[
+      { key:'created', lbl:'Cree', ico:'✅', loc:'Casablanca', actor:'Omar (expediteur)', time:'26 aout, 10:05', proof:false },
+      { key:'dropped_off', lbl:'Depose a Casablanca', ico:'✅', loc:'Point relais Ain Sebaa', actor:'Agent Youssra L.', time:'26 aout, 12:40', proof:true },
+      { key:'inspected', lbl:'Controle', ico:'✅', loc:'Point relais Ain Sebaa', actor:'Agent Youssra L.', time:'26 aout, 12:42', proof:true },
+      { key:'departed_origin', lbl:'Depart Maroc', ico:'🚚', loc:'Hub Casablanca', actor:'Atlas Cargo', time:'27 aout, 07:20', proof:false },
+      { key:'in_transit_international', lbl:'Transit international', ico:'🌍', loc:'En route', actor:'Atlas Cargo', time:'27 aout, 22:00', proof:false },
+      { key:'arrived_destination', lbl:'Arrive au Senegal', ico:'🇸🇳', loc:'Dakar', actor:'—', time:'29 aout, 07:30', proof:true },
+      { key:'at_hub', lbl:'Hub Dakar', ico:'📍', loc:'Hub Dakar Plateau', actor:'Agent Moussa T.', time:'29 aout, 08:15', proof:false },
+      { key:'at_pickup_point', lbl:'Point relais', ico:'📦', loc:'Point relais Plateau', actor:'Agent Aminata D.', time:'29 aout, 13:50', proof:true }
     ]
   }
 ];
@@ -831,14 +932,27 @@ var SHIPMENTS = [
 /* ----------------------------------------------------------------
    ETAT + PERSISTANCE LOCALE (localStorage uniquement, pas de reseau)
    ---------------------------------------------------------------- */
-var ST = { page:'accueil', mesEnvois:[], _toastMap:{} };
+var ST = { page:'accueil', shipments:[], _toastMap:{} };
 
 function lsGet(k) { try { return JSON.parse(localStorage.getItem(k)); } catch(e) { return null; } }
 function lsSet(k,v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {} }
 function h(s) { var d = document.createElement('div'); d.textContent = String(s == null ? '' : s); return d.innerHTML; }
 
+function saveShipments() { lsSet('sl_shipments', ST.shipments); }
+
+function resetDemo() {
+  ST.shipments = JSON.parse(JSON.stringify(SEED_SHIPMENTS));
+  saveShipments();
+  renderHeroStats();
+  renderHistorique();
+  renderAgentPicker();
+  document.getElementById('agentStepWrap').innerHTML = '';
+  if (ST.page === 'suivi') runSearch('');
+  showToast('Donnees de demonstration reinitialisees','i');
+}
+
 function allShipments() {
-  return SHIPMENTS.concat(ST.mesEnvois);
+  return ST.shipments;
 }
 function findShipment(code) {
   var all = allShipments();
@@ -882,6 +996,8 @@ function bindNav() {
   document.getElementById('btnMenuTransporteur').addEventListener('click', function(){
     document.getElementById('pType').value = 'transporteur'; openSheet('partner');
   });
+  document.getElementById('btnMenuAgentDemo').addEventListener('click', function(){ navigate('agent'); });
+  document.getElementById('btnResetDemo').addEventListener('click', resetDemo);
   document.getElementById('btnSupportWa').addEventListener('click', function(){
     window.open('https://wa.me/212600000000?text=' + encodeURIComponent('Bonjour SenLink, j\'ai besoin d\'aide.'), '_blank');
   });
@@ -905,6 +1021,27 @@ function renderQa() {
   var el = document.getElementById('qaGrid');
   el.innerHTML = QA.map(function(q){
     return '<div class="qa-card"><div class="qa-ico">'+q.ico+'</div><div class="qa-txt">'+h(q.txt)+'</div></div>';
+  }).join('');
+}
+
+/* ----------------------------------------------------------------
+   STATISTIQUES D'ACCUEIL -- toujours recalculees depuis les donnees
+   de demo visibles (jamais une constante en dur, cf. audit). Ces
+   chiffres restent des donnees d'exemple, jamais une performance
+   reelle -- voir le libelle "hb-demo-tag" affiche a cote.
+   ---------------------------------------------------------------- */
+function renderHeroStats() {
+  var all = ST.shipments;
+  var delivered = all.filter(function(s){ return s.status === 'delivered'; }).length;
+  document.getElementById('statColis').textContent = all.length;
+  document.getElementById('statRelais').textContent = PICKUP_POINTS.length;
+  document.getElementById('statTaux').textContent = all.length ? Math.round(delivered / all.length * 100) + '%' : '--';
+}
+
+function renderPickupPoints() {
+  var el = document.getElementById('pickupPointsList');
+  el.innerHTML = PICKUP_POINTS.map(function(pp){
+    return '<div class="pp-row"><span class="pp-ico" aria-hidden="true">📍</span><span>'+h(pp.name)+'</span><span class="pp-city">'+h(pp.city)+'</span></div>';
   }).join('');
 }
 
@@ -946,11 +1083,27 @@ function shipmentHeadHtml(shipment) {
 }
 
 /* ----------------------------------------------------------------
+   CODE DE RETRAIT -- experience destinataire (section 2 du document :
+   "retrait avec QR Code ou OTP"). Visible uniquement ici (page Suivre
+   / detail d'un envoi), jamais dans l'ecran agent -- l'agent ne doit
+   jamais pouvoir lire ce code, seulement verifier ce que le
+   destinataire lui communique.
+   ---------------------------------------------------------------- */
+function otpRevealHtml(shipment) {
+  if (shipment.status !== 'at_pickup_point' || !shipment.deliveryOtp) return '';
+  return '<div class="otp-box">'
+    + '<div class="otp-lbl">Code de retrait</div>'
+    + '<div class="otp-code">'+h(shipment.deliveryOtp)+'</div>'
+    + '<div class="otp-hint">Presentez ce code (ou cet ecran) a l\'agent du point relais pour recuperer le colis. Il n\'est jamais visible cote agent -- seul vous, le destinataire, le connaissez.</div>'
+    + '</div>';
+}
+
+/* ----------------------------------------------------------------
    PAGE SUIVI
    ---------------------------------------------------------------- */
 function renderTrackDemo() {
   var el = document.getElementById('trackDemo');
-  el.innerHTML = SHIPMENTS.slice(0,3).map(function(s){
+  el.innerHTML = SEED_SHIPMENTS.map(function(s){
     return '<button data-code="'+h(s.code)+'">'+h(s.code)+'</button>';
   }).join('');
 }
@@ -965,7 +1118,7 @@ function runSearch(code) {
     out.innerHTML = '<div class="track-empty"><div class="te-ico">🔎</div><div class="te-ttl">Aucun colis trouve</div><div class="te-sub">Verifiez le code « '+h(code)+' » ou essayez un code de demonstration.</div></div>';
     return;
   }
-  out.innerHTML = '<div class="track-result">'+shipmentHeadHtml(s)+timelineHtml(s)+'</div>';
+  out.innerHTML = '<div class="track-result">'+shipmentHeadHtml(s)+otpRevealHtml(s)+timelineHtml(s)+'</div>';
 }
 function bindSuivi() {
   document.getElementById('btnSuivre').addEventListener('click', function(){
@@ -1011,8 +1164,115 @@ function bindHistorique() {
     if (!card) return;
     var s = findShipment(card.dataset.code);
     if (!s) return;
-    document.getElementById('detailBody').innerHTML = shipmentHeadHtml(s) + timelineHtml(s);
+    document.getElementById('detailBody').innerHTML = shipmentHeadHtml(s) + otpRevealHtml(s) + timelineHtml(s);
     openSheet('detail');
+  });
+}
+
+/* ----------------------------------------------------------------
+   PAGE AGENT (demo) -- scan simule + preuve. Miroir volontairement
+   simplifie de record_shipment_event() (Migration 1, jamais
+   appliquee) : matrice role/statut et machine a etats reelles restent
+   cote SQL, ceci n'est qu'une demonstration visuelle.
+   ---------------------------------------------------------------- */
+function renderAgentPicker() {
+  var el = document.getElementById('agentPicker');
+  if (!el) return;
+  el.innerHTML = ST.shipments.map(function(s){
+    return '<div class="ship-card" data-code="'+h(s.code)+'" role="listitem">'
+      + '<div class="ship-ico">📦</div>'
+      + '<div class="ship-mid"><div class="ship-code">'+h(s.code)+'</div><div class="ship-route">'+h(s.originCity)+' → '+h(s.destCity)+'</div></div>'
+      + statusBadge(s.status)
+      + '<span class="ship-arr" aria-hidden="true">›</span></div>';
+  }).join('');
+}
+
+function renderAgentStep(code) {
+  var s = findShipment(code);
+  var wrap = document.getElementById('agentStepWrap');
+  if (!s) { wrap.innerHTML = ''; return; }
+  var next = TRANSITIONS[s.status] || [];
+  if (!next.length) {
+    wrap.innerHTML = '<div class="form-wrap">' + shipmentHeadHtml(s)
+      + '<p style="text-align:center;color:var(--mut);padding:16px 0;font-size:13px">Statut terminal ou hors flux du pilote -- aucune action agent possible sur ce colis.</p></div>';
+    return;
+  }
+  var opts = next.map(function(st){
+    var lbl = STATUS_META[st] ? STATUS_META[st].label : st;
+    return '<option value="'+st+'">'+h(lbl)+'</option>';
+  }).join('');
+  wrap.innerHTML = '<div class="form-wrap">'
+    + shipmentHeadHtml(s)
+    + '<div class="fieldset">'
+    +   '<div class="fieldset-lgd">Prochaine etape</div>'
+    +   '<div class="field"><label for="agentNextStatus">Statut a enregistrer</label>'
+    +     '<select id="agentNextStatus">'+opts+'</select></div>'
+    +   '<div class="field" id="agentPhotoField"></div>'
+    +   '<div class="field" id="agentOtpField"></div>'
+    + '</div>'
+    + '<button class="btn-primary" id="btnAgentConfirm">Valider cette etape</button>'
+    + '</div>';
+  updateAgentFields();
+  document.getElementById('agentNextStatus').addEventListener('change', updateAgentFields);
+  document.getElementById('btnAgentConfirm').addEventListener('click', function(){ confirmAgentStep(code); });
+}
+
+function updateAgentFields() {
+  var sel = document.getElementById('agentNextStatus');
+  if (!sel) return;
+  var status = sel.value;
+  var photoField = document.getElementById('agentPhotoField');
+  var otpField = document.getElementById('agentOtpField');
+  photoField.innerHTML = PROOF_REQUIRED.indexOf(status) > -1
+    ? '<label class="field-check"><input type="checkbox" id="agentPhotoTaken"> 📷 Photo prise (preuve obligatoire pour ce statut)</label>'
+    : '<div class="field-hint">Aucune preuve requise pour ce statut (transit declaratif).</div>';
+  otpField.innerHTML = status === 'delivered'
+    ? '<label for="agentOtpInput">Code de retrait fourni par le destinataire</label><input id="agentOtpInput" placeholder="6 chiffres" maxlength="6">'
+    : '';
+}
+
+function confirmAgentStep(code) {
+  var s = findShipment(code);
+  if (!s) return;
+  var status = document.getElementById('agentNextStatus').value;
+  var needsPhoto = PROOF_REQUIRED.indexOf(status) > -1;
+
+  if (needsPhoto) {
+    var chk = document.getElementById('agentPhotoTaken');
+    if (!chk || !chk.checked) { showToast('Photo requise pour cette etape (demo)','e'); return; }
+  }
+  if (status === 'delivered') {
+    var otpInput = document.getElementById('agentOtpInput');
+    var otp = otpInput ? otpInput.value.trim() : '';
+    if (!otp) { showToast('Code de retrait requis','e'); return; }
+    if (otp !== s.deliveryOtp) { showToast('Code de retrait incorrect','e'); return; }
+  }
+
+  var meta = STATUS_META[status] || { label: status };
+  s.timeline.push({
+    key: status, lbl: meta.label, ico:'✅',
+    loc: locForStatus(s, status), actor:'Agent (demo)', time:'A l\'instant', proof: needsPhoto
+  });
+  s.status = status;
+  if (status === 'at_pickup_point') {
+    s.deliveryOtp = String(Math.floor(100000 + Math.random() * 900000));
+  } else if (status === 'delivered') {
+    s.deliveryOtp = null; // consommation immediate, comme dans Migration 1
+  }
+
+  saveShipments();
+  renderHeroStats();
+  renderHistorique();
+  renderAgentPicker();
+  renderAgentStep(code);
+  showToast('Etape enregistree : ' + meta.label, 's');
+}
+
+function bindAgent() {
+  document.getElementById('agentPicker').addEventListener('click', function(e){
+    var card = e.target.closest('.ship-card');
+    if (!card) return;
+    renderAgentStep(card.dataset.code);
   });
 }
 
@@ -1072,12 +1332,14 @@ function bindExpedier() {
       category: document.getElementById('expCategory').value,
       weight: parseFloat(document.getElementById('expWeight').value) || 0,
       value: parseFloat(document.getElementById('expValue').value) || 0,
+      deliveryOtp: null,
       timeline: [
         { key:'created', lbl:'Cree', ico:'✅', loc: document.getElementById('expOriginCity').value.trim() || 'Casablanca', actor: senderName+' (expediteur)', time:'A l\'instant', proof:false }
       ]
     };
-    ST.mesEnvois.unshift(shipment);
-    lsSet('sl_mesEnvois', ST.mesEnvois);
+    ST.shipments.unshift(shipment);
+    saveShipments();
+    renderHeroStats();
     renderHistorique();
 
     document.getElementById('createdCode').textContent = code;
@@ -1148,17 +1410,21 @@ function bindScroll() {
    INIT
    ---------------------------------------------------------------- */
 document.addEventListener('DOMContentLoaded', function() {
-  ST.mesEnvois = lsGet('sl_mesEnvois') || [];
+  ST.shipments = lsGet('sl_shipments') || JSON.parse(JSON.stringify(SEED_SHIPMENTS));
   renderSteps();
   renderQa();
   renderTrackDemo();
   renderHistorique();
+  renderHeroStats();
+  renderPickupPoints();
+  renderAgentPicker();
   bindNav();
   bindSuivi();
   bindHistorique();
   bindExpedier();
   bindPartner();
   bindIncident();
+  bindAgent();
   bindScroll();
 });
 

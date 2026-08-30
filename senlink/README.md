@@ -16,7 +16,14 @@ rôles/permissions et la liste des questions terrain encore ouvertes.
 `prototype.html` est un prototype HTML/CSS/JS autonome (sans framework, sans
 étape de build) montrant tout le parcours client : accueil, suivi d'un
 colis avec timeline complète, création d'un envoi (avec QR de démo),
-historique, profil, signalement d'incident, candidature partenaire. Données
+historique, profil, signalement d'incident, candidature partenaire. Il
+couvre aussi l'expérience destinataire (code de retrait révélé uniquement
+sur la page de suivi, jamais côté agent) et une simulation d'écran agent
+(accessible depuis Profil) qui exige preuve photo et code de retrait avant
+de faire passer un colis à « Livré » — miroir volontairement simplifié des
+règles de Migration 1 (jamais appliquée). Les statistiques d'accueil sont
+recalculées en direct depuis les colis de démonstration et explicitement
+labellisées comme telles, plutôt que des constantes inventées. Données
 codées en dur, persistance uniquement via `localStorage`, **aucun appel
 réseau/Supabase**. Même précédent que le prototype SenMarket (`README.md` à
 la racine du dépôt), mais écrit proprement (pas de guillemets typographiques

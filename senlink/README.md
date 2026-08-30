@@ -11,6 +11,19 @@ livraison) génère un événement numérique traçable et une preuve.
 Voir `docs/blueprint.md` pour le cycle de vie détaillé des colis, les
 rôles/permissions et la liste des questions terrain encore ouvertes.
 
+## Prototype UX (`prototype.html`)
+
+`prototype.html` est un prototype HTML/CSS/JS autonome (sans framework, sans
+étape de build) montrant tout le parcours client : accueil, suivi d'un
+colis avec timeline complète, création d'un envoi (avec QR de démo),
+historique, profil, signalement d'incident, candidature partenaire. Données
+codées en dur, persistance uniquement via `localStorage`, **aucun appel
+réseau/Supabase**. Même précédent que le prototype SenMarket (`README.md` à
+la racine du dépôt), mais écrit proprement (pas de guillemets typographiques
+ni de tiret cadratin corrompant les `var(--x)` CSS comme dans ce dernier).
+À ouvrir directement dans un navigateur — sert de référence visuelle avant
+de brancher les vraies pages Next.js (`app/`) au backend Supabase.
+
 ## SenLink est un produit séparé de SenMarket
 
 Ce répertoire vit dans le même dépôt git que SenMarket (même précédent que

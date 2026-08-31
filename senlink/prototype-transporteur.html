@@ -329,6 +329,8 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
 .recon-l { font-size:10.5px; color:var(--mut); margin-top:4px; }
 .recon-card.ecart .recon-n { color:var(--red); }
 .recon-card.ok .recon-n { color:var(--gm); }
+.recon-row--missing { border-left:3px solid var(--red); background:var(--redb); }
+.recon-row--received { border-left:3px solid var(--g); }
 
 /* ================================================================
    CARTE GPS DU LOT (V1 démo) -- représentation stylisée du trajet,
@@ -1593,7 +1595,37 @@ function reconciliationHtml(lot, ships) {
     html += '<p style="padding:0 16px 10px;font-size:12px;color:var(--mut)">Réconciliation enregistrée'+(ecart>0?' — '+ecart+' incident(s) « colis manquant » créé(s).':'.')+'</p>';
     html += '<div class="form-wrap" style="padding-top:0"><button class="btn-primary" id="btnCloseLot" data-lot="'+lot.id+'">Clôturer le lot</button></div>';
   }
-  html += '<div class="sec-hd"><span class="sec-ttl">Colis du lot</span></div>' + lotShipmentListHtml(ships, lot, false);
+  html += reconEvent ? reconciledShipmentListHtml(ships) : ('<div class="sec-hd"><span class="sec-ttl">Colis du lot</span></div>' + lotShipmentListHtml(ships, lot, false));
+  return html;
+}
+/* ----------------------------------------------------------------
+   RÉCONCILIATION DÉTAILLÉE -- une fois record_lot_reconciliation()
+   enregistrée, distingue visuellement les colis reçus des colis
+   manquants dans "Colis du lot" (au lieu de la liste générique
+   identique à avant la réconciliation).
+   ---------------------------------------------------------------- */
+function reconciledShipmentListHtml(ships) {
+  var manquants = ships.filter(function(s){ return RECEIVED_STATUSES.indexOf(s.status) === -1; });
+  var recus = ships.filter(function(s){ return RECEIVED_STATUSES.indexOf(s.status) > -1; });
+  var html = '';
+  if (manquants.length) {
+    html += '<div class="sec-hd"><span class="sec-ttl">⚠️ Colis manquants (' + manquants.length + ')</span></div>'
+      + '<div class="list-wrap">' + manquants.map(function(s){
+        return '<div class="row-card recon-row recon-row--missing">'
+          + '<div class="row-top"><span class="row-code">' + h(s.code) + '</span>' + statusBadge(s.status) + '</div>'
+          + '<div class="row-route">' + h(s.destCity) + ' · ' + h(s.recipient) + '</div>'
+          + '</div>';
+      }).join('') + '</div>';
+  }
+  html += '<div class="sec-hd"><span class="sec-ttl">✅ Colis reçus (' + recus.length + ')</span></div>';
+  html += recus.length
+    ? '<div class="list-wrap">' + recus.map(function(s){
+        return '<div class="row-card recon-row recon-row--received">'
+          + '<div class="row-top"><span class="row-code">' + h(s.code) + '</span>' + statusBadge(s.status) + '</div>'
+          + '<div class="row-route">' + h(s.destCity) + ' · ' + h(s.recipient) + '</div>'
+          + '</div>';
+      }).join('') + '</div>'
+    : '<div class="empty-state"><div class="es-ico">📦</div><div class="es-ttl">Aucun colis reçu</div></div>';
   return html;
 }
 

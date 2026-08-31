@@ -1,0 +1,1487 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<!--
+  ================================================================
+  SENLINK -- Prototype UX : Dashboard Transporteur (design deliverable,
+  pas de code de prod)
+  ================================================================
+  Prototype HTML/CSS/JS autonome, sans framework ni étape de build,
+  même précédent que senlink/prototype.html (parcours client) et le
+  prototype SenMarket à la racine du dépôt. Aucun appel Supabase ici :
+  données de démonstration codées en dur, persistance locale via
+  localStorage uniquement.
+
+  Les règles métier simulées ici (transitions de statut, transitions de
+  lot, réconciliation, contrôle géographique) reproduisent volontairement
+  celles de Migration 1 (Security Core, colis) et Migration 2 (Lots
+  Security Core, jamais appliquée) telles que conçues en conversation --
+  ce prototype sert de référence visuelle et de validation UX AVANT le
+  branchement au vrai backend, il ne fait jamais autorité sur le schéma
+  ou les règles métier réelles.
+-->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0A1A0F">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="description" content="SenLink -- Dashboard Transporteur (prototype) : le poste de pilotage numérique du transporteur, de la réception du lot à la remise au point relais.">
+<title>SenLink -- Dashboard Transporteur (prototype)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+<style>
+/* ================================================================
+   DESIGN TOKENS -- identiques à senlink/prototype.html
+   ================================================================ */
+:root {
+  --g:      #00C96B;
+  --gm:     #00A65A;
+  --gd:     #0A1A0F;
+  --gdd:    #111F16;
+  --gg:     rgba(0,201,107,.12);
+  --gdim:   rgba(0,201,107,.06);
+  --gold:   #D4A017;
+  --goldb:  #F5B800;
+  --red:    #C41E3A;
+  --redb:   rgba(196,30,58,.08);
+  --amber:  #F5A623;
+  --amberb: rgba(245,166,35,.14);
+  --blue:   #2E7DD1;
+  --blueb:  rgba(46,125,209,.12);
+  --bg:     #F8F6F1;
+  --bgw:    #F0ECE2;
+  --card:   #FFFFFF;
+  --txt:    #1A1A1A;
+  --txt2:   #3D3D3D;
+  --mut:    #7A7A7A;
+  --bdr:    #E8E2D9;
+  --bdrs:   #F0EBE3;
+  --r8:     10px;
+  --r12:    14px;
+  --r16:    18px;
+  --r20:    22px;
+  --r24:    26px;
+  --rpill:  100px;
+  --sh:     0 2px 12px rgba(0,0,0,.07);
+  --shl:    0 8px 32px rgba(0,0,0,.11);
+  --shx:    0 20px 60px rgba(0,0,0,.15);
+  --shg:    0 4px 20px rgba(0,201,107,.25);
+  --ease:   cubic-bezier(.16,1,.3,1);
+  --nav:    60px;
+  --tab:    64px;
+  --safe:   env(safe-area-inset-bottom, 0px);
+  --safeT:  env(safe-area-inset-top, 0px);
+  --z-nav:  100;
+  --z-sh:   200;
+  --z-dlg:  300;
+  --z-tst:  400;
+}
+
+/* ================================================================
+   RESET
+   ================================================================ */
+*,*::before,*::after { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html { height:100%; overscroll-behavior:none; scroll-behavior:smooth; }
+body {
+  font-family:'DM Sans',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  background:var(--bg); color:var(--txt);
+  min-height:100%; overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+  padding-bottom:calc(var(--tab) + var(--safe));
+}
+a { text-decoration:none; color:inherit; }
+button { font-family:inherit; cursor:pointer; border:none; background:none; touch-action:manipulation; }
+img { max-width:100%; display:block; object-fit:cover; }
+input,select,textarea {
+  font-family:inherit; font-size:16px; -webkit-appearance:none; touch-action:manipulation;
+}
+input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width:auto; font-size:inherit; }
+.sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); }
+
+/* ================================================================
+   TOP NAVBAR
+   ================================================================ */
+#topnav {
+  position:fixed; top:0; left:0; right:0;
+  height:var(--nav); z-index:var(--z-nav);
+  padding-top:var(--safeT);
+  background:var(--gd);
+  border-bottom:1px solid rgba(255,255,255,.08);
+  display:flex; align-items:center; justify-content:space-between;
+  padding-left:16px; padding-right:16px;
+  transition:box-shadow .25s;
+}
+#topnav.shadow { box-shadow:0 2px 20px rgba(0,0,0,.25); }
+.tn-logo { display:flex; align-items:center; gap:9px; }
+.tn-ico {
+  width:36px; height:36px; border-radius:10px;
+  background:linear-gradient(135deg,var(--g),var(--gm));
+  display:flex; align-items:center; justify-content:center;
+  font-size:18px; box-shadow:var(--shg); flex-shrink:0;
+}
+.tn-name { font-family:'Playfair Display',serif; font-size:20px; font-weight:900; color:#fff; }
+.tn-name span { color:var(--goldb); }
+.tn-org { font-size:10px; color:rgba(255,255,255,.55); margin-top:1px; }
+.tn-acts { display:flex; align-items:center; gap:8px; }
+.tn-btn {
+  width:38px; height:38px; border-radius:var(--r8);
+  background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1);
+  display:flex; align-items:center; justify-content:center;
+  font-size:18px; position:relative; color:#fff;
+  transition:all .2s var(--ease);
+}
+.tn-btn:active { transform:scale(.91); background:var(--gg); border-color:var(--g); }
+.tn-badge {
+  position:absolute; top:-5px; right:-5px;
+  width:18px; height:18px; background:var(--red); color:#fff;
+  font-size:9px; font-weight:700; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  border:2px solid var(--gd); transform:scale(0); transition:transform .2s var(--ease);
+}
+.tn-badge.show { transform:scale(1); }
+
+/* ================================================================
+   NAVIGATION DESKTOP -- masquée en mobile
+   ================================================================ */
+#desktopnav { display:none; }
+
+/* ================================================================
+   BOTTOM TAB BAR (avec bouton Scanner central surélevé)
+   ================================================================ */
+#btmnav {
+  position:fixed; bottom:0; left:0; right:0;
+  height:calc(var(--tab) + var(--safe)); z-index:var(--z-nav);
+  background:rgba(250,247,242,.97);
+  backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+  border-top:1px solid var(--bdr);
+  display:flex; align-items:flex-start; justify-content:space-around;
+  padding-top:6px; padding-bottom:var(--safe);
+}
+.tab { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:5px 4px; cursor:pointer; position:relative; transition:all .2s var(--ease); -webkit-user-select:none; user-select:none; }
+.tab:active { transform:scale(.88); }
+.tab-ico { font-size:22px; line-height:1; transition:transform .2s var(--ease); }
+.tab-lbl { font-size:10px; font-weight:600; color:var(--mut); transition:color .2s; }
+.tab.on .tab-ico { transform:scale(1.1); }
+.tab.on .tab-lbl { color:var(--g); }
+.tab.on::before { content:''; position:absolute; top:-6px; left:50%; transform:translateX(-50%); width:28px; height:3px; background:var(--g); border-radius:0 0 3px 3px; }
+.tab-scan { position:relative; top:-14px; }
+.tab-scan .tab-ico-w {
+  width:52px; height:52px; border-radius:50%;
+  background:linear-gradient(135deg,var(--g),var(--gm));
+  display:flex; align-items:center; justify-content:center;
+  font-size:24px; box-shadow:var(--shg); border:4px solid var(--bg);
+}
+.tab-scan .tab-lbl { color:var(--gm); font-weight:700; }
+.tab-scan.on::before { display:none; }
+
+/* ================================================================
+   PAGES
+   ================================================================ */
+.page { display:none; padding-top:var(--nav); min-height:100vh; }
+.page.on { display:block; }
+.page-hd { padding:16px 16px 4px; }
+.page-ttl { font-family:'Playfair Display',serif; font-size:21px; font-weight:900; color:var(--txt); }
+.page-sub { font-size:12.5px; color:var(--mut); margin-top:3px; }
+
+/* ================================================================
+   KPI GRID
+   ================================================================ */
+.kpi-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; padding:12px 16px 4px; }
+.kpi-card { background:var(--card); border:1px solid var(--bdr); border-radius:var(--r16); padding:14px; }
+.kpi-ico { font-size:17px; margin-bottom:6px; }
+.kpi-n { font-family:'Playfair Display',serif; font-size:22px; font-weight:900; color:var(--txt); line-height:1; }
+.kpi-l { font-size:11px; color:var(--mut); margin-top:4px; line-height:1.35; }
+.kpi-card.warn .kpi-n { color:var(--red); }
+.kpi-card.amber .kpi-n { color:#8A5A00; }
+.kpi-card.good .kpi-n { color:var(--gm); }
+
+/* ================================================================
+   "À FAIRE MAINTENANT"
+   ================================================================ */
+.todo-wrap { margin:14px 16px 4px; background:var(--gd); border-radius:var(--r20); padding:16px; }
+.todo-ttl { color:#fff; font-family:'Playfair Display',serif; font-size:14.5px; font-weight:900; margin-bottom:10px; display:flex; align-items:center; gap:7px; }
+.todo-item { display:flex; align-items:center; gap:10px; padding:9px 0; border-top:1px solid rgba(255,255,255,.08); font-size:12.5px; color:rgba(255,255,255,.9); cursor:pointer; }
+.todo-item:first-of-type { border-top:none; }
+.todo-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+.todo-dot.r { background:var(--red); box-shadow:0 0 0 3px rgba(196,30,58,.25); }
+.todo-dot.o { background:var(--amber); box-shadow:0 0 0 3px rgba(245,166,35,.25); }
+.todo-dot.y { background:var(--goldb); box-shadow:0 0 0 3px rgba(245,184,0,.2); }
+.todo-dot.b { background:var(--blue); box-shadow:0 0 0 3px rgba(46,125,209,.22); }
+.todo-dot.gd { background:var(--g); box-shadow:0 0 0 3px rgba(0,201,107,.22); }
+.todo-empty { color:rgba(255,255,255,.55); font-size:12.5px; padding:6px 0; }
+
+/* ================================================================
+   SECTION HEADERS / FILTRES
+   ================================================================ */
+.sec-hd { display:flex; align-items:center; justify-content:space-between; padding:18px 16px 8px; }
+.sec-ttl { font-family:'Playfair Display',serif; font-size:15.5px; font-weight:900; color:var(--txt); }
+.sec-link { font-size:11.5px; font-weight:700; color:var(--gm); }
+.search-sticky { padding:8px 16px 10px; background:var(--bg); position:sticky; top:var(--nav); z-index:50; border-bottom:1px solid var(--bdrs); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); }
+.search-inp-w { position:relative; }
+.search-inp {
+  width:100%; padding:12px 14px 12px 38px; border-radius:var(--r12);
+  border:1.5px solid var(--bdr); background:var(--card); font-size:14px; outline:none;
+}
+.search-inp:focus { border-color:var(--g); }
+.search-ico { position:absolute; left:13px; top:50%; transform:translateY(-50%); font-size:14px; opacity:.6; }
+.filter-row { display:flex; gap:7px; overflow-x:auto; padding:10px 16px 2px; scrollbar-width:none; }
+.filter-row::-webkit-scrollbar { display:none; }
+.filter-chip {
+  flex-shrink:0; font-size:12px; font-weight:700; color:var(--txt2);
+  background:var(--card); border:1.5px solid var(--bdr);
+  padding:7px 13px; border-radius:var(--rpill); white-space:nowrap;
+}
+.filter-chip.on { background:var(--gd); border-color:var(--gd); color:#fff; }
+
+/* ================================================================
+   LISTES (colis / lots / incidents)
+   ================================================================ */
+.list-wrap { padding:6px 16px 16px; display:flex; flex-direction:column; gap:10px; }
+.row-card { background:var(--card); border:1px solid var(--bdr); border-radius:var(--r16); padding:13px 15px; cursor:pointer; transition:transform .15s var(--ease); }
+.row-card:active { transform:scale(.98); }
+.row-top { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.row-code { font-size:13.5px; font-weight:700; color:var(--txt); }
+.row-route { font-size:11.5px; color:var(--mut); margin-top:3px; }
+.row-meta { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.row-meta span { font-size:10.5px; color:var(--txt2); background:var(--bgw); border-radius:var(--r8); padding:3px 8px; }
+.empty-state { text-align:center; padding:50px 24px; color:var(--mut); }
+.empty-state .es-ico { font-size:34px; margin-bottom:10px; }
+.empty-state .es-ttl { font-size:14px; font-weight:700; color:var(--txt); margin-bottom:4px; }
+.empty-state .es-sub { font-size:12.5px; line-height:1.5; }
+
+/* ================================================================
+   BADGES
+   ================================================================ */
+.badge { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:var(--rpill); font-size:10.5px; font-weight:700; white-space:nowrap; }
+.badge.st-neutre  { background:var(--bgw); color:var(--txt2); }
+.badge.st-transit { background:var(--amberb); color:#8A5A00; }
+.badge.st-arrive  { background:var(--blueb); color:var(--blue); }
+.badge.st-livre   { background:var(--gg); color:var(--gm); }
+.badge.st-incident{ background:var(--redb); color:var(--red); }
+
+/* ================================================================
+   FAB SCANNER (desktop)
+   ================================================================ */
+.fab-scan {
+  position:fixed; right:28px; bottom:28px; z-index:90;
+  width:58px; height:58px; border-radius:50%;
+  background:linear-gradient(135deg,var(--g),var(--gm));
+  display:none; align-items:center; justify-content:center;
+  font-size:26px; box-shadow:var(--shg); color:#04150c;
+}
+
+/* ================================================================
+   FORMULAIRE / FIELDSET (repris de prototype.html)
+   ================================================================ */
+.form-wrap { padding:8px 16px 20px; }
+.fieldset { background:var(--card); border:1px solid var(--bdr); border-radius:var(--r16); padding:16px; margin-bottom:14px; }
+.fieldset-lgd { font-size:12px; font-weight:700; color:var(--gm); text-transform:uppercase; letter-spacing:.5px; margin-bottom:12px; }
+.field { margin-bottom:10px; }
+.field:last-child { margin-bottom:0; }
+.field label { display:block; font-size:11.5px; font-weight:600; color:var(--mut); margin-bottom:5px; }
+.field input, .field select, .field textarea {
+  width:100%; padding:11px 13px; border-radius:var(--r8); border:1.5px solid var(--bdr);
+  font-size:14px; color:var(--txt); background:var(--bg); outline:none;
+}
+.field input:focus, .field select:focus { border-color:var(--g); background:var(--card); }
+.field-check { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--txt2); padding:4px 0; }
+.field-check input { margin:0; }
+.field-hint { font-size:10.5px; color:var(--mut); margin-top:4px; }
+.btn-primary {
+  width:100%; padding:14px; border-radius:var(--r12); background:var(--gd); color:#fff;
+  font-size:14.5px; font-weight:700; border:none; cursor:pointer; font-family:inherit; margin-top:4px;
+}
+.btn-primary:active { transform:scale(.98); }
+.btn-primary:disabled { opacity:.45; cursor:not-allowed; }
+.btn-secondary {
+  width:100%; padding:13px; border-radius:var(--r12); background:var(--card); color:var(--txt);
+  border:1.5px solid var(--bdr); font-size:13.5px; font-weight:700; cursor:pointer; font-family:inherit; margin-top:8px;
+}
+.btn-danger { background:var(--red); }
+.btn-row { display:flex; gap:8px; }
+.btn-row .btn-primary, .btn-row .btn-secondary { margin-top:0; }
+
+/* ================================================================
+   CHECKLIST (départ / manifeste)
+   ================================================================ */
+.checklist { background:var(--card); border:1px solid var(--bdr); border-radius:var(--r16); padding:16px; margin:0 16px 14px; }
+.chk-item { display:flex; align-items:center; gap:9px; padding:7px 0; font-size:13px; color:var(--txt2); }
+.chk-ico { width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; flex-shrink:0; }
+.chk-ico.ok { background:var(--gg); color:var(--gm); }
+.chk-ico.ko { background:var(--redb); color:var(--red); }
+.chk-progress { height:6px; border-radius:3px; background:var(--bgw); overflow:hidden; margin:10px 0 4px; }
+.chk-progress-fill { height:100%; background:var(--g); transition:width .3s var(--ease); }
+.chk-progress-lbl { font-size:11px; color:var(--mut); text-align:right; }
+
+/* ================================================================
+   RÉCONCILIATION
+   ================================================================ */
+.recon-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:0 16px 14px; }
+.recon-card { background:var(--card); border:1px solid var(--bdr); border-radius:var(--r16); padding:14px 10px; text-align:center; }
+.recon-n { font-family:'Playfair Display',serif; font-size:24px; font-weight:900; }
+.recon-l { font-size:10.5px; color:var(--mut); margin-top:4px; }
+.recon-card.ecart .recon-n { color:var(--red); }
+.recon-card.ok .recon-n { color:var(--gm); }
+
+/* ================================================================
+   TIMELINE (preuves)
+   ================================================================ */
+.timeline { list-style:none; padding:2px 16px; }
+.tl-item { display:flex; gap:12px; position:relative; padding-bottom:20px; }
+.tl-item:last-child { padding-bottom:0; }
+.tl-item::before { content:''; position:absolute; left:15px; top:32px; bottom:0; width:2px; background:var(--bdr); }
+.tl-item:last-child::before { display:none; }
+.tl-dot { width:32px; height:32px; border-radius:50%; background:var(--gg); border:1.5px solid var(--g); display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0; z-index:1; }
+.tl-body { flex:1; padding-top:3px; }
+.tl-lbl { font-size:13px; font-weight:700; color:var(--txt); }
+.tl-loc { font-size:11.5px; color:var(--txt2); margin-top:2px; }
+.tl-meta { font-size:10.5px; color:var(--mut); margin-top:2px; }
+.tl-proof { display:inline-flex; align-items:center; gap:4px; font-size:10px; color:var(--gm); background:var(--gg); border-radius:var(--r8); padding:2px 7px; margin-top:5px; }
+
+/* ================================================================
+   SCANNER
+   ================================================================ */
+.scan-target { background:var(--card); border:1.5px dashed var(--bdr); border-radius:var(--r16); margin:12px 16px; padding:20px; text-align:center; }
+.scan-target-ico { font-size:34px; margin-bottom:8px; }
+.scan-code-box { display:flex; gap:8px; padding:0 16px 10px; }
+.scan-picker { padding:4px 16px 8px; display:flex; flex-direction:column; gap:8px; }
+
+/* ================================================================
+   SHEETS / OVERLAYS / TOASTS -- repris de prototype.html
+   ================================================================ */
+.overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:var(--z-sh); opacity:0; pointer-events:none; transition:opacity .25s var(--ease); }
+.overlay.on { opacity:1; pointer-events:auto; }
+.sheet {
+  position:fixed; left:0; right:0; bottom:0; z-index:var(--z-dlg);
+  background:var(--card); border-radius:var(--r24) var(--r24) 0 0;
+  max-height:90vh; overflow-y:auto; transform:translateY(100%);
+  transition:transform .32s var(--ease), opacity .32s var(--ease); padding-bottom:calc(20px + var(--safe));
+}
+.sheet.on { transform:translateY(0); }
+.sheet-hd { position:sticky; top:0; background:var(--card); padding:14px 16px 10px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--bdrs); z-index:1; }
+.sheet-ttl { font-family:'Playfair Display',serif; font-size:15.5px; font-weight:900; }
+.sheet-x { width:32px; height:32px; border-radius:50%; background:var(--bgw); display:flex; align-items:center; justify-content:center; font-size:15px; color:var(--txt2); }
+.sheet-bd { padding:14px 0; }
+#toasts { position:fixed; top:calc(var(--nav) + var(--safeT) + 10px); left:16px; right:16px; z-index:var(--z-tst); display:flex; flex-direction:column; gap:8px; pointer-events:none; }
+.toast {
+  display:flex; align-items:center; gap:10px; background:var(--gd); color:#fff;
+  padding:13px 14px; border-radius:var(--r12); font-size:13px; box-shadow:var(--shx);
+  opacity:0; transform:translateY(-14px); transition:all .3s var(--ease); pointer-events:auto;
+}
+.toast.show { opacity:1; transform:translateY(0); }
+.toast.hiding { opacity:0; transform:translateY(-14px); }
+.toast.e { background:var(--red); }
+.toast.w { background:#8A5A00; }
+.toast-x { cursor:pointer; opacity:.7; font-size:12px; }
+
+/* ================================================================
+   DESKTOP
+   ================================================================ */
+@media (min-width:768px) {
+  #btmnav { display:none; }
+  .fab-scan { display:flex; }
+  #topnav { height:68px; padding:0 clamp(24px,5%,80px); }
+  #desktopnav {
+    display:flex; gap:4px; position:fixed; top:68px; left:0; right:0; z-index:99;
+    background:var(--card); border-bottom:1px solid var(--bdr);
+    padding:0 clamp(24px,5%,80px);
+  }
+  .dn-item { padding:13px 14px; font-size:13px; font-weight:700; color:var(--mut); cursor:pointer; border-bottom:2.5px solid transparent; }
+  .dn-item.on { color:var(--gm); border-bottom-color:var(--g); }
+  .page { padding-top:114px; }
+  body { padding-bottom:0; }
+  .kpi-grid { grid-template-columns:repeat(6,1fr); max-width:1100px; margin:0 auto; padding-left:clamp(24px,5%,80px); padding-right:clamp(24px,5%,80px); }
+  .todo-wrap, .list-wrap, .form-wrap, .checklist, .recon-grid, .timeline, .search-sticky, .filter-row, .sec-hd, .page-hd { max-width:1100px; margin-left:auto; margin-right:auto; }
+  .search-sticky, .filter-row, .sec-hd, .page-hd { padding-left:clamp(24px,5%,80px); padding-right:clamp(24px,5%,80px); }
+  .list-wrap { grid-template-columns:repeat(2,1fr); display:grid; padding-left:clamp(24px,5%,80px); padding-right:clamp(24px,5%,80px); }
+  .sheet { left:50%; right:auto; bottom:auto; top:50%; transform:translate(-50%,-46%); width:min(560px,92vw); border-radius:var(--r24); max-height:85vh; opacity:0; visibility:hidden; pointer-events:none; }
+  .sheet.on { transform:translate(-50%,-50%); opacity:1; visibility:visible; pointer-events:auto; }
+  .search-sticky { top:114px; }
+}
+</style>
+</head>
+<body>
+
+<!-- TOP NAVBAR -->
+<header id="topnav" role="banner">
+  <div class="tn-logo" onclick="navigate('accueil')" style="cursor:pointer">
+    <div class="tn-ico" aria-hidden="true">📦</div>
+    <div>
+      <span class="tn-name">Sen<span>Link</span></span>
+      <div class="tn-org">Atlas Cargo — Transporteur</div>
+    </div>
+  </div>
+  <div class="tn-acts">
+    <button class="tn-btn" id="btnNotif" aria-label="Notifications">
+      🔔
+      <span class="tn-badge" id="notifBadge" aria-live="polite">0</span>
+    </button>
+    <button class="tn-btn" id="btnProfilNav" aria-label="Profil">👤</button>
+  </div>
+</header>
+
+<!-- NAVIGATION DESKTOP (masquée en mobile, la barre du bas suffit) -->
+<nav id="desktopnav" role="navigation" aria-label="Navigation principale (desktop)">
+  <div class="dn-item on" data-page="accueil">🏠 Accueil</div>
+  <div class="dn-item" data-page="colis">📦 Colis</div>
+  <div class="dn-item" data-page="lots">🚚 Lots</div>
+  <div class="dn-item" data-page="scanner">📷 Scanner</div>
+  <div class="dn-item" data-page="incidents">⚠️ Incidents</div>
+</nav>
+
+<!-- BOTTOM TAB BAR -->
+<nav id="btmnav" role="navigation" aria-label="Navigation principale">
+  <div class="tab on" id="tab-accueil" role="tab" aria-selected="true" aria-label="Accueil">
+    <div class="tab-ico" aria-hidden="true">🏠</div><div class="tab-lbl">Accueil</div>
+  </div>
+  <div class="tab" id="tab-colis" role="tab" aria-selected="false" aria-label="Colis">
+    <div class="tab-ico" aria-hidden="true">📦</div><div class="tab-lbl">Colis</div>
+  </div>
+  <div class="tab tab-scan" id="tab-scanner" role="tab" aria-selected="false" aria-label="Scanner">
+    <div class="tab-ico-w" aria-hidden="true">📷</div><div class="tab-lbl">Scanner</div>
+  </div>
+  <div class="tab" id="tab-lots" role="tab" aria-selected="false" aria-label="Lots">
+    <div class="tab-ico" aria-hidden="true">🚚</div><div class="tab-lbl">Lots</div>
+  </div>
+  <div class="tab" id="tab-incidents" role="tab" aria-selected="false" aria-label="Incidents">
+    <div class="tab-ico" aria-hidden="true">⚠️</div><div class="tab-lbl">Incidents</div>
+  </div>
+</nav>
+
+<button class="fab-scan" id="btnFabScan" aria-label="Scanner">📷</button>
+
+<!-- ================================================================
+     PAGE ACCUEIL
+     ================================================================ -->
+<main class="page on" id="page-accueil">
+  <div class="page-hd">
+    <div class="page-ttl">Vue d'ensemble</div>
+    <div class="page-sub">Qu'est-ce qui se passe aujourd'hui sur mon réseau ?</div>
+  </div>
+
+  <div class="kpi-grid" id="kpiGrid"></div>
+
+  <div class="todo-wrap">
+    <div class="todo-ttl">🎯 À faire maintenant</div>
+    <div id="todoList"></div>
+  </div>
+
+  <div class="sec-hd"><span class="sec-ttl">Lots en cours</span><span class="sec-link" onclick="navigate('lots')">Voir tout ›</span></div>
+  <div class="list-wrap" id="homeLotsList"></div>
+</main>
+
+<!-- ================================================================
+     PAGE COLIS
+     ================================================================ -->
+<section class="page" id="page-colis" aria-label="Colis">
+  <div class="page-hd">
+    <div class="page-ttl">Colis</div>
+    <div class="page-sub" id="colisCount">0 colis</div>
+  </div>
+  <div class="search-sticky">
+    <div class="search-inp-w">
+      <input class="search-inp" type="search" id="searchColis" placeholder="ID, référence, téléphone, lot..." autocomplete="off">
+      <span class="search-ico" aria-hidden="true">🔍</span>
+    </div>
+  </div>
+  <div class="filter-row" id="colisFilters"></div>
+  <div class="list-wrap" id="colisList"></div>
+</section>
+
+<!-- ================================================================
+     PAGE SCANNER
+     ================================================================ -->
+<section class="page" id="page-scanner" aria-label="Scanner SenLink">
+  <div class="page-hd">
+    <div class="page-ttl">📷 Scanner SenLink</div>
+    <div class="page-sub">Chaque scan crée un événement horodaté, attribué à vous, avec sa preuve.</div>
+  </div>
+  <div class="scan-target" id="scanEmptyState">
+    <div class="scan-target-ico">📷</div>
+    <div style="font-weight:700;font-size:13.5px;margin-bottom:4px">Sélectionnez un colis à traiter</div>
+    <div style="font-size:12px;color:var(--mut)">Recherchez un code ou choisissez ci-dessous parmi vos colis actionnables.</div>
+  </div>
+  <div class="scan-code-box">
+    <div class="search-inp-w" style="flex:1">
+      <input class="search-inp" type="search" id="scanCodeInput" placeholder="Ex : SL-MA-SN-847291" autocomplete="off">
+      <span class="search-ico" aria-hidden="true">🔍</span>
+    </div>
+    <button class="btn-go" id="btnScanGo" style="padding:0 18px;border-radius:var(--r12);background:var(--gd);color:#fff;font-weight:700;font-size:13.5px">Ouvrir</button>
+  </div>
+  <div class="sec-hd"><span class="sec-ttl">Colis actionnables</span></div>
+  <div class="scan-picker" id="scanPicker"></div>
+  <div id="scanStepWrap"></div>
+</section>
+
+<!-- ================================================================
+     PAGE LOTS
+     ================================================================ -->
+<section class="page" id="page-lots" aria-label="Lots">
+  <div class="page-hd">
+    <div class="page-ttl">Lots</div>
+    <div class="page-sub" id="lotsCount">0 lot</div>
+  </div>
+  <div class="filter-row" id="lotsFilters"></div>
+  <div style="padding:2px 16px 4px">
+    <button class="btn-primary" id="btnNewLot" style="margin-top:6px">+ Nouveau lot</button>
+  </div>
+  <div class="list-wrap" id="lotsList"></div>
+</section>
+
+<!-- ================================================================
+     PAGE INCIDENTS
+     ================================================================ -->
+<section class="page" id="page-incidents" aria-label="Incidents">
+  <div class="page-hd">
+    <div class="page-ttl">⚠️ Incidents</div>
+    <div class="page-sub" id="incidentsCount">0 incident</div>
+  </div>
+  <div class="list-wrap" id="incidentsList"></div>
+</section>
+
+<!-- ================================================================
+     PAGE PROFIL
+     ================================================================ -->
+<section class="page" id="page-profil" aria-label="Profil">
+  <div class="page-hd">
+    <div class="page-ttl">Atlas Cargo</div>
+    <div class="page-sub">Transporteur — Casablanca ↔ Dakar</div>
+  </div>
+  <div class="form-wrap">
+    <div class="fieldset">
+      <div class="fieldset-lgd">À propos de ce prototype</div>
+      <p style="font-size:12.5px;color:var(--txt2);line-height:1.6">
+        Interface de démonstration du dashboard transporteur SenLink.
+        Les règles (transitions de colis, transitions de lot, contrôle
+        géographique, réconciliation) reproduisent Migration 1 et
+        Migration 2 telles que conçues, mais aucune donnée ici n'est
+        réelle et aucun appel réseau n'est effectué.
+      </p>
+    </div>
+    <button class="btn-secondary" id="btnResetDemo">Réinitialiser les données de démo</button>
+  </div>
+</section>
+
+<!-- SHEET -- Détail colis -->
+<div class="overlay" id="colisOverlay" onclick="closeSheet('colis')"></div>
+<div class="sheet" id="colisSheet" role="dialog" aria-modal="true" aria-label="Détail du colis">
+  <div class="sheet-hd">
+    <span class="sheet-ttl">Détail du colis</span>
+    <button class="sheet-x" onclick="closeSheet('colis')" aria-label="Fermer">✕</button>
+  </div>
+  <div class="sheet-bd" id="colisSheetBody"></div>
+</div>
+
+<!-- SHEET -- Détail / actions lot -->
+<div class="overlay" id="lotOverlay" onclick="closeSheet('lot')"></div>
+<div class="sheet" id="lotSheet" role="dialog" aria-modal="true" aria-label="Détail du lot">
+  <div class="sheet-hd">
+    <span class="sheet-ttl" id="lotSheetTtl">Lot</span>
+    <button class="sheet-x" onclick="closeSheet('lot')" aria-label="Fermer">✕</button>
+  </div>
+  <div class="sheet-bd" id="lotSheetBody"></div>
+</div>
+
+<!-- SHEET -- Nouveau lot -->
+<div class="overlay" id="newLotOverlay" onclick="closeSheet('newLot')"></div>
+<div class="sheet" id="newLotSheet" role="dialog" aria-modal="true" aria-label="Nouveau lot">
+  <div class="sheet-hd">
+    <span class="sheet-ttl">Nouveau lot</span>
+    <button class="sheet-x" onclick="closeSheet('newLot')" aria-label="Fermer">✕</button>
+  </div>
+  <div class="sheet-bd">
+    <form id="formNewLot" class="form-wrap" style="padding-top:0">
+      <div class="fieldset">
+        <div class="fieldset-lgd">Trajet</div>
+        <div class="field"><label for="newLotOrigin">Hub d'origine</label>
+          <select id="newLotOrigin"></select>
+        </div>
+        <div class="field"><label for="newLotDest">Hub de destination</label>
+          <select id="newLotDest"></select>
+        </div>
+        <div class="field-hint">create_shipment_lot() génère automatiquement le code du lot.</div>
+      </div>
+      <button class="btn-primary" type="submit">Créer le lot</button>
+    </form>
+  </div>
+</div>
+
+<div id="toasts" role="status" aria-live="polite" aria-atomic="true"></div>
+
+<!-- ================================================================
+     JS -- données de démo + logique d'affichage (aucun appel réseau)
+     ================================================================ -->
+<script>
+(function() {
+'use strict';
+
+/* ----------------------------------------------------------------
+   HUBS (démo)
+   ---------------------------------------------------------------- */
+var HUBS = [
+  { id:'hub-casa', name:'Hub Casablanca', city:'Casablanca', country:'MA' },
+  { id:'hub-tanger', name:'Hub Tanger', city:'Tanger', country:'MA' },
+  { id:'hub-dakar', name:'Hub Dakar', city:'Dakar', country:'SN' },
+  { id:'hub-thies', name:'Hub Thiès', city:'Thiès', country:'SN' }
+];
+function hubById(id) { return HUBS.filter(function(h){ return h.id === id; })[0]; }
+
+/* ----------------------------------------------------------------
+   STATUTS COLIS (miroir de Migration 1 -- réservés au périmètre
+   transporteur : le Scanner ne propose que les statuts que la
+   matrice rôle × statut autorise au rôle transporteur)
+   ---------------------------------------------------------------- */
+var STATUS_META = {
+  created:                   { label:'Créé',                    cls:'st-neutre'  },
+  dropped_off:               { label:'Déposé au point relais',  cls:'st-neutre'  },
+  inspected:                 { label:'Contrôlé — prêt',          cls:'st-neutre'  },
+  departed_origin:           { label:'Départ',                   cls:'st-transit' },
+  in_transit_international:  { label:'Transit international',    cls:'st-transit' },
+  customs_clearance:         { label:'Contrôle douanier',        cls:'st-transit' },
+  arrived_destination:       { label:'Arrivé à destination',     cls:'st-arrive'  },
+  at_hub:                    { label:'Au hub (agent)',            cls:'st-arrive'  },
+  at_pickup_point:           { label:'Au point relais (agent)',   cls:'st-arrive'  },
+  out_for_delivery:          { label:'En cours de livraison',     cls:'st-arrive'  },
+  delivered:                 { label:'Livré',                     cls:'st-livre'   },
+  cancelled:                 { label:'Annulé',                    cls:'st-incident'}
+};
+var LOT_STATUS_META = {
+  open:       { label:'Ouvert',     cls:'st-neutre'  },
+  in_transit: { label:'En transit', cls:'st-transit' },
+  arrived:    { label:'Arrivé',     cls:'st-arrive'  },
+  closed:     { label:'Clôturé',    cls:'st-livre'   }
+};
+
+/* Transporteur uniquement : is_role_status_allowed('transporteur', ...) */
+var SHIPMENT_TRANSITIONS = {
+  inspected:                 ['departed_origin'],
+  departed_origin:           ['in_transit_international'],
+  in_transit_international:  ['customs_clearance', 'arrived_destination'],
+  customs_clearance:         ['arrived_destination']
+};
+var PROOF_REQUIRED = ['arrived_destination'];
+var RECEIVED_STATUSES = ['arrived_destination','at_hub','at_pickup_point','out_for_delivery','delivered'];
+var LOT_TRANSITIONS = { open:'in_transit', in_transit:'arrived', arrived:'closed' };
+
+/* ----------------------------------------------------------------
+   DONNÉES DE DÉMO
+   ---------------------------------------------------------------- */
+var SEED_SHIPMENTS = [
+  { code:'SL-MA-SN-847291', status:'inspected', originCity:'Casablanca', originCountry:'MA', destCity:'Dakar', destCountry:'SN', sender:'Youssef El Amrani', recipient:'Aissatou Diallo', weight:3.2, lotId:null,
+    timeline:[
+      { lbl:'Créé', loc:'Casablanca', actor:'Youssef (expéditeur)', time:'29 août, 09:14', proof:false },
+      { lbl:'Déposé au point relais', loc:'Point relais Maarif', actor:'Agent Karim B.', time:'29 août, 11:02', proof:true },
+      { lbl:'Contrôlé', loc:'Point relais Maarif', actor:'Agent Karim B.', time:'29 août, 11:05', proof:true }
+    ] },
+  { code:'SL-MA-SN-118420', status:'inspected', originCity:'Casablanca', originCountry:'MA', destCity:'Dakar', destCountry:'SN', sender:'Salma Bennis', recipient:'Cheikh Fall', weight:1.4, lotId:null,
+    timeline:[
+      { lbl:'Créé', loc:'Casablanca', actor:'Salma (expéditeur)', time:'29 août, 08:02', proof:false },
+      { lbl:'Déposé au point relais', loc:'Point relais Gauthier', actor:'Agent Rania S.', time:'29 août, 10:30', proof:true },
+      { lbl:'Contrôlé', loc:'Point relais Gauthier', actor:'Agent Rania S.', time:'29 août, 10:33', proof:true }
+    ] },
+  { code:'SL-MA-SN-556310', status:'inspected', originCity:'Casablanca', originCountry:'MA', destCity:'Dakar', destCountry:'SN', sender:'Hamza Idrissi', recipient:'Fatou Ndiaye', weight:0.4, lotId:null,
+    timeline:[
+      { lbl:'Créé', loc:'Casablanca', actor:'Hamza (expéditeur)', time:'29 août, 13:20', proof:false },
+      { lbl:'Déposé au point relais', loc:'Point relais Maarif', actor:'Agent Karim B.', time:'29 août, 15:10', proof:true },
+      { lbl:'Contrôlé', loc:'Point relais Maarif', actor:'Agent Karim B.', time:'29 août, 15:12', proof:true }
+    ] },
+  { code:'SL-MA-SN-902174', status:'inspected', originCity:'Casablanca', originCountry:'MA', destCity:'Dakar', destCountry:'SN', sender:'Nadia Alaoui', recipient:'Ousmane Sarr', weight:2.0, lotId:null,
+    timeline:[
+      { lbl:'Créé', loc:'Casablanca', actor:'Nadia (expéditeur)', time:'29 août, 17:40', proof:false },
+      { lbl:'Déposé au point relais', loc:'Point relais Ain Sebaa', actor:'Agent Youssra L.', time:'29 août, 18:05', proof:true },
+      { lbl:'Contrôlé', loc:'Point relais Ain Sebaa', actor:'Agent Youssra L.', time:'29 août, 18:08', proof:true }
+    ] },
+  { code:'SL-MA-SN-334187', status:'inspected', originCity:'Casablanca', originCountry:'MA', destCity:'Dakar', destCountry:'SN', sender:'Omar Benjelloun', recipient:'Mariama Sow', weight:1.8, lotId:'lot-a',
+    timeline:[
+      { lbl:'Créé', loc:'Casablanca', actor:'Omar (expéditeur)', time:'26 août, 10:05', proof:false },
+      { lbl:'Déposé au point relais', loc:'Point relais Ain Sebaa', actor:'Agent Youssra L.', time:'26 août, 12:40', proof:true },
+      { lbl:'Contrôlé', loc:'Point relais Ain Sebaa', actor:'Agent Youssra L.', time:'26 août, 12:42', proof:true }
+    ] },
+  { code:'SL-MA-SN-771002', status:'inspected', originCity:'Casablanca', originCountry:'MA', destCity:'Dakar', destCountry:'SN', sender:'Laila Ziani', recipient:'Ibrahima Ba', weight:2.6, lotId:'lot-a',
+    timeline:[
+      { lbl:'Créé', loc:'Casablanca', actor:'Laila (expéditeur)', time:'26 août, 09:00', proof:false },
+      { lbl:'Déposé au point relais', loc:'Point relais Ain Sebaa', actor:'Agent Youssra L.', time:'26 août, 11:15', proof:true },
+      { lbl:'Contrôlé', loc:'Point relais Ain Sebaa', actor:'Agent Youssra L.', time:'26 août, 11:17', proof:true }
+    ] },
+  { code:'SL-MA-SN-118932', status:'arrived_destination', originCity:'Casablanca', originCountry:'MA', destCity:'Dakar', destCountry:'SN', sender:'Adam Kabbaj', recipient:'Modou Diagne', weight:1.1, lotId:'lot-b',
+    timeline:[
+      { lbl:'Créé', loc:'Casablanca', actor:'Adam (expéditeur)', time:'20 août, 08:00', proof:false },
+      { lbl:'Déposé au point relais', loc:'Point relais Maarif', actor:'Agent Karim B.', time:'20 août, 10:00', proof:true },
+      { lbl:'Contrôlé', loc:'Point relais Maarif', actor:'Agent Karim B.', time:'20 août, 10:02', proof:true },
+      { lbl:'Départ', loc:'Hub Casablanca', actor:'Atlas Cargo', time:'21 août, 07:00', proof:false },
+      { lbl:'Transit international', loc:'En route', actor:'Atlas Cargo', time:'21 août, 20:00', proof:false },
+      { lbl:'Arrivé à destination', loc:'Hub Dakar', actor:'Atlas Cargo', time:'23 août, 09:00', proof:true }
+    ] },
+  { code:'SL-MA-SN-224561', status:'departed_origin', originCity:'Casablanca', originCountry:'MA', destCity:'Dakar', destCountry:'SN', sender:'Karim Fassi', recipient:'Astou Gueye', weight:0.9, lotId:'lot-b',
+    timeline:[
+      { lbl:'Créé', loc:'Casablanca', actor:'Karim (expéditeur)', time:'20 août, 08:30', proof:false },
+      { lbl:'Déposé au point relais', loc:'Point relais Maarif', actor:'Agent Karim B.', time:'20 août, 10:20', proof:true },
+      { lbl:'Contrôlé', loc:'Point relais Maarif', actor:'Agent Karim B.', time:'20 août, 10:22', proof:true },
+      { lbl:'Départ', loc:'Hub Casablanca', actor:'Atlas Cargo', time:'21 août, 07:00', proof:false }
+    ] },
+  { code:'SL-MA-SN-663019', status:'delivered', originCity:'Casablanca', originCountry:'MA', destCity:'Dakar', destCountry:'SN', sender:'Sophia Naciri', recipient:'Awa Sy', weight:3.0, lotId:'lot-c',
+    timeline:[
+      { lbl:'Créé', loc:'Casablanca', actor:'Sophia (expéditeur)', time:'10 août, 09:00', proof:false },
+      { lbl:'Livré', loc:'Point relais Sandaga', actor:'Agent Ndeye F.', time:'16 août, 10:47', proof:true }
+    ] }
+];
+
+var SEED_LOTS = [
+  { id:'lot-a', originHubId:'hub-casa', destHubId:'hub-dakar', status:'open', createdAt:'27 août, 06:50', departedAt:null, arrivedAt:null },
+  { id:'lot-b', originHubId:'hub-casa', destHubId:'hub-dakar', status:'in_transit', createdAt:'20 août, 07:30', departedAt:'21 août, 07:00', arrivedAt:null },
+  { id:'lot-c', originHubId:'hub-casa', destHubId:'hub-dakar', status:'closed', createdAt:'8 août, 08:00', departedAt:'9 août, 07:00', arrivedAt:'12 août, 09:15' }
+];
+
+var SEED_INCIDENTS = [
+  { id:'inc-1', shipmentCode:'SL-MA-SN-990045', type:'colis_manquant', status:'open', description:'Écart de réconciliation du lot LOT-CASA-DKR-0812-041 (24 attendus, 23 reçus).', time:'12 août, 09:15' }
+];
+
+/* ----------------------------------------------------------------
+   ÉTAT + PERSISTANCE (localStorage uniquement)
+   ---------------------------------------------------------------- */
+var ST = { page:'accueil', shipments:[], lots:[], incidents:[], colisFilter:'all', lotsFilter:'all', scanTarget:null, lotCodeSeq:41, _toastMap:{} };
+
+function lsGet(k) { try { return JSON.parse(localStorage.getItem(k)); } catch(e) { return null; } }
+function lsSet(k,v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {} }
+function h(s) { var d = document.createElement('div'); d.textContent = String(s == null ? '' : s); return d.innerHTML; }
+function saveAll() { lsSet('slt_shipments', ST.shipments); lsSet('slt_lots', ST.lots); lsSet('slt_incidents', ST.incidents); }
+
+function resetDemo() {
+  ST.shipments = JSON.parse(JSON.stringify(SEED_SHIPMENTS));
+  ST.lots = JSON.parse(JSON.stringify(SEED_LOTS));
+  ST.incidents = JSON.parse(JSON.stringify(SEED_INCIDENTS));
+  saveAll();
+  renderAll();
+  showToast('Données de démonstration réinitialisées', 'i');
+}
+
+function findShipment(code) {
+  var c = String(code || '').toLowerCase().trim();
+  for (var i = 0; i < ST.shipments.length; i++) {
+    if (ST.shipments[i].code.toLowerCase() === c) return ST.shipments[i];
+  }
+  return null;
+}
+function findLot(id) {
+  for (var i = 0; i < ST.lots.length; i++) if (ST.lots[i].id === id) return ST.lots[i];
+  return null;
+}
+function shipmentsOfLot(lotId) {
+  return ST.shipments.filter(function(s){ return s.lotId === lotId; });
+}
+
+/* ----------------------------------------------------------------
+   NAVIGATION
+   ---------------------------------------------------------------- */
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('on'); });
+  document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('on'); t.setAttribute('aria-selected','false'); });
+  document.querySelectorAll('.dn-item').forEach(function(d){ d.classList.remove('on'); });
+  var pg = document.getElementById('page-'+page);
+  var tab = document.getElementById('tab-'+page);
+  var dn = document.querySelector('.dn-item[data-page="'+page+'"]');
+  if (pg) pg.classList.add('on');
+  if (tab) { tab.classList.add('on'); tab.setAttribute('aria-selected','true'); }
+  if (dn) dn.classList.add('on');
+  ST.page = page;
+  window.scrollTo(0,0);
+  if (page === 'scanner') renderScanPicker();
+}
+window.navigate = navigate;
+
+function bindNav() {
+  document.getElementById('btmnav').addEventListener('click', function(e){
+    var tab = e.target.closest('.tab');
+    if (!tab) return;
+    navigate(tab.id.replace('tab-',''));
+  });
+  document.getElementById('desktopnav').addEventListener('click', function(e){
+    var item = e.target.closest('.dn-item');
+    if (!item) return;
+    navigate(item.dataset.page);
+  });
+  document.getElementById('btnProfilNav').addEventListener('click', function(){ navigate('profil'); });
+  document.getElementById('btnNotif').addEventListener('click', function(){ showToast('Aucune nouvelle notification (démo)', 'i'); });
+  document.getElementById('btnFabScan').addEventListener('click', function(){ navigate('scanner'); });
+  document.getElementById('btnResetDemo').addEventListener('click', resetDemo);
+}
+
+/* ----------------------------------------------------------------
+   SHEETS
+   ---------------------------------------------------------------- */
+function openSheet(id) {
+  document.getElementById(id+'Overlay').classList.add('on');
+  document.getElementById(id+'Sheet').classList.add('on');
+  document.body.style.overflow = 'hidden';
+}
+function closeSheet(id) {
+  document.getElementById(id+'Overlay').classList.remove('on');
+  document.getElementById(id+'Sheet').classList.remove('on');
+  document.body.style.overflow = '';
+}
+window.closeSheet = closeSheet;
+
+/* ----------------------------------------------------------------
+   TOASTS
+   ---------------------------------------------------------------- */
+function showToast(msg, type, dur) {
+  var key = msg + type;
+  if (ST._toastMap[key]) return;
+  ST._toastMap[key] = true;
+  setTimeout(function(){ delete ST._toastMap[key]; }, 1800);
+  var c = document.getElementById('toasts');
+  var t = document.createElement('div');
+  t.className = 'toast' + (type === 'e' ? ' e' : type === 'w' ? ' w' : '');
+  var icons = { s:'✅', e:'❌', w:'⚠️', i:'ℹ️' };
+  t.innerHTML = '<span>'+(icons[type]||'ℹ️')+'</span><span style="flex:1">'+h(msg)+'</span><span class="toast-x" role="button" tabindex="0" aria-label="Fermer">✕</span>';
+  t.querySelector('.toast-x').addEventListener('click', function(){ dismiss(t); });
+  c.appendChild(t);
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){ t.classList.add('show'); }); });
+  setTimeout(function(){ dismiss(t); }, dur || 3400);
+}
+function dismiss(t) {
+  if (!t.parentNode) return;
+  t.classList.add('hiding'); t.classList.remove('show');
+  setTimeout(function(){ if (t.parentNode) t.remove(); }, 380);
+}
+
+/* ----------------------------------------------------------------
+   BADGES / HELPERS
+   ---------------------------------------------------------------- */
+function statusBadge(status) {
+  var m = STATUS_META[status] || { label:status, cls:'st-neutre' };
+  return '<span class="badge '+m.cls+'">'+h(m.label)+'</span>';
+}
+function lotStatusBadge(status) {
+  var m = LOT_STATUS_META[status] || { label:status, cls:'st-neutre' };
+  return '<span class="badge '+m.cls+'">'+h(m.label)+'</span>';
+}
+function lotLabel(lot) {
+  return 'LOT-' + hubById(lot.originHubId).city.slice(0,3).toUpperCase() + '-' + hubById(lot.destHubId).city.slice(0,3).toUpperCase() + '-' + lot.id.slice(-3).toUpperCase();
+}
+
+/* ----------------------------------------------------------------
+   RENDU -- VUE D'ENSEMBLE
+   ---------------------------------------------------------------- */
+function computeKpis() {
+  var all = ST.shipments;
+  var enTransit = all.filter(function(s){ return ['departed_origin','in_transit_international','customs_clearance'].indexOf(s.status) > -1; }).length;
+  var aPrendre = all.filter(function(s){ return s.status === 'inspected' && !s.lotId; }).length;
+  var lotsTransport = ST.lots.filter(function(l){ return l.status === 'in_transit'; }).length;
+  var departsJour = ST.lots.filter(function(l){ return l.status === 'in_transit' || l.status === 'open'; }).length;
+  var arriveesPrevues = ST.lots.filter(function(l){ return l.status === 'in_transit'; }).length;
+  var incidentsOuverts = ST.incidents.filter(function(i){ return i.status === 'open'; }).length;
+  var livres = all.filter(function(s){ return s.status === 'delivered'; }).length;
+  var tauxLivraison = all.length ? Math.round(livres / all.length * 100) : 0;
+  return { enTransit:enTransit, aPrendre:aPrendre, lotsTransport:lotsTransport, departsJour:departsJour,
+    arriveesPrevues:arriveesPrevues, incidentsOuverts:incidentsOuverts, livres:livres, tauxLivraison:tauxLivraison };
+}
+function renderKpis() {
+  var k = computeKpis();
+  var cards = [
+    { ico:'📦', n:k.enTransit, l:'Colis en transit', cls:'' },
+    { ico:'🔄', n:k.aPrendre, l:'À prendre en charge', cls:k.aPrendre ? 'warn' : '' },
+    { ico:'🚚', n:k.lotsTransport, l:'Lots en transport', cls:'' },
+    { ico:'⚠️', n:k.incidentsOuverts, l:'Incidents ouverts', cls:k.incidentsOuverts ? 'warn' : 'good' },
+    { ico:'✅', n:k.livres, l:'Colis livrés', cls:'good' },
+    { ico:'📊', n:k.tauxLivraison + '%', l:'Taux de livraison', cls:'good' }
+  ];
+  document.getElementById('kpiGrid').innerHTML = cards.map(function(c){
+    return '<div class="kpi-card '+c.cls+'"><div class="kpi-ico">'+c.ico+'</div><div class="kpi-n">'+c.n+'</div><div class="kpi-l">'+h(c.l)+'</div></div>';
+  }).join('');
+}
+function renderTodo() {
+  var items = [];
+  var aPrendre = ST.shipments.filter(function(s){ return s.status === 'inspected' && !s.lotId; }).length;
+  var incidentsOuverts = ST.incidents.filter(function(i){ return i.status === 'open'; }).length;
+  var lotsOpen = ST.lots.filter(function(l){ return l.status === 'open'; });
+  var lotsArrived = ST.lots.filter(function(l){ return l.status === 'arrived'; });
+
+  if (aPrendre > 0) items.push({ dot:'r', txt:aPrendre + ' colis contrôlés attendent d\'être rattachés à un lot', action:function(){ navigate('colis'); } });
+  if (incidentsOuverts > 0) items.push({ dot:'o', txt:incidentsOuverts + ' incident(s) non traité(s)', action:function(){ navigate('incidents'); } });
+  lotsOpen.forEach(function(l){
+    var n = shipmentsOfLot(l.id).length;
+    items.push({ dot:'y', txt:'Lot ' + lotLabel(l) + ' ouvert — ' + n + ' colis rattaché(s)', action:function(){ openLotSheet(l.id); } });
+  });
+  lotsArrived.forEach(function(l){
+    items.push({ dot:'b', txt:'Lot ' + lotLabel(l) + ' arrivé — réconciliation à faire', action:function(){ openLotSheet(l.id); } });
+  });
+
+  var el = document.getElementById('todoList');
+  if (!items.length) {
+    el.innerHTML = '<div class="todo-empty">Rien de bloquant pour le moment.</div>';
+    return;
+  }
+  el.innerHTML = items.map(function(it, idx){
+    return '<div class="todo-item" data-idx="'+idx+'"><span class="todo-dot '+it.dot+'"></span><span>'+h(it.txt)+'</span></div>';
+  }).join('');
+  Array.prototype.forEach.call(el.querySelectorAll('.todo-item'), function(node){
+    node.addEventListener('click', function(){ items[+node.dataset.idx].action(); });
+  });
+}
+function renderHomeLots() {
+  var active = ST.lots.filter(function(l){ return l.status !== 'closed'; });
+  document.getElementById('homeLotsList').innerHTML = active.length
+    ? active.map(lotCardHtml).join('')
+    : '<div class="empty-state" style="grid-column:1/-1"><div class="es-ico">🚚</div><div class="es-ttl">Aucun lot actif</div><div class="es-sub">Créez un lot depuis l\'onglet Lots.</div></div>';
+  bindLotCards(document.getElementById('homeLotsList'));
+}
+
+/* ----------------------------------------------------------------
+   RENDU -- COLIS
+   ---------------------------------------------------------------- */
+var COLIS_FILTERS = [
+  { key:'all', lbl:'Tous' },
+  { key:'a_prendre', lbl:'À prendre en charge' },
+  { key:'en_transit', lbl:'En transit' },
+  { key:'arrives', lbl:'Arrivés' },
+  { key:'livres', lbl:'Livrés' }
+];
+function renderColisFilters() {
+  document.getElementById('colisFilters').innerHTML = COLIS_FILTERS.map(function(f){
+    return '<button class="filter-chip'+(ST.colisFilter===f.key?' on':'')+'" data-key="'+f.key+'">'+h(f.lbl)+'</button>';
+  }).join('');
+  Array.prototype.forEach.call(document.getElementById('colisFilters').querySelectorAll('.filter-chip'), function(btn){
+    btn.addEventListener('click', function(){ ST.colisFilter = btn.dataset.key; renderColis(); });
+  });
+}
+function filteredColis() {
+  var q = (document.getElementById('searchColis').value || '').toLowerCase().trim();
+  return ST.shipments.filter(function(s){
+    if (ST.colisFilter === 'a_prendre' && !(s.status === 'inspected' && !s.lotId)) return false;
+    if (ST.colisFilter === 'en_transit' && ['departed_origin','in_transit_international','customs_clearance'].indexOf(s.status) === -1) return false;
+    if (ST.colisFilter === 'arrives' && s.status !== 'arrived_destination') return false;
+    if (ST.colisFilter === 'livres' && s.status !== 'delivered') return false;
+    if (!q) return true;
+    var lot = s.lotId ? findLot(s.lotId) : null;
+    var hay = [s.code, s.sender, s.recipient, s.destCity, lot ? lotLabel(lot) : ''].join(' ').toLowerCase();
+    return hay.indexOf(q) > -1;
+  });
+}
+function renderColis() {
+  var list = filteredColis();
+  document.getElementById('colisCount').textContent = list.length + (list.length > 1 ? ' colis' : ' colis');
+  var el = document.getElementById('colisList');
+  if (!list.length) {
+    el.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="es-ico">📦</div><div class="es-ttl">Aucun colis</div><div class="es-sub">Aucun résultat pour ce filtre.</div></div>';
+    return;
+  }
+  el.innerHTML = list.map(function(s){
+    var lot = s.lotId ? findLot(s.lotId) : null;
+    return '<div class="row-card" data-code="'+h(s.code)+'">'
+      + '<div class="row-top"><span class="row-code">'+h(s.code)+'</span>'+statusBadge(s.status)+'</div>'
+      + '<div class="row-route">'+h(s.originCity)+' → '+h(s.destCity)+' · '+h(s.recipient)+'</div>'
+      + '<div class="row-meta">'
+      +   '<span>'+s.weight+' kg</span>'
+      +   (lot ? '<span>🚚 '+h(lotLabel(lot))+'</span>' : '<span>Non rattaché</span>')
+      + '</div></div>';
+  }).join('');
+  Array.prototype.forEach.call(el.querySelectorAll('.row-card'), function(card){
+    card.addEventListener('click', function(){ openColisSheet(card.dataset.code); });
+  });
+}
+
+function timelineHtml(shipment) {
+  var items = shipment.timeline.map(function(ev){
+    return '<li class="tl-item">'
+      + '<div class="tl-dot" aria-hidden="true">✅</div>'
+      + '<div class="tl-body">'
+      +   '<div class="tl-lbl">'+h(ev.lbl)+'</div>'
+      +   '<div class="tl-loc">'+h(ev.loc)+' — '+h(ev.actor)+'</div>'
+      +   '<div class="tl-meta">'+h(ev.time)+'</div>'
+      +   (ev.proof ? '<div class="tl-proof">📷 Preuve enregistrée</div>' : '')
+      + '</div></li>';
+  }).join('');
+  return '<ul class="timeline">'+items+'</ul>';
+}
+function openColisSheet(code) {
+  var s = findShipment(code);
+  if (!s) return;
+  var lot = s.lotId ? findLot(s.lotId) : null;
+  document.getElementById('colisSheetBody').innerHTML =
+    '<div style="padding:0 16px 12px">'
+    + '<div class="row-top" style="margin-bottom:6px"><span class="row-code" style="font-size:16px">'+h(s.code)+'</span>'+statusBadge(s.status)+'</div>'
+    + '<div class="row-route">'+h(s.originCity)+' → '+h(s.destCity)+'</div>'
+    + '<div class="row-meta">'
+    +   '<span>Expéditeur : '+h(s.sender)+'</span>'
+    +   '<span>Destinataire : '+h(s.recipient)+'</span>'
+    +   '<span>'+s.weight+' kg</span>'
+    +   (lot ? '<span>🚚 '+h(lotLabel(lot))+'</span>' : '<span>Non rattaché à un lot</span>')
+    + '</div></div>'
+    + '<div class="sec-hd" style="padding-top:8px"><span class="sec-ttl">Historique et preuves</span></div>'
+    + timelineHtml(s);
+  openSheet('colis');
+}
+
+/* ----------------------------------------------------------------
+   RENDU -- LOTS
+   ---------------------------------------------------------------- */
+var LOTS_FILTERS = [
+  { key:'all', lbl:'Tous' },
+  { key:'open', lbl:'Ouverts' },
+  { key:'in_transit', lbl:'En transit' },
+  { key:'arrived', lbl:'Arrivés' },
+  { key:'closed', lbl:'Clôturés' }
+];
+function renderLotsFilters() {
+  document.getElementById('lotsFilters').innerHTML = LOTS_FILTERS.map(function(f){
+    return '<button class="filter-chip'+(ST.lotsFilter===f.key?' on':'')+'" data-key="'+f.key+'">'+h(f.lbl)+'</button>';
+  }).join('');
+  Array.prototype.forEach.call(document.getElementById('lotsFilters').querySelectorAll('.filter-chip'), function(btn){
+    btn.addEventListener('click', function(){ ST.lotsFilter = btn.dataset.key; renderLots(); });
+  });
+}
+function lotCardHtml(l) {
+  var ships = shipmentsOfLot(l.id);
+  var weight = ships.reduce(function(sum,s){ return sum + s.weight; }, 0);
+  return '<div class="row-card" data-lot="'+l.id+'">'
+    + '<div class="row-top"><span class="row-code">'+h(lotLabel(l))+'</span>'+lotStatusBadge(l.status)+'</div>'
+    + '<div class="row-route">'+h(hubById(l.originHubId).city)+' → '+h(hubById(l.destHubId).city)+'</div>'
+    + '<div class="row-meta"><span>📦 '+ships.length+' colis</span><span>⚖️ '+weight.toFixed(1)+' kg</span></div>'
+    + '</div>';
+}
+function bindLotCards(container) {
+  Array.prototype.forEach.call(container.querySelectorAll('.row-card[data-lot]'), function(card){
+    card.addEventListener('click', function(){ openLotSheet(card.dataset.lot); });
+  });
+}
+function renderLots() {
+  var list = ST.lots.filter(function(l){ return ST.lotsFilter === 'all' || l.status === ST.lotsFilter; });
+  document.getElementById('lotsCount').textContent = list.length + (list.length > 1 ? ' lots' : ' lot');
+  var el = document.getElementById('lotsList');
+  el.innerHTML = list.length
+    ? list.map(lotCardHtml).join('')
+    : '<div class="empty-state" style="grid-column:1/-1"><div class="es-ico">🚚</div><div class="es-ttl">Aucun lot</div><div class="es-sub">Aucun résultat pour ce filtre.</div></div>';
+  bindLotCards(el);
+}
+
+function openLotSheet(lotId) {
+  var lot = findLot(lotId);
+  if (!lot) return;
+  document.getElementById('lotSheetTtl').textContent = lotLabel(lot);
+  renderLotSheetBody(lot);
+  openSheet('lot');
+}
+
+function renderLotSheetBody(lot) {
+  var ships = shipmentsOfLot(lot.id);
+  var weight = ships.reduce(function(sum,s){ return sum + s.weight; }, 0);
+  var body = document.getElementById('lotSheetBody');
+  var html = '<div style="padding:0 16px 10px">'
+    + lotStatusBadge(lot.status)
+    + '<div class="row-route" style="margin-top:8px">'+h(hubById(lot.originHubId).city)+' → '+h(hubById(lot.destHubId).city)+'</div>'
+    + '<div class="row-meta"><span>📦 '+ships.length+' colis</span><span>⚖️ '+weight.toFixed(1)+' kg</span>'
+    + (lot.departedAt ? '<span>Départ : '+h(lot.departedAt)+'</span>' : '')
+    + (lot.arrivedAt ? '<span>Arrivée : '+h(lot.arrivedAt)+'</span>' : '')
+    + '</div></div>';
+
+  if (lot.status === 'open') {
+    html += lotOpenChecklistHtml(lot, ships);
+    html += '<div class="sec-hd"><span class="sec-ttl">Colis rattachés</span></div>';
+    html += lotShipmentListHtml(ships, lot, true);
+    html += eligibleShipmentsPickerHtml(lot);
+    html += '<div class="form-wrap" style="padding-top:0">'
+      + '<button class="btn-primary" id="btnDeclareDeparture" data-lot="'+lot.id+'">🚚 Confirmer le départ</button>'
+      + (ships.length === 0 ? '<button class="btn-secondary" id="btnCancelLot" data-lot="'+lot.id+'">Annuler ce lot vide</button>' : '')
+      + '</div>';
+  } else if (lot.status === 'in_transit') {
+    html += '<div class="sec-hd"><span class="sec-ttl">Colis du lot</span></div>';
+    html += lotShipmentListHtml(ships, lot, false);
+    html += '<div class="form-wrap" style="padding-top:0">'
+      + '<button class="btn-primary" id="btnDeclareArrival" data-lot="'+lot.id+'">🛬 Déclarer l\'arrivée</button>'
+      + '</div>';
+  } else if (lot.status === 'arrived') {
+    html += reconciliationHtml(lot, ships);
+  } else {
+    html += '<div class="sec-hd"><span class="sec-ttl">Colis du lot</span></div>';
+    html += lotShipmentListHtml(ships, lot, false);
+    html += '<p style="padding:8px 16px;font-size:12px;color:var(--mut)">Lot clôturé — cycle opérationnel terminé.</p>';
+  }
+  body.innerHTML = html;
+  bindLotSheetActions(lot);
+}
+
+function lotOpenChecklistHtml(lot, ships) {
+  var notInspected = ships.filter(function(s){ return s.status !== 'inspected'; }).length;
+  var openIncident = ships.some(function(s){
+    return ST.incidents.some(function(i){ return i.shipmentCode === s.code && i.status === 'open'; });
+  });
+  var ok = ships.length > 0 && notInspected === 0 && !openIncident;
+  var pct = ships.length ? Math.round((ships.length - notInspected) / ships.length * 100) : 0;
+  return '<div class="checklist">'
+    + '<div class="fieldset-lgd" style="margin-bottom:8px">Checklist de départ</div>'
+    + chkRow(ships.length > 0, ships.length + ' colis rattaché(s)')
+    + chkRow(notInspected === 0, notInspected === 0 ? 'Tous les colis sont contrôlés' : notInspected + ' colis non contrôlés')
+    + chkRow(!openIncident, !openIncident ? 'Aucun incident bloquant' : 'Incident ouvert bloquant')
+    + '<div class="chk-progress"><div class="chk-progress-fill" style="width:'+pct+'%"></div></div>'
+    + '<div class="chk-progress-lbl">'+(ships.length - notInspected)+' / '+ships.length+' colis prêts</div>'
+    + '</div>';
+}
+function chkRow(ok, txt) {
+  return '<div class="chk-item"><span class="chk-ico '+(ok?'ok':'ko')+'">'+(ok?'✓':'✕')+'</span>'+h(txt)+'</div>';
+}
+function lotShipmentListHtml(ships, lot, removable) {
+  if (!ships.length) return '<div class="empty-state"><div class="es-ico">📦</div><div class="es-ttl">Aucun colis rattaché</div></div>';
+  return '<div class="list-wrap">' + ships.map(function(s){
+    return '<div class="row-card" data-code="'+h(s.code)+'" style="cursor:default">'
+      + '<div class="row-top"><span class="row-code">'+h(s.code)+'</span>'+statusBadge(s.status)+'</div>'
+      + '<div class="row-route">'+h(s.destCity)+' · '+h(s.recipient)+'</div>'
+      + (removable ? '<button class="btn-secondary" data-remove="'+h(s.code)+'" style="margin-top:8px;padding:8px;font-size:12px">Retirer du lot</button>' : '')
+      + '</div>';
+  }).join('') + '</div>';
+}
+function eligibleShipmentsPickerHtml(lot) {
+  var eligible = ST.shipments.filter(function(s){
+    return s.status === 'inspected' && !s.lotId
+      && s.originCountry === hubById(lot.originHubId).country
+      && s.destCountry === hubById(lot.destHubId).country;
+  });
+  if (!eligible.length) return '';
+  return '<div class="sec-hd"><span class="sec-ttl">Ajouter un colis éligible</span></div>'
+    + '<div class="list-wrap">' + eligible.map(function(s){
+      return '<div class="row-card" style="cursor:default">'
+        + '<div class="row-top"><span class="row-code">'+h(s.code)+'</span>'+statusBadge(s.status)+'</div>'
+        + '<div class="row-route">'+h(s.destCity)+' · '+h(s.recipient)+' · '+s.weight+' kg</div>'
+        + '<button class="btn-primary" data-add="'+h(s.code)+'" style="margin-top:8px;padding:9px;font-size:12.5px">+ Ajouter au lot</button>'
+        + '</div>';
+    }).join('') + '</div>';
+}
+function reconciliationHtml(lot, ships) {
+  var reconEvent = lot._reconciled;
+  var attendu = ships.length;
+  var recu = ships.filter(function(s){ return RECEIVED_STATUSES.indexOf(s.status) > -1; }).length;
+  var ecart = attendu - recu;
+  var html = '<div class="sec-hd"><span class="sec-ttl">Réconciliation</span></div>'
+    + '<div class="recon-grid">'
+    +   '<div class="recon-card"><div class="recon-n">'+attendu+'</div><div class="recon-l">Attendu</div></div>'
+    +   '<div class="recon-card '+(ecart>0?'':'ok')+'"><div class="recon-n">'+recu+'</div><div class="recon-l">Reçu</div></div>'
+    +   '<div class="recon-card '+(ecart>0?'ecart':'ok')+'"><div class="recon-n">'+ecart+'</div><div class="recon-l">Écart</div></div>'
+    + '</div>';
+  if (!reconEvent) {
+    html += '<p style="padding:0 16px 10px;font-size:12px;color:var(--mut)">⚠️ Réconciliation définitive — vérifiez que tous les colis reçus ont bien été scannés (page Scanner) avant de continuer.</p>';
+    html += '<div class="form-wrap" style="padding-top:0"><button class="btn-primary" id="btnReconcile" data-lot="'+lot.id+'">Enregistrer la réconciliation</button></div>';
+  } else {
+    html += '<p style="padding:0 16px 10px;font-size:12px;color:var(--mut)">Réconciliation enregistrée'+(ecart>0?' — '+ecart+' incident(s) « colis manquant » créé(s).':'.')+'</p>';
+    html += '<div class="form-wrap" style="padding-top:0"><button class="btn-primary" id="btnCloseLot" data-lot="'+lot.id+'">Clôturer le lot</button></div>';
+  }
+  html += '<div class="sec-hd"><span class="sec-ttl">Colis du lot</span></div>' + lotShipmentListHtml(ships, lot, false);
+  return html;
+}
+
+function bindLotSheetActions(lot) {
+  var body = document.getElementById('lotSheetBody');
+  Array.prototype.forEach.call(body.querySelectorAll('[data-add]'), function(btn){
+    btn.addEventListener('click', function(){ addShipmentToLot(lot.id, btn.dataset.add); });
+  });
+  Array.prototype.forEach.call(body.querySelectorAll('[data-remove]'), function(btn){
+    btn.addEventListener('click', function(){ removeShipmentFromLot(lot.id, btn.dataset.remove); });
+  });
+  var btnDep = body.querySelector('#btnDeclareDeparture');
+  if (btnDep) btnDep.addEventListener('click', function(){ declareLotDeparture(lot.id); });
+  var btnArr = body.querySelector('#btnDeclareArrival');
+  if (btnArr) btnArr.addEventListener('click', function(){ declareLotArrival(lot.id); });
+  var btnRec = body.querySelector('#btnReconcile');
+  if (btnRec) btnRec.addEventListener('click', function(){ recordLotReconciliation(lot.id); });
+  var btnClose = body.querySelector('#btnCloseLot');
+  if (btnClose) btnClose.addEventListener('click', function(){ closeLot(lot.id); });
+  var btnCancel = body.querySelector('#btnCancelLot');
+  if (btnCancel) btnCancel.addEventListener('click', function(){ cancelEmptyLot(lot.id); });
+}
+
+/* ----------------------------------------------------------------
+   RPC (SIMULÉES) -- LOTS SECURITY CORE (Migration 2, jamais appliquée)
+   Chaque fonction reproduit les préconditions du contrat conçu :
+   titularité transporteur, statut du lot, cohérence géographique,
+   verrous logiques (ici : cohérence d'état, pas de vrais verrous SQL).
+   ---------------------------------------------------------------- */
+function addShipmentToLot(lotId, code) {
+  var lot = findLot(lotId);
+  var s = findShipment(code);
+  if (!lot || !s) return;
+  if (lot.status !== 'open') { showToast('Lot non modifiable (statut différent de open)', 'e'); return; }
+  if (s.status !== 'inspected') { showToast('Colis pas encore inspecté', 'e'); return; }
+  if (s.lotId) { showToast('Colis déjà rattaché à un lot', 'e'); return; }
+  var oh = hubById(lot.originHubId), dh = hubById(lot.destHubId);
+  if (s.originCountry !== oh.country || s.destCountry !== dh.country) {
+    showToast('Incohérence géographique entre le colis et le lot', 'e'); return;
+  }
+  s.lotId = lotId;
+  saveAll();
+  renderAll();
+  openLotSheet(lotId);
+  showToast('Colis ' + s.code + ' ajouté au lot', 's');
+}
+function removeShipmentFromLot(lotId, code) {
+  var lot = findLot(lotId);
+  var s = findShipment(code);
+  if (!lot || !s) return;
+  if (lot.status !== 'open') { showToast('Lot non modifiable (statut différent de open)', 'e'); return; }
+  if (s.lotId !== lotId) { showToast('Ce colis n\'est pas rattaché à ce lot', 'e'); return; }
+  s.lotId = null;
+  saveAll();
+  renderAll();
+  openLotSheet(lotId);
+  showToast('Colis ' + s.code + ' retiré du lot', 's');
+}
+function declareLotDeparture(lotId) {
+  var lot = findLot(lotId);
+  if (!lot) return;
+  var ships = shipmentsOfLot(lotId);
+  if (ships.length === 0) { showToast('Aucun colis rattaché à ce lot', 'e'); return; }
+  var notInspected = ships.filter(function(s){ return s.status !== 'inspected'; });
+  if (notInspected.length) { showToast(notInspected.length + ' colis non inspectés dans ce lot', 'e'); return; }
+  var blocking = ships.some(function(s){ return ST.incidents.some(function(i){ return i.shipmentCode === s.code && i.status === 'open'; }); });
+  if (blocking) { showToast('Incident ouvert bloquant sur au moins un colis de ce lot', 'e'); return; }
+
+  ships.forEach(function(s){
+    s.status = 'departed_origin';
+    s.timeline.push({ lbl:'Départ', loc:hubById(lot.originHubId).name, actor:'Atlas Cargo', time:'à l\'instant', proof:false });
+  });
+  lot.status = 'in_transit';
+  lot.departedAt = 'à l\'instant';
+  saveAll();
+  renderAll();
+  openLotSheet(lotId);
+  showToast('Départ confirmé — ' + ships.length + ' colis en transit', 's');
+}
+function declareLotArrival(lotId) {
+  var lot = findLot(lotId);
+  if (!lot) return;
+  if (lot.status !== 'in_transit') { showToast('Lot pas encore en transit', 'e'); return; }
+  lot.status = 'arrived';
+  lot.arrivedAt = 'à l\'instant';
+  saveAll();
+  renderAll();
+  openLotSheet(lotId);
+  showToast('Arrivée déclarée — scannez chaque colis à réception (page Scanner)', 'i');
+}
+function recordLotReconciliation(lotId) {
+  var lot = findLot(lotId);
+  if (!lot) return;
+  if (lot.status !== 'arrived') { showToast('Lot pas encore arrivé', 'e'); return; }
+  if (lot._reconciled) { showToast('Réconciliation déjà enregistrée pour ce lot', 'e'); return; }
+  var ships = shipmentsOfLot(lotId);
+  var missing = ships.filter(function(s){ return RECEIVED_STATUSES.indexOf(s.status) === -1; });
+  missing.forEach(function(s){
+    ST.incidents.unshift({
+      id:'inc-' + Date.now() + '-' + Math.floor(Math.random()*1000),
+      shipmentCode:s.code, type:'colis_manquant', status:'open',
+      description:'Écart de réconciliation du lot ' + lotLabel(lot) + ' (' + ships.length + ' attendus, ' + (ships.length - missing.length) + ' reçus).',
+      time:'à l\'instant'
+    });
+  });
+  lot._reconciled = true;
+  saveAll();
+  renderAll();
+  openLotSheet(lotId);
+  if (missing.length) {
+    showToast(missing.length + ' colis manquant(s) — incident(s) créé(s)', 'w');
+  } else {
+    showToast('Réconciliation enregistrée — aucun écart', 's');
+  }
+}
+function closeLot(lotId) {
+  var lot = findLot(lotId);
+  if (!lot) return;
+  if (lot.status !== 'arrived') { showToast('Lot pas encore arrivé', 'e'); return; }
+  if (!lot._reconciled) { showToast('Réconciliation non exécutée — impossible de clôturer', 'e'); return; }
+  lot.status = 'closed';
+  saveAll();
+  renderAll();
+  closeSheet('lot');
+  showToast('Lot ' + lotLabel(lot) + ' clôturé', 's');
+}
+function cancelEmptyLot(lotId) {
+  var lot = findLot(lotId);
+  if (!lot) return;
+  if (lot.status !== 'open') { showToast('Lot non modifiable (statut différent de open)', 'e'); return; }
+  if (shipmentsOfLot(lotId).length > 0) { showToast('Lot non vide — suppression refusée', 'e'); return; }
+  ST.lots = ST.lots.filter(function(l){ return l.id !== lotId; });
+  saveAll();
+  renderAll();
+  closeSheet('lot');
+  showToast('Lot annulé', 's');
+}
+function createShipmentLot(originHubId, destHubId) {
+  if (originHubId === destHubId) { showToast('Hub d\'origine et de destination identiques', 'e'); return; }
+  ST.lotCodeSeq += 1;
+  var id = 'lot-' + Date.now();
+  ST.lots.unshift({ id:id, originHubId:originHubId, destHubId:destHubId, status:'open', createdAt:'à l\'instant', departedAt:null, arrivedAt:null });
+  saveAll();
+  renderAll();
+  showToast('Lot créé', 's');
+  return id;
+}
+
+/* ----------------------------------------------------------------
+   FORMULAIRE -- NOUVEAU LOT
+   ---------------------------------------------------------------- */
+function renderHubSelects() {
+  var opts = HUBS.map(function(hb){ return '<option value="'+hb.id+'">'+h(hb.name)+' ('+hb.country+')</option>'; }).join('');
+  document.getElementById('newLotOrigin').innerHTML = opts;
+  document.getElementById('newLotDest').innerHTML = opts;
+  document.getElementById('newLotDest').value = 'hub-dakar';
+}
+function bindNewLotForm() {
+  document.getElementById('btnNewLot').addEventListener('click', function(){ openSheet('newLot'); });
+  document.getElementById('formNewLot').addEventListener('submit', function(e){
+    e.preventDefault();
+    var origin = document.getElementById('newLotOrigin').value;
+    var dest = document.getElementById('newLotDest').value;
+    var id = createShipmentLot(origin, dest);
+    closeSheet('newLot');
+    if (id) openLotSheet(id);
+  });
+}
+
+/* ----------------------------------------------------------------
+   SCANNER -- interface de record_shipment_event() (Migration 1),
+   restreinte aux statuts que la matrice rôle × statut autorise au
+   rôle transporteur.
+   ---------------------------------------------------------------- */
+function renderScanPicker() {
+  var eligible = ST.shipments.filter(function(s){ return SHIPMENT_TRANSITIONS[s.status]; });
+  var el = document.getElementById('scanPicker');
+  el.innerHTML = eligible.length
+    ? eligible.map(function(s){
+        return '<div class="row-card" data-code="'+h(s.code)+'">'
+          + '<div class="row-top"><span class="row-code">'+h(s.code)+'</span>'+statusBadge(s.status)+'</div>'
+          + '<div class="row-route">'+h(s.originCity)+' → '+h(s.destCity)+'</div></div>';
+      }).join('')
+    : '<div class="empty-state"><div class="es-ico">✅</div><div class="es-ttl">Rien à scanner</div><div class="es-sub">Aucun colis en attente d\'action transporteur.</div></div>';
+  Array.prototype.forEach.call(el.querySelectorAll('.row-card'), function(card){
+    card.addEventListener('click', function(){ openScanStep(card.dataset.code); });
+  });
+}
+function openScanStep(code) {
+  var s = findShipment(code);
+  var wrap = document.getElementById('scanStepWrap');
+  var empty = document.getElementById('scanEmptyState');
+  if (!s) { showToast('Code introuvable', 'e'); return; }
+  var next = SHIPMENT_TRANSITIONS[s.status];
+  if (!next) {
+    wrap.innerHTML = '<div class="form-wrap">' + '<p style="text-align:center;color:var(--mut);padding:16px 0;font-size:13px">Ce colis n\'est pas actionnable par le rôle transporteur dans son statut actuel.</p></div>';
+    empty.style.display = 'none';
+    return;
+  }
+  empty.style.display = 'none';
+  var opts = next.map(function(st){ return '<option value="'+st+'">'+h(STATUS_META[st].label)+'</option>'; }).join('');
+  wrap.innerHTML = '<div class="form-wrap">'
+    + '<div class="fieldset">'
+    +   '<div class="row-top" style="margin-bottom:4px"><span class="row-code">'+h(s.code)+'</span>'+statusBadge(s.status)+'</div>'
+    +   '<div class="row-route">'+h(s.originCity)+' → '+h(s.destCity)+'</div>'
+    + '</div>'
+    + '<div class="fieldset">'
+    +   '<div class="fieldset-lgd">Action</div>'
+    +   '<div class="field"><label for="scanNextStatus">Statut à enregistrer</label><select id="scanNextStatus">'+opts+'</select></div>'
+    +   '<div class="field" id="scanPhotoField"></div>'
+    + '</div>'
+    + '<button class="btn-primary" id="btnScanConfirm">Valider ce scan</button>'
+    + '</div>';
+  updateScanFields();
+  document.getElementById('scanNextStatus').addEventListener('change', updateScanFields);
+  document.getElementById('btnScanConfirm').addEventListener('click', function(){ confirmScanStep(code); });
+}
+function updateScanFields() {
+  var sel = document.getElementById('scanNextStatus');
+  if (!sel) return;
+  var status = sel.value;
+  var photoField = document.getElementById('scanPhotoField');
+  photoField.innerHTML = PROOF_REQUIRED.indexOf(status) > -1
+    ? '<label class="field-check"><input type="checkbox" id="scanPhotoTaken"> 📷 Photo prise (preuve obligatoire pour ce statut)</label>'
+    : '<div class="field-hint">Aucune preuve requise pour ce statut (transit déclaratif).</div>';
+}
+function confirmScanStep(code) {
+  var s = findShipment(code);
+  if (!s) return;
+  var status = document.getElementById('scanNextStatus').value;
+  if (PROOF_REQUIRED.indexOf(status) > -1) {
+    var chk = document.getElementById('scanPhotoTaken');
+    if (!chk || !chk.checked) { showToast('Preuve photo requise pour ce statut', 'e'); return; }
+  }
+  s.status = status;
+  s.timeline.push({ lbl:STATUS_META[status].label, loc:s.destCity, actor:'Atlas Cargo', time:'à l\'instant', proof:PROOF_REQUIRED.indexOf(status) > -1 });
+  saveAll();
+  renderAll();
+  document.getElementById('scanStepWrap').innerHTML = '';
+  document.getElementById('scanEmptyState').style.display = '';
+  document.getElementById('scanCodeInput').value = '';
+  renderScanPicker();
+  showToast('Événement enregistré : ' + STATUS_META[status].label, 's');
+}
+function bindScanner() {
+  document.getElementById('btnScanGo').addEventListener('click', function(){
+    openScanStep(document.getElementById('scanCodeInput').value);
+  });
+  document.getElementById('scanCodeInput').addEventListener('keydown', function(e){
+    if (e.key === 'Enter') openScanStep(e.target.value);
+  });
+}
+
+/* ----------------------------------------------------------------
+   RENDU -- INCIDENTS
+   ---------------------------------------------------------------- */
+var INCIDENT_TYPE_LABELS = {
+  colis_manquant:'Colis manquant', colis_endommage:'Colis endommagé', colis_ouvert:'Colis ouvert',
+  mauvaise_destination:'Mauvaise destination', retard:'Retard', probleme_documentaire:'Problème documentaire',
+  refus_reception:'Refus de réception', probleme_douane:'Problème douane', probleme_transport:'Problème transport',
+  probleme_point_relais:'Problème point relais', autre:'Autre'
+};
+function renderIncidents() {
+  document.getElementById('incidentsCount').textContent = ST.incidents.length + (ST.incidents.length > 1 ? ' incidents' : ' incident');
+  var el = document.getElementById('incidentsList');
+  el.innerHTML = ST.incidents.length
+    ? ST.incidents.map(function(i){
+        return '<div class="row-card" style="cursor:default">'
+          + '<div class="row-top"><span class="row-code">'+h(i.shipmentCode)+'</span>'
+          +   '<span class="badge '+(i.status==='open'?'st-incident':'st-livre')+'">'+(i.status==='open'?'Ouvert':'Résolu')+'</span></div>'
+          + '<div class="row-route">'+h(INCIDENT_TYPE_LABELS[i.type] || i.type)+'</div>'
+          + '<div class="row-meta"><span>'+h(i.time)+'</span></div>'
+          + '<p style="font-size:12px;color:var(--txt2);margin-top:8px;line-height:1.5">'+h(i.description)+'</p>'
+          + '</div>';
+      }).join('')
+    : '<div class="empty-state" style="grid-column:1/-1"><div class="es-ico">✅</div><div class="es-ttl">Aucun incident</div><div class="es-sub">Rien à signaler pour le moment.</div></div>';
+}
+
+/* ----------------------------------------------------------------
+   RENDU GLOBAL
+   ---------------------------------------------------------------- */
+function renderAll() {
+  renderKpis();
+  renderTodo();
+  renderHomeLots();
+  renderColis();
+  renderLots();
+  renderIncidents();
+}
+
+/* ----------------------------------------------------------------
+   INIT
+   ---------------------------------------------------------------- */
+document.addEventListener('DOMContentLoaded', function() {
+  ST.shipments = lsGet('slt_shipments') || JSON.parse(JSON.stringify(SEED_SHIPMENTS));
+  ST.lots = lsGet('slt_lots') || JSON.parse(JSON.stringify(SEED_LOTS));
+  ST.incidents = lsGet('slt_incidents') || JSON.parse(JSON.stringify(SEED_INCIDENTS));
+
+  renderHubSelects();
+  renderColisFilters();
+  renderLotsFilters();
+  renderAll();
+
+  bindNav();
+  bindNewLotForm();
+  bindScanner();
+  document.getElementById('searchColis').addEventListener('input', renderColis);
+
+  window.addEventListener('scroll', function(){
+    document.getElementById('topnav').classList.toggle('shadow', window.scrollY > 20);
+  });
+});
+
+})(); /* end IIFE */
+</script>
+
+</body>
+</html>

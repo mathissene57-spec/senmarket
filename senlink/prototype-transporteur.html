@@ -31,6 +31,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+<!-- Carte GPS du lot (Map+GPS V1) -- si ce script échoue à charger (réseau
+     restreint), le JS détecte l'absence de window.L et retombe sur la
+     barre stylisée déjà éprouvée -- voir leafletAvailable(). -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
 /* ================================================================
    DESIGN TOKENS -- identiques à senlink/prototype.html
@@ -340,6 +345,9 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
 .gps-track { position:relative; height:4px; background:var(--bdr); border-radius:2px; margin:0 4px 10px; }
 .gps-track-fill { position:absolute; left:0; top:0; height:100%; background:var(--g); border-radius:2px; transition:width 1.4s var(--ease); }
 .gps-truck { position:absolute; top:50%; transform:translate(-50%,-50%); font-size:18px; transition:left 1.4s var(--ease); }
+.gps-map-canvas { height:200px; border-radius:var(--r12); overflow:hidden; margin-bottom:10px; position:relative; z-index:0; background:var(--bgw); }
+.gps-map-canvas .leaflet-control-attribution { font-size:9px; background:rgba(255,255,255,.75); }
+.map-truck-ico { font-size:20px; line-height:1; filter:drop-shadow(0 2px 3px rgba(0,0,0,.35)); }
 .gps-cities { display:flex; justify-content:space-between; font-size:12px; font-weight:700; color:var(--txt); }
 .gps-note { font-size:12px; color:var(--mut); margin-top:10px; }
 .gps-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:14px; }
@@ -787,10 +795,10 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
    HUBS (démo)
    ---------------------------------------------------------------- */
 var HUBS = [
-  { id:'hub-casa', name:'Hub Casablanca', city:'Casablanca', country:'MA' },
-  { id:'hub-tanger', name:'Hub Tanger', city:'Tanger', country:'MA' },
-  { id:'hub-dakar', name:'Hub Dakar', city:'Dakar', country:'SN' },
-  { id:'hub-thies', name:'Hub Thiès', city:'Thiès', country:'SN' }
+  { id:'hub-casa', name:'Hub Casablanca', city:'Casablanca', country:'MA', lat:33.5731, lng:-7.5898 },
+  { id:'hub-tanger', name:'Hub Tanger', city:'Tanger', country:'MA', lat:35.7595, lng:-5.8340 },
+  { id:'hub-dakar', name:'Hub Dakar', city:'Dakar', country:'SN', lat:14.7167, lng:-17.4677 },
+  { id:'hub-thies', name:'Hub Thiès', city:'Thiès', country:'SN', lat:14.7910, lng:-16.9359 }
 ];
 function hubById(id) { return HUBS.filter(function(h){ return h.id === id; })[0]; }
 
@@ -1235,9 +1243,10 @@ function renderLots() {
 }
 
 /* ----------------------------------------------------------------
-   CARTE GPS DU LOT -- Map + GPS temps réel, V1 démo (round de
-   conception dédié, Option A validée : route stylisée, pas de
-   Leaflet/tuiles OSM, pas de coordonnées).
+   CARTE GPS DU LOT -- Map + GPS temps réel, V1 démo.
+   Rendu par une vraie carte Leaflet/OpenStreetMap quand la librairie a
+   pu se charger (voir <head>) ; repli automatique sur une barre de
+   trajet stylisée sinon (réseau restreint).
    // DEMO ONLY -- position/vitesse/précision GPS simulées localement.
    // Aucun appel Supabase / record_lot_location() / get_lot_last_location().
    Le GPS Core (Migration 3) alimentera cette même vue plus tard sans
@@ -1245,6 +1254,7 @@ function renderLots() {
    ---------------------------------------------------------------- */
 var GPS_DEMO = {};        // état de simulation par lot.id
 var gpsMapInterval = null;
+var gpsLeafletMap = null;
 
 function gpsDemoState(lotId) {
   if (!GPS_DEMO[lotId]) {
@@ -1273,29 +1283,75 @@ function timeAgoShort(ts) {
   if (s < 60) return 'il y a ' + s + ' s';
   return 'il y a ' + Math.round(s / 60) + ' min';
 }
+function leafletAvailable() { return typeof window.L !== 'undefined'; }
+function canUseRealGpsMap() { return leafletAvailable(); } // HUBS a toujours lat/lng
+function lerpLatLng(a, b, t) {
+  return [ a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t ];
+}
+function destroyGpsMap() {
+  if (gpsLeafletMap) { gpsLeafletMap.remove(); gpsLeafletMap = null; }
+}
+function mountGpsMap(lot, mode) {
+  // mode : 'planned' (pas de marqueur), 'live' (camion animé), 'frozen' (dernière position figée)
+  var el = document.getElementById('gpsMapCanvas-' + lot.id);
+  if (!el) return;
+  var oh = hubById(lot.originHubId), dh = hubById(lot.destHubId);
+  var oc = [oh.lat, oh.lng], dc = [dh.lat, dh.lng];
+  destroyGpsMap();
+  var map = L.map(el, { zoomControl:false, scrollWheelZoom:false, dragging:true, tap:false });
+  gpsLeafletMap = map;
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 9, attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+  L.circleMarker(oc, { radius:6, color:'#0A1A0F', weight:2, fillColor:'#0A1A0F', fillOpacity:1 }).addTo(map);
+  L.circleMarker(dc, { radius:6, color:'#D4A017', weight:2, fillColor:'#D4A017', fillOpacity:1 }).addTo(map);
+  L.polyline([oc, dc], { color:'#00C96B', weight:3, opacity:.65, dashArray:'2,8' }).addTo(map);
+  map.fitBounds(L.latLngBounds([oc, dc]), { padding:[24,24] });
+  if (mode === 'live' || mode === 'frozen') {
+    var st = gpsDemoState(lot.id);
+    var truckIcon = L.divIcon({ html:'<div class="map-truck-ico" style="' + (mode === 'frozen' ? 'opacity:.55' : '') + '">🚚</div>', className:'', iconSize:[24,24], iconAnchor:[12,12] });
+    map._truckMarker = L.marker(lerpLatLng(oc, dc, st.progress / 100), { icon: truckIcon }).addTo(map);
+  }
+  setTimeout(function () { if (gpsLeafletMap === map) map.invalidateSize(); }, 350);
+}
 function stopGpsMapRefresh() {
   if (gpsMapInterval) { clearInterval(gpsMapInterval); gpsMapInterval = null; }
+  destroyGpsMap();
 }
 function startGpsMapRefresh(lot) {
   stopGpsMapRefresh();
+  var useMap = canUseRealGpsMap();
+  if (useMap) mountGpsMap(lot, lot.status === 'in_transit' ? 'live' : (GPS_DEMO[lot.id] ? 'frozen' : 'planned'));
   if (lot.status !== 'in_transit') return;
   gpsMapInterval = setInterval(function () {
     var el = document.getElementById('gpsMap-' + lot.id);
     if (!el) { stopGpsMapRefresh(); return; }
     var st = tickGpsDemo(lot.id);
-    el.querySelector('.gps-track-fill').style.width = st.progress + '%';
-    el.querySelector('.gps-truck').style.left = st.progress + '%';
-    el.querySelector('.gps-stat-speed').textContent = st.speed + ' km/h';
-    el.querySelector('.gps-stat-accuracy').textContent = st.accuracy + ' m';
-    el.querySelector('.gps-stat-lastupd').textContent = timeAgoShort(st.lastPos);
+    var speedEl = el.querySelector('.gps-stat-speed'), accEl = el.querySelector('.gps-stat-accuracy'), updEl = el.querySelector('.gps-stat-lastupd');
+    if (speedEl) speedEl.textContent = st.speed + ' km/h';
+    if (accEl) accEl.textContent = st.accuracy + ' m';
+    if (updEl) updEl.textContent = timeAgoShort(st.lastPos);
+    if (gpsLeafletMap && gpsLeafletMap._truckMarker) {
+      var oh = hubById(lot.originHubId), dh = hubById(lot.destHubId);
+      gpsLeafletMap._truckMarker.setLatLng(lerpLatLng([oh.lat, oh.lng], [dh.lat, dh.lng], st.progress / 100));
+    } else {
+      var fill = el.querySelector('.gps-track-fill'), truck = el.querySelector('.gps-truck');
+      if (fill) fill.style.width = st.progress + '%';
+      if (truck) truck.style.left = st.progress + '%';
+    }
   }, 10000);
+}
+function gpsMapCanvasHtml(lot, progressPct, showTruck) {
+  if (canUseRealGpsMap()) return '<div class="gps-map-canvas" id="gpsMapCanvas-' + h(lot.id) + '"></div>';
+  return '<div class="gps-track"><div class="gps-track-fill" style="width:' + progressPct + '%"></div>'
+    + (showTruck ? '<div class="gps-truck" style="left:' + progressPct + '%">🚚</div>' : '') + '</div>';
 }
 function gpsMapHtml(lot) {
   var oh = hubById(lot.originHubId), dh = hubById(lot.destHubId);
   if (lot.status === 'open') {
     return '<div class="gps-map">'
       + '<div class="gps-hd"><span class="gps-dot"></span>Trajet prévu</div>'
-      + '<div class="gps-track"><div class="gps-track-fill" style="width:0%"></div></div>'
+      + gpsMapCanvasHtml(lot, 0, false)
       + '<div class="gps-cities"><span>' + h(oh.city) + '</span><span>' + h(dh.city) + '</span></div>'
       + '<div class="gps-note">Le tracking GPS démarrera au départ du lot.</div>'
       + '</div>';
@@ -1304,8 +1360,7 @@ function gpsMapHtml(lot) {
     var st = gpsDemoState(lot.id);
     return '<div class="gps-map gps-map--live" id="gpsMap-' + h(lot.id) + '">'
       + '<div class="gps-hd live"><span class="gps-dot"></span>GPS actif</div>'
-      + '<div class="gps-track"><div class="gps-track-fill" style="width:' + st.progress + '%"></div>'
-      +   '<div class="gps-truck" style="left:' + st.progress + '%">🚚</div></div>'
+      + gpsMapCanvasHtml(lot, st.progress, true)
       + '<div class="gps-cities"><span>' + h(oh.city) + '</span><span>' + h(dh.city) + '</span></div>'
       + '<div class="gps-stats">'
       +   '<div class="gps-stat"><div class="gps-stat-n gps-stat-speed">' + st.speed + ' km/h</div><div class="gps-stat-l">Vitesse</div></div>'
@@ -1326,7 +1381,7 @@ function gpsMapHtml(lot) {
     }
     return '<div class="gps-map">'
       + '<div class="gps-hd"><span class="gps-dot"></span>Historique figé</div>'
-      + '<div class="gps-track"><div class="gps-track-fill" style="width:100%"></div></div>'
+      + gpsMapCanvasHtml(lot, stF.progress, true)
       + '<div class="gps-cities"><span>' + h(oh.city) + '</span><span>' + h(dh.city) + '</span></div>'
       + '<div class="gps-note">Dernière position connue : ' + timeAgoShort(stF.lastPos) + '. Aucun tracking actif.</div>'
       + '<button class="btn-secondary" id="btnGpsHistory" data-lot="' + h(lot.id) + '" style="margin-top:12px">📜 Historique du trajet</button>'

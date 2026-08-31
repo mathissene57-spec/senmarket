@@ -909,7 +909,7 @@ var SEED_LOTS = [
 ];
 
 var SEED_INCIDENTS = [
-  { id:'inc-1', shipmentCode:'SL-MA-SN-990045', type:'colis_manquant', status:'open',
+  { id:'inc-1', shipmentCode:'SL-MA-SN-224561', type:'colis_manquant', status:'open',
     description:'Écart de réconciliation du lot LOT-CASA-DKR-0812-041 (24 attendus, 23 reçus).',
     time:'12 août, 09:15', reportedBy:'Vous (transporteur)', reportedRole:'transporteur',
     resolutionNotes:null, resolvedAt:null },
@@ -1002,6 +1002,7 @@ function openSheet(id) {
 }
 function closeSheet(id) {
   if (id === 'lot') stopGpsMapRefresh();
+  if (id === 'incident') destroyIncidentMap();
   document.getElementById(id+'Overlay').classList.remove('on');
   document.getElementById(id+'Sheet').classList.remove('on');
   document.body.style.overflow = '';
@@ -1972,6 +1973,76 @@ function findIncident(id) {
   return null;
 }
 var INCIDENT_ROLE_LABELS = { transporteur:'Transporteur', agent_point_relais:'Agent point relais', admin:'Administrateur' };
+
+/* ----------------------------------------------------------------
+   POSITION GPS SUR UN INCIDENT -- V1 démo, réutilise le GPS Core
+   simulé des lots (GPS_DEMO), jamais une donnée séparée.
+   // DEMO ONLY -- aucune colonne location_lat/lng réelle sur
+   // incidents n'est supposée exister ; illustratif comme le reste
+   // de la résolution d'incident (voir commentaire ci-dessus).
+   La position affichée est celle, simulée, du lot au moment de la
+   consultation -- pas un horodatage réel capturé à la déclaration de
+   l'incident (aucun historique GPS par incident n'est modélisé ici).
+   ---------------------------------------------------------------- */
+var incidentLeafletMap = null;
+function destroyIncidentMap() {
+  if (incidentLeafletMap) { incidentLeafletMap.remove(); incidentLeafletMap = null; }
+}
+function incidentGpsHtml(inc) {
+  var s = findShipment(inc.shipmentCode);
+  var lot = (s && s.lotId) ? findLot(s.lotId) : null;
+  var reason = null;
+  if (!lot) reason = 'Colis non rattaché à un lot suivi -- aucune position GPS disponible pour cet incident.';
+  else if (lot.status === 'open') reason = 'Le lot ' + lotLabel(lot) + ' n\'était pas encore en transit à cette date.';
+  else if (lot.status !== 'in_transit' && !GPS_DEMO[lot.id]) reason = 'Aucune position GPS simulée disponible pour le lot ' + lotLabel(lot) + ' dans cette session de démonstration.';
+
+  if (reason) {
+    return '<div class="sec-hd"><span class="sec-ttl">Position GPS</span></div>'
+      + '<p style="padding:0 16px 12px;font-size:12.5px;color:var(--mut)">' + h(reason) + '</p>';
+  }
+  // in_transit -> crée l'état de démo s'il n'existe pas encore (le lot est réellement
+  // en transit, seule l'initialisation paresseuse de la démo manquait) ; arrived/closed
+  // -> déjà garanti présent par la condition ci-dessus, jamais inventé rétroactivement.
+  var st = gpsDemoState(lot.id);
+  var canvasId = 'inc-' + inc.id;
+  return '<div class="sec-hd"><span class="sec-ttl">Position GPS (simulée, au moment de la consultation)</span></div>'
+    + '<div class="gps-map" style="margin:0 16px 14px">'
+    +   gpsMapCanvasHtml({ id: canvasId }, st.progress, true)
+    +   '<div class="gps-cities"><span>' + h(hubById(lot.originHubId).city) + '</span><span>' + h(hubById(lot.destHubId).city) + '</span></div>'
+    +   '<div class="gps-note">Lot ' + h(lotLabel(lot)) + '</div>'
+    +   '<div class="gps-demo-badge">🧪 MODE DÉMO · Position simulée</div>'
+    + '</div>';
+}
+function mountIncidentGpsMapIfReady(inc) {
+  destroyIncidentMap();
+  var s = findShipment(inc.shipmentCode);
+  var lot = (s && s.lotId) ? findLot(s.lotId) : null;
+  if (!lot || lot.status === 'open' || (lot.status !== 'in_transit' && !GPS_DEMO[lot.id]) || !canUseRealGpsMap()) return;
+  var canvasId = 'inc-' + inc.id;
+  var el = document.getElementById('gpsMapCanvas-' + canvasId);
+  if (!el) return;
+  var oh = hubById(lot.originHubId), dh = hubById(lot.destHubId);
+  var oc = [oh.lat, oh.lng], dc = [dh.lat, dh.lng];
+  var progress = gpsDemoState(lot.id).progress;
+  var map = L.map(el, { zoomControl:false, scrollWheelZoom:false, dragging:false, tap:false });
+  incidentLeafletMap = map;
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    minZoom: 2, maxZoom: 12, subdomains: 'abcd',
+    attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+  }).addTo(map);
+  L.circleMarker(oc, { radius:7, color:'#fff', weight:2, fillColor:'#0A1A0F', fillOpacity:1 }).addTo(map);
+  L.circleMarker(dc, { radius:7, color:'#fff', weight:2, fillColor:'#D4A017', fillOpacity:1 }).addTo(map);
+  L.polyline([oc, dc], { color:'#00C96B', weight:3, opacity:.75, dashArray:'1,9', lineCap:'round' }).addTo(map);
+  var truckIcon = L.divIcon({ html:'<div class="map-truck-ico" style="opacity:.6">🚚</div>', className:'', iconSize:[24,24], iconAnchor:[12,12] });
+  L.marker(lerpLatLng(oc, dc, progress / 100), { icon: truckIcon }).addTo(map);
+  map.setView(oc, 4);
+  setTimeout(function () {
+    if (incidentLeafletMap !== map) return;
+    map.invalidateSize();
+    map.fitBounds(L.latLngBounds([oc, dc]), { padding:[32,32] });
+  }, 350);
+}
+
 function openIncidentSheet(id) {
   var inc = findIncident(id);
   if (!inc) return;
@@ -1991,8 +2062,8 @@ function openIncidentSheet(id) {
     + '<div class="sec-hd"><span class="sec-ttl">Preuves</span></div>'
     + '<div class="row-meta" style="padding:0 16px 6px">'
     +   '<span>📷 Photo : '+(inc.photoUrl ? 'jointe' : 'non fournie')+'</span>'
-    +   '<span>📍 GPS : '+(inc.locationText ? h(inc.locationText) : 'non renseigné')+'</span>'
-    + '</div>';
+    + '</div>'
+    + incidentGpsHtml(inc);
 
   if (inc.status === 'resolved') {
     html += '<div class="sec-hd"><span class="sec-ttl">Résolution</span></div>'
@@ -2012,6 +2083,7 @@ function openIncidentSheet(id) {
   var btn = body.querySelector('#btnResolveIncident');
   if (btn) btn.addEventListener('click', function(){ resolveIncident(inc.id); });
   openSheet('incident');
+  mountIncidentGpsMapIfReady(inc);
 }
 function resolveIncident(id) {
   var inc = findIncident(id);

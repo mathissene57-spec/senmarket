@@ -185,7 +185,7 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
 .hb-stats { display:flex; gap:22px; margin-bottom:6px; }
 .hb-n { font-family:'Playfair Display',serif; font-size:20px; font-weight:900; color:var(--goldb); line-height:1; }
 .hb-l { font-size:10px; color:rgba(255,255,255,.55); margin-top:2px; }
-.hb-démo-tag { font-size:10px; color:rgba(255,255,255,.4); font-style:italic; margin-bottom:16px; }
+.hb-demo-tag { font-size:10px; color:rgba(255,255,255,.4); font-style:italic; margin-bottom:16px; }
 .hb-ctas { display:flex; gap:10px; flex-wrap:wrap; }
 .hb-cta {
   display:inline-flex; align-items:center; gap:6px; background:var(--g); color:#04150c;
@@ -263,6 +263,56 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
 .pc-feats { display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
 .pc-feat { display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--txt2); }
 .pc-chk { width:18px; height:18px; border-radius:50%; background:var(--gg); color:var(--gm); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:900; flex-shrink:0; }
+
+/* ================================================================
+   AD SLOTS -- emplacements publicitaires
+   Composants indépendants (ad-slot--hero / --content / --tracking),
+   préparés pour accueillir une vraie campagne plus tard (régie
+   SenLink, gestion depuis Supabase) sans retoucher l'interface.
+   Actuellement remplis d'un contenu de démonstration, toujours
+   étiqueté "Sponsorisé" -- jamais de tromperie sur la nature
+   publicitaire. Volontairement limité à 3 emplacements au total
+   (accueil x2, suivi x1) : SenLink doit rester perçu comme une
+   infrastructure de confiance, pas un site rempli de pubs.
+   ================================================================ */
+.ad-slot { position:relative; border-radius:var(--r16); overflow:hidden; border:1px solid var(--bdr); }
+.ad-label {
+  position:absolute; top:8px; left:10px; z-index:1;
+  font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.5px;
+  color:rgba(255,255,255,.85); background:rgba(0,0,0,.32);
+  padding:3px 8px; border-radius:var(--rpill);
+}
+.ad-content { display:flex; align-items:center; gap:12px; text-decoration:none; color:inherit; }
+.ad-ico { font-size:22px; flex-shrink:0; }
+.ad-txt { flex:1; min-width:0; }
+.ad-ttl { font-size:13px; font-weight:700; line-height:1.35; }
+.ad-sub { font-size:11px; margin-top:2px; line-height:1.4; }
+.ad-cta { font-size:11px; font-weight:700; flex-shrink:0; white-space:nowrap; }
+
+.ad-slot--hero {
+  margin:10px 16px 0; padding:16px 16px 14px;
+  background:linear-gradient(120deg,var(--gdd) 0%,#0d2617 100%);
+}
+.ad-slot--hero .ad-ttl { color:#fff; }
+.ad-slot--hero .ad-sub { color:rgba(255,255,255,.65); }
+.ad-slot--hero .ad-cta { color:var(--goldb); }
+
+.ad-slot--content { margin:6px 16px 16px; padding:14px; background:var(--bgw); }
+.ad-slot--content .ad-label { background:rgba(0,0,0,.18); color:var(--txt2); }
+.ad-slot--content .ad-ttl { color:var(--txt); }
+.ad-slot--content .ad-sub { color:var(--txt2); }
+.ad-slot--content .ad-cta { color:var(--gm); }
+
+.ad-slot--tracking { margin:0 16px 16px; padding:13px 14px; background:var(--card); }
+.ad-slot--tracking .ad-label { background:rgba(0,0,0,.18); color:var(--txt2); }
+.ad-slot--tracking .ad-ttl { color:var(--txt); font-size:12.5px; }
+.ad-slot--tracking .ad-sub { color:var(--mut); font-size:10.5px; }
+.ad-slot--tracking .ad-cta { color:var(--gm); }
+
+@media (min-width:768px) {
+  .ad-slot--hero, .ad-slot--content { max-width:900px; margin-left:auto; margin-right:auto; }
+  .ad-slot--tracking { max-width:640px; margin-left:auto; margin-right:auto; }
+}
 
 /* ================================================================
    STATUT BADGE
@@ -476,6 +526,18 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
      PAGE ACCUEIL
      ================================================================ -->
 <main class="page on" id="page-accueil">
+  <!-- Emplacement publicitaire : hero, sous le header, avant le bloc principal -->
+  <section class="ad-slot ad-slot--hero" aria-label="Publicité partenaire">
+    <span class="ad-label">Sponsorisé</span>
+    <a href="#" class="ad-content" onclick="return false">
+      <span class="ad-ico" aria-hidden="true">🛡️</span>
+      <span class="ad-txt">
+        <span class="ad-ttl">SenLink Assurance — protégez vos envois dès 15 MAD</span>
+        <span class="ad-sub">Remboursement intégral en cas de perte ou de dommage.</span>
+      </span>
+      <span class="ad-cta">En savoir plus ›</span>
+    </a>
+  </section>
   <div style="padding:10px 16px 0">
     <div class="hero-banner">
       <div class="hb-in">
@@ -487,7 +549,7 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
           <div><div class="hb-n" id="statRelais">--</div><div class="hb-l">Points relais</div></div>
           <div><div class="hb-n" id="statTaux">--</div><div class="hb-l">Livrés à temps</div></div>
         </div>
-        <div class="hb-démo-tag">Chiffres de démonstration, recalcules en direct depuis les colis ci-dessous -- pas des données réelles.</div>
+        <div class="hb-demo-tag">Chiffres de démonstration, recalcules en direct depuis les colis ci-dessous -- pas des données réelles.</div>
         <div class="hb-ctas">
           <button class="hb-cta" id="btnHeroSuivre">🔍 Suivre mon colis</button>
           <button class="hb-cta2" id="btnHeroExpedier">✉️ Expédier un colis</button>
@@ -500,6 +562,19 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
   <div class="sec-hd"><span class="sec-ttl">Le parcours d'un colis</span></div>
   <div class="sec-sub">Exemple : Casablanca 🇲🇦 → Dakar 🇸🇳. Chaque étape génère un événement numérique traçable.</div>
   <div class="steps-track" id="stepsTrack" role="list" aria-label="Étapes du parcours"></div>
+
+  <!-- Emplacement publicitaire : entre sections -->
+  <section class="ad-slot ad-slot--content" aria-label="Publicité partenaire">
+    <span class="ad-label">Sponsorisé</span>
+    <a href="#" class="ad-content" onclick="return false">
+      <span class="ad-ico" aria-hidden="true">🚚</span>
+      <span class="ad-txt">
+        <span class="ad-ttl">Partenaire transport — tarifs préférentiels Casablanca ↔ Dakar</span>
+        <span class="ad-sub">Réservez votre prochain envoi groupé.</span>
+      </span>
+      <span class="ad-cta">Découvrir ›</span>
+    </a>
+  </section>
 
   <!-- Transparence -->
   <div class="sec-hd"><span class="sec-ttl">La transparence, au coeur du produit</span></div>
@@ -1054,6 +1129,23 @@ function statusBadge(status) {
 }
 
 /* ----------------------------------------------------------------
+   EMPLACEMENT PUBLICITAIRE -- page Suivi uniquement (pas la sheet
+   Détail de l'historique, pour ne pas répéter la pub dans une modale)
+   ---------------------------------------------------------------- */
+function trackingAdHtml() {
+  return '<section class="ad-slot ad-slot--tracking" aria-label="Publicité partenaire">'
+    + '<span class="ad-label">Sponsorisé</span>'
+    + '<a href="#" class="ad-content" onclick="return false">'
+    +   '<span class="ad-ico" aria-hidden="true">📦</span>'
+    +   '<span class="ad-txt">'
+    +     '<span class="ad-ttl">Emballage renforcé SenLink Pro</span>'
+    +     '<span class="ad-sub">Protégez les colis fragiles pour 20 MAD.</span>'
+    +   '</span>'
+    +   '<span class="ad-cta">Ajouter ›</span>'
+    + '</a></section>';
+}
+
+/* ----------------------------------------------------------------
    TIMELINE (réutilisée par la page Suivi et la sheet Détail)
    ---------------------------------------------------------------- */
 function timelineHtml(shipment) {
@@ -1118,7 +1210,7 @@ function runSearch(code) {
     out.innerHTML = '<div class="track-empty"><div class="te-ico">🔎</div><div class="te-ttl">Aucun colis trouvé</div><div class="te-sub">Vérifiez le code « '+h(code)+' » ou essayez un code de démonstration.</div></div>';
     return;
   }
-  out.innerHTML = '<div class="track-result">'+shipmentHeadHtml(s)+otpRevealHtml(s)+timelineHtml(s)+'</div>';
+  out.innerHTML = '<div class="track-result">'+shipmentHeadHtml(s)+otpRevealHtml(s)+trackingAdHtml()+timelineHtml(s)+'</div>';
 }
 function bindSuivi() {
   document.getElementById('btnSuivre').addEventListener('click', function(){

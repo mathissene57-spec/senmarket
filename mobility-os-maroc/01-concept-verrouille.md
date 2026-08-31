@@ -85,7 +85,9 @@ Test appliqué à chaque fonctionnalité candidate : **est-ce que ça augmente l
 
 ## 6. Rôles — FlowDynamicsAgency et le partenaire
 
-**[À VALIDER — point le plus important à clarifier avant l'Étape 4]** : qui est concrètement "le partenaire" de la présentation de samedi ? Deux montages possibles, avec des rôles différents :
+**Validé : Option A.** Le partenaire de la présentation de samedi est lui-même un opérateur de transport (premier client pilote), pas un intermédiaire commercial. Conséquence directe : il n'y a pas de 5ᵉ profil "partenaire multi-opérateurs" à concevoir dans le produit (question ouverte §7 n°2 résolue) — le partenaire est une instance du profil "Opérateur" du §3, la première.
+
+Deux montages avaient été envisagés :
 
 **Option A — le partenaire est lui-même un opérateur de transport (client final)**
 - FlowDynamicsAgency : conçoit, développe, héberge et maintient la plateforme ; fournit le support technique ; définit la roadmap produit.
@@ -97,12 +99,12 @@ Test appliqué à chaque fonctionnalité candidate : **est-ce que ça augmente l
 
 Le choix entre A et B change directement la table de revenu du §2 (qui facture qui) et la question du "cinquième profil" du §3. **Cette décision doit être prise avant l'Étape 4** (dossier commercial), mais n'empêche pas de démarrer l'Étape 2 (architecture) puisque l'architecture technique est la même dans les deux cas.
 
-## 7. Questions ouvertes à trancher avant l'Étape 2
+## 7. Questions ouvertes
 
-1. Le partenaire de samedi est-il l'Option A ou l'Option B du §6 ?
-2. Un profil "partenaire multi-opérateurs" doit-il exister dans le produit (§3), ou reste-t-il un rôle purement commercial/hors-plateforme ?
-3. Le périmètre du service est-il VTC uniquement, ou doit-on inclure dès le concept une brique livraison (colis/marchandises), sachant que SenMarket (ce repo) a déjà une problématique de logistique Sénégal-Maroc qui pourrait, à terme, être un cas d'usage de la même plateforme de mobilité ?
-4. Zone géographique du pilote : une seule ville pour la démo de samedi, ou plusieurs zones dès le départ ?
+1. ~~Le partenaire de samedi est-il l'Option A ou l'Option B du §6 ?~~ **Tranché : Option A.**
+2. ~~Un profil "partenaire multi-opérateurs" doit-il exister dans le produit ?~~ **Tranché : non, le partenaire est le premier Opérateur.**
+3. Le périmètre du service est-il VTC uniquement, ou doit-on inclure dès le concept une brique livraison (colis/marchandises), sachant que SenMarket (ce repo) a déjà une problématique de logistique Sénégal-Maroc qui pourrait, à terme, être un cas d'usage de la même plateforme de mobilité ? **Non tranché — traité en Étape 2 comme hors-MVP, VTC uniquement, sans fermer la porte techniquement (voir `02-architecture-fonctionnelle.md`).**
+4. Zone géographique du pilote : une seule ville pour la démo de samedi, ou plusieurs zones dès le départ ? **Non tranché — traité en Étape 2 : hypothèse de travail = une seule ville pour la démo.**
 
 ## 8. Prochaine étape
 

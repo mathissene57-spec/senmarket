@@ -538,6 +538,7 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
     <div class="page-ttl">⚠️ Incidents</div>
     <div class="page-sub" id="incidentsCount">0 incident</div>
   </div>
+  <div class="filter-row" id="incidentsFilters"></div>
   <div class="list-wrap" id="incidentsList"></div>
 </section>
 
@@ -606,6 +607,16 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
       <button class="btn-primary" type="submit">Créer le lot</button>
     </form>
   </div>
+</div>
+
+<!-- SHEET -- Détail incident -->
+<div class="overlay" id="incidentOverlay" onclick="closeSheet('incident')"></div>
+<div class="sheet" id="incidentSheet" role="dialog" aria-modal="true" aria-label="Détail de l'incident">
+  <div class="sheet-hd">
+    <span class="sheet-ttl">Incident</span>
+    <button class="sheet-x" onclick="closeSheet('incident')" aria-label="Fermer">✕</button>
+  </div>
+  <div class="sheet-bd" id="incidentSheetBody"></div>
 </div>
 
 <div id="toasts" role="status" aria-live="polite" aria-atomic="true"></div>
@@ -735,13 +746,20 @@ var SEED_LOTS = [
 ];
 
 var SEED_INCIDENTS = [
-  { id:'inc-1', shipmentCode:'SL-MA-SN-990045', type:'colis_manquant', status:'open', description:'Écart de réconciliation du lot LOT-CASA-DKR-0812-041 (24 attendus, 23 reçus).', time:'12 août, 09:15' }
+  { id:'inc-1', shipmentCode:'SL-MA-SN-990045', type:'colis_manquant', status:'open',
+    description:'Écart de réconciliation du lot LOT-CASA-DKR-0812-041 (24 attendus, 23 reçus).',
+    time:'12 août, 09:15', reportedBy:'Vous (transporteur)', reportedRole:'transporteur',
+    resolutionNotes:null, resolvedAt:null },
+  { id:'inc-2', shipmentCode:'SL-MA-SN-118420', type:'retard', status:'resolved',
+    description:'Retard de contrôle douanier signalé par l\'agent hub, colis bloqué 6h de plus que prévu.',
+    time:'24 août, 16:40', reportedBy:'Agent Moussa T.', reportedRole:'agent_point_relais',
+    resolutionNotes:'Contrôle douanier terminé, colis remis en transit le jour même.', resolvedAt:'24 août, 22:10' }
 ];
 
 /* ----------------------------------------------------------------
    ÉTAT + PERSISTANCE (localStorage uniquement)
    ---------------------------------------------------------------- */
-var ST = { page:'accueil', shipments:[], lots:[], incidents:[], colisFilter:'all', lotsFilter:'all', scanTarget:null, lotCodeSeq:41, _toastMap:{} };
+var ST = { page:'accueil', shipments:[], lots:[], incidents:[], colisFilter:'all', lotsFilter:'all', incidentsFilter:'all', scanTarget:null, lotCodeSeq:41, _toastMap:{} };
 
 function lsGet(k) { try { return JSON.parse(localStorage.getItem(k)); } catch(e) { return null; } }
 function lsSet(k,v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {} }
@@ -944,7 +962,7 @@ function renderColisFilters() {
     return '<button class="filter-chip'+(ST.colisFilter===f.key?' on':'')+'" data-key="'+f.key+'">'+h(f.lbl)+'</button>';
   }).join('');
   Array.prototype.forEach.call(document.getElementById('colisFilters').querySelectorAll('.filter-chip'), function(btn){
-    btn.addEventListener('click', function(){ ST.colisFilter = btn.dataset.key; renderColis(); });
+    btn.addEventListener('click', function(){ ST.colisFilter = btn.dataset.key; renderColisFilters(); renderColis(); });
   });
 }
 function filteredColis() {
@@ -1030,7 +1048,7 @@ function renderLotsFilters() {
     return '<button class="filter-chip'+(ST.lotsFilter===f.key?' on':'')+'" data-key="'+f.key+'">'+h(f.lbl)+'</button>';
   }).join('');
   Array.prototype.forEach.call(document.getElementById('lotsFilters').querySelectorAll('.filter-chip'), function(btn){
-    btn.addEventListener('click', function(){ ST.lotsFilter = btn.dataset.key; renderLots(); });
+    btn.addEventListener('click', function(){ ST.lotsFilter = btn.dataset.key; renderLotsFilters(); renderLots(); });
   });
 }
 function lotCardHtml(l) {
@@ -1269,7 +1287,8 @@ function recordLotReconciliation(lotId) {
       id:'inc-' + Date.now() + '-' + Math.floor(Math.random()*1000),
       shipmentCode:s.code, type:'colis_manquant', status:'open',
       description:'Écart de réconciliation du lot ' + lotLabel(lot) + ' (' + ships.length + ' attendus, ' + (ships.length - missing.length) + ' reçus).',
-      time:'à l\'instant'
+      time:'à l\'instant', reportedBy:'Vous (transporteur)', reportedRole:'transporteur',
+      resolutionNotes:null, resolvedAt:null
     });
   });
   lot._reconciled = true;
@@ -1429,20 +1448,113 @@ var INCIDENT_TYPE_LABELS = {
   refus_reception:'Refus de réception', probleme_douane:'Problème douane', probleme_transport:'Problème transport',
   probleme_point_relais:'Problème point relais', autre:'Autre'
 };
+var INCIDENTS_FILTERS = [
+  { key:'all', lbl:'Tous' },
+  { key:'open', lbl:'Ouverts' },
+  { key:'resolved', lbl:'Résolus' }
+];
+function renderIncidentsFilters() {
+  document.getElementById('incidentsFilters').innerHTML = INCIDENTS_FILTERS.map(function(f){
+    return '<button class="filter-chip'+(ST.incidentsFilter===f.key?' on':'')+'" data-key="'+f.key+'">'+h(f.lbl)+'</button>';
+  }).join('');
+  Array.prototype.forEach.call(document.getElementById('incidentsFilters').querySelectorAll('.filter-chip'), function(btn){
+    btn.addEventListener('click', function(){ ST.incidentsFilter = btn.dataset.key; renderIncidentsFilters(); renderIncidents(); });
+  });
+}
+function filteredIncidents() {
+  return ST.incidents.filter(function(i){
+    if (ST.incidentsFilter === 'open') return i.status === 'open';
+    if (ST.incidentsFilter === 'resolved') return i.status === 'resolved';
+    return true;
+  });
+}
 function renderIncidents() {
+  var list = filteredIncidents();
   document.getElementById('incidentsCount').textContent = ST.incidents.length + (ST.incidents.length > 1 ? ' incidents' : ' incident');
   var el = document.getElementById('incidentsList');
-  el.innerHTML = ST.incidents.length
-    ? ST.incidents.map(function(i){
-        return '<div class="row-card" style="cursor:default">'
+  el.innerHTML = list.length
+    ? list.map(function(i){
+        return '<div class="row-card" data-id="'+i.id+'">'
           + '<div class="row-top"><span class="row-code">'+h(i.shipmentCode)+'</span>'
           +   '<span class="badge '+(i.status==='open'?'st-incident':'st-livre')+'">'+(i.status==='open'?'Ouvert':'Résolu')+'</span></div>'
           + '<div class="row-route">'+h(INCIDENT_TYPE_LABELS[i.type] || i.type)+'</div>'
-          + '<div class="row-meta"><span>'+h(i.time)+'</span></div>'
+          + '<div class="row-meta"><span>'+h(i.time)+'</span><span>Signalé par '+h(i.reportedBy)+'</span></div>'
           + '<p style="font-size:12px;color:var(--txt2);margin-top:8px;line-height:1.5">'+h(i.description)+'</p>'
           + '</div>';
       }).join('')
-    : '<div class="empty-state" style="grid-column:1/-1"><div class="es-ico">✅</div><div class="es-ttl">Aucun incident</div><div class="es-sub">Rien à signaler pour le moment.</div></div>';
+    : '<div class="empty-state" style="grid-column:1/-1"><div class="es-ico">✅</div><div class="es-ttl">Aucun incident</div><div class="es-sub">Rien à signaler pour ce filtre.</div></div>';
+  Array.prototype.forEach.call(el.querySelectorAll('.row-card'), function(card){
+    card.addEventListener('click', function(){ openIncidentSheet(card.dataset.id); });
+  });
+}
+
+/* ----------------------------------------------------------------
+   DÉTAIL + RÉSOLUTION D'INCIDENT
+   ⚠️ Illustratif : dans le schéma réel (thduksfosaylbjimrgrn), la
+   policy incidents_admin_update ne permet AUJOURD'HUI la résolution
+   qu'à un administrateur -- un transporteur ne peut pas encore clore
+   ses propres incidents. Ce bouton anticipe un futur "Incidents V2"
+   (RLS/RPC dédiées) explicitement hors périmètre de Migration 2 --
+   ne pas considérer cette action comme déjà backée par une vraie RPC.
+   ---------------------------------------------------------------- */
+function findIncident(id) {
+  for (var i = 0; i < ST.incidents.length; i++) if (ST.incidents[i].id === id) return ST.incidents[i];
+  return null;
+}
+var INCIDENT_ROLE_LABELS = { transporteur:'Transporteur', agent_point_relais:'Agent point relais', admin:'Administrateur' };
+function openIncidentSheet(id) {
+  var inc = findIncident(id);
+  if (!inc) return;
+  var s = findShipment(inc.shipmentCode);
+  var body = document.getElementById('incidentSheetBody');
+  var html = '<div style="padding:0 16px 12px">'
+    + '<div class="row-top" style="margin-bottom:6px"><span class="row-code" style="font-size:15px">'+h(inc.shipmentCode)+'</span>'
+    +   '<span class="badge '+(inc.status==='open'?'st-incident':'st-livre')+'">'+(inc.status==='open'?'Ouvert':'Résolu')+'</span></div>'
+    + '<div class="row-route">'+h(INCIDENT_TYPE_LABELS[inc.type] || inc.type)+'</div>'
+    + '<div class="row-meta">'
+    +   '<span>'+h(inc.time)+'</span>'
+    +   '<span>Signalé par '+h(inc.reportedBy)+' ('+h(INCIDENT_ROLE_LABELS[inc.reportedRole] || inc.reportedRole)+')</span>'
+    +   (s ? '<span>'+h(s.originCity)+' → '+h(s.destCity)+'</span>' : '')
+    + '</div></div>'
+    + '<div class="sec-hd"><span class="sec-ttl">Description</span></div>'
+    + '<p style="padding:0 16px 6px;font-size:13px;color:var(--txt2);line-height:1.6">'+h(inc.description)+'</p>'
+    + '<div class="sec-hd"><span class="sec-ttl">Preuves</span></div>'
+    + '<div class="row-meta" style="padding:0 16px 6px">'
+    +   '<span>📷 Photo : '+(inc.photoUrl ? 'jointe' : 'non fournie')+'</span>'
+    +   '<span>📍 GPS : '+(inc.locationText ? h(inc.locationText) : 'non renseigné')+'</span>'
+    + '</div>';
+
+  if (inc.status === 'resolved') {
+    html += '<div class="sec-hd"><span class="sec-ttl">Résolution</span></div>'
+      + '<p style="padding:0 16px 4px;font-size:13px;color:var(--txt2);line-height:1.6">'+h(inc.resolutionNotes || '—')+'</p>'
+      + '<div class="row-meta" style="padding:0 16px 12px"><span>Résolu le '+h(inc.resolvedAt)+'</span></div>';
+  } else {
+    html += '<div class="form-wrap" style="padding-top:4px">'
+      + '<div class="fieldset">'
+      +   '<div class="fieldset-lgd">Résoudre l\'incident</div>'
+      +   '<div class="field"><label for="incResNotes">Notes de résolution</label>'
+      +     '<textarea id="incResNotes" rows="3" placeholder="Ex : colis retrouvé au hub, remis en transit le..."></textarea></div>'
+      + '</div>'
+      + '<button class="btn-primary" id="btnResolveIncident" data-id="'+inc.id+'">✓ Marquer comme résolu</button>'
+      + '</div>';
+  }
+  body.innerHTML = html;
+  var btn = body.querySelector('#btnResolveIncident');
+  if (btn) btn.addEventListener('click', function(){ resolveIncident(inc.id); });
+  openSheet('incident');
+}
+function resolveIncident(id) {
+  var inc = findIncident(id);
+  if (!inc) return;
+  var notes = (document.getElementById('incResNotes').value || '').trim();
+  if (!notes) { showToast('Notes de résolution requises', 'e'); return; }
+  inc.status = 'resolved';
+  inc.resolutionNotes = notes;
+  inc.resolvedAt = 'à l\'instant';
+  saveAll();
+  renderAll();
+  closeSheet('incident');
+  showToast('Incident ' + inc.shipmentCode + ' marqué comme résolu', 's');
 }
 
 /* ----------------------------------------------------------------
@@ -1468,6 +1580,7 @@ document.addEventListener('DOMContentLoaded', function() {
   renderHubSelects();
   renderColisFilters();
   renderLotsFilters();
+  renderIncidentsFilters();
   renderAll();
 
   bindNav();

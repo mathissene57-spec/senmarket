@@ -5,17 +5,17 @@
   ================================================================
   SENLINK -- Prototype UX (design deliverable, pas de code de prod)
   ================================================================
-  Prototype HTML/CSS/JS autonome, sans framework ni etape de build,
-  au meme titre que le prototype SenMarket a la racine du depot
-  (README.md). Aucun appel Supabase ici : donnees de demonstration
-  codees en dur (SEED_SHIPMENTS), persistance locale via localStorage
-  uniquement. Base sur le document de reference SENLINK
-  (FlowDynamicsAgency, aout 2026) -- voir senlink/docs/blueprint.md
-  pour le cycle de vie complet, les roles et les preuves requises.
+  Prototype HTML/CSS/JS autonome, sans framework ni étape de build,
+  au même titre que le prototype SenMarket à la racine du dépôt
+  (README.md). Aucun appel Supabase ici : données de démonstration
+  codées en dur (SEED_SHIPMENTS), persistance locale via localStorage
+  uniquement. Basé sur le document de référence SENLINK
+  (FlowDynamicsAgency, août 2026) -- voir senlink/docs/blueprint.md
+  pour le cycle de vie complet, les rôles et les preuves requises.
 
-  A ne jamais utiliser comme source de verite pour le schema de
-  donnees ou les regles metier reelles -- c'est un support visuel
-  pour valider l'UX cote client avant de brancher le vrai backend
+  À ne jamais utiliser comme source de vérité pour le schéma de
+  données ou les règles metier réelles -- c'est un support visuel
+  pour valider l'UX côté client avant de brancher le vrai backend
   Supabase (voir senlink/README.md, section provisioning).
 -->
 <meta charset="UTF-8">
@@ -24,7 +24,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="description" content="SenLink -- La couche numerique de confiance du corridor logistique Maroc-Senegal.">
+<meta name="description" content="SenLink -- La couche numérique de confiance du corridor logistique Maroc-Sénégal.">
 <title>SenLink -- Prototype UX</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -185,7 +185,7 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
 .hb-stats { display:flex; gap:22px; margin-bottom:6px; }
 .hb-n { font-family:'Playfair Display',serif; font-size:20px; font-weight:900; color:var(--goldb); line-height:1; }
 .hb-l { font-size:10px; color:rgba(255,255,255,.55); margin-top:2px; }
-.hb-demo-tag { font-size:10px; color:rgba(255,255,255,.4); font-style:italic; margin-bottom:16px; }
+.hb-démo-tag { font-size:10px; color:rgba(255,255,255,.4); font-style:italic; margin-bottom:16px; }
 .hb-ctas { display:flex; gap:10px; flex-wrap:wrap; }
 .hb-cta {
   display:inline-flex; align-items:center; gap:6px; background:var(--g); color:#04150c;
@@ -229,7 +229,7 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
 .hscroll::-webkit-scrollbar { display:none; }
 
 /* ================================================================
-   PARCOURS D'UN COLIS (etapes)
+   PARCOURS D'UN COLIS (étapes)
    ================================================================ */
 .steps-track { display:flex; gap:0; overflow-x:auto; padding:8px 16px 16px; scrollbar-width:none; }
 .steps-track::-webkit-scrollbar { display:none; }
@@ -275,14 +275,14 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
 .badge.st-incident{ background:var(--redb); color:var(--red); }
 
 /* ================================================================
-   RESULTAT DE SUIVI / TIMELINE
+   RÉSULTAT DE SUIVI / TIMELINE
    ================================================================ */
 .track-empty { text-align:center; padding:60px 24px; color:var(--mut); }
 .track-empty .te-ico { font-size:40px; margin-bottom:12px; }
 .track-empty .te-ttl { font-size:15px; font-weight:700; color:var(--txt); margin-bottom:6px; }
 .track-empty .te-sub { font-size:13px; line-height:1.6; }
-.track-demo { display:flex; gap:6px; flex-wrap:wrap; padding:0 16px 8px; }
-.track-demo button {
+.track-démo { display:flex; gap:6px; flex-wrap:wrap; padding:0 16px 8px; }
+.track-démo button {
   font-size:11px; font-weight:700; color:var(--gm); background:var(--gg); border:1px solid rgba(0,201,107,.25);
   padding:6px 12px; border-radius:var(--rpill); font-family:inherit; cursor:pointer;
 }
@@ -401,8 +401,8 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
 .toast-x { cursor:pointer; opacity:.7; font-size:12px; }
 
 /* ================================================================
-   CODE DE RETRAIT (destinataire) -- affiche uniquement cote suivi,
-   jamais cote agent
+   CODE DE RETRAIT (destinataire) -- affiche uniquement côté suivi,
+   jamais côté agent
    ================================================================ */
 .otp-box { background:var(--gg); border:1.5px dashed var(--g); border-radius:var(--r16); padding:18px; margin-bottom:16px; text-align:center; }
 .otp-lbl { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--gm); margin-bottom:6px; }
@@ -410,7 +410,7 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
 .otp-hint { font-size:11.5px; color:var(--txt2); line-height:1.5; }
 
 /* ================================================================
-   ECRAN AGENT (demo)
+   ÉCRAN AGENT (démo)
    ================================================================ */
 .agent-back { display:inline-flex; align-items:center; gap:4px; font-size:12.5px; font-weight:600; color:var(--gm); padding:0 16px 4px; }
 .field-check { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--txt2); padding:4px 0; }
@@ -461,8 +461,8 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
   <div class="tab" id="tab-suivi" role="tab" aria-selected="false" aria-label="Suivre">
     <div class="tab-ico" aria-hidden="true">🔍</div><div class="tab-lbl">Suivre</div>
   </div>
-  <div class="tab" id="tab-expedier" role="tab" aria-selected="false" aria-label="Expedier">
-    <div class="tab-ico" aria-hidden="true">✉️</div><div class="tab-lbl">Expedier</div>
+  <div class="tab" id="tab-expedier" role="tab" aria-selected="false" aria-label="Expédier">
+    <div class="tab-ico" aria-hidden="true">✉️</div><div class="tab-lbl">Expédier</div>
   </div>
   <div class="tab" id="tab-historique" role="tab" aria-selected="false" aria-label="Historique">
     <div class="tab-ico" aria-hidden="true">🕐</div><div class="tab-lbl">Historique</div>
@@ -480,17 +480,17 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
     <div class="hero-banner">
       <div class="hb-in">
         <div class="hb-tag">🇲🇦 ↔ 🇸🇳 Corridor Casablanca-Dakar</div>
-        <div class="hb-h1">La couche numerique de <em>confiance</em> du corridor logistique Maroc-Senegal</div>
-        <div class="hb-sub">Chaque colis. Chaque etape. Depot, controle, transport, douane, hub, point relais, livraison -- tout est trace et prouve.</div>
+        <div class="hb-h1">La couche numérique de <em>confiance</em> du corridor logistique Maroc-Sénégal</div>
+        <div class="hb-sub">Chaque colis. Chaque étape. Dépôt, contrôle, transport, douane, hub, point relais, livraison -- tout est tracé et prouvé.</div>
         <div class="hb-stats">
           <div><div class="hb-n" id="statColis">--</div><div class="hb-l">Colis suivis</div></div>
           <div><div class="hb-n" id="statRelais">--</div><div class="hb-l">Points relais</div></div>
-          <div><div class="hb-n" id="statTaux">--</div><div class="hb-l">Livres a temps</div></div>
+          <div><div class="hb-n" id="statTaux">--</div><div class="hb-l">Livrés à temps</div></div>
         </div>
-        <div class="hb-demo-tag">Chiffres de demonstration, recalcules en direct depuis les colis ci-dessous -- pas des donnees reelles.</div>
+        <div class="hb-démo-tag">Chiffres de démonstration, recalcules en direct depuis les colis ci-dessous -- pas des données réelles.</div>
         <div class="hb-ctas">
           <button class="hb-cta" id="btnHeroSuivre">🔍 Suivre mon colis</button>
-          <button class="hb-cta2" id="btnHeroExpedier">✉️ Expedier un colis</button>
+          <button class="hb-cta2" id="btnHeroExpedier">✉️ Expédier un colis</button>
         </div>
       </div>
     </div>
@@ -498,28 +498,28 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
 
   <!-- Parcours d'un colis -->
   <div class="sec-hd"><span class="sec-ttl">Le parcours d'un colis</span></div>
-  <div class="sec-sub">Exemple : Casablanca 🇲🇦 → Dakar 🇸🇳. Chaque etape genere un evenement numerique tracable.</div>
-  <div class="steps-track" id="stepsTrack" role="list" aria-label="Etapes du parcours"></div>
+  <div class="sec-sub">Exemple : Casablanca 🇲🇦 → Dakar 🇸🇳. Chaque étape génère un événement numérique traçable.</div>
+  <div class="steps-track" id="stepsTrack" role="list" aria-label="Étapes du parcours"></div>
 
   <!-- Transparence -->
   <div class="sec-hd"><span class="sec-ttl">La transparence, au coeur du produit</span></div>
-  <div class="sec-sub">On remplace « Ton colis est parti, attends » par une preuve a chaque etape.</div>
+  <div class="sec-sub">On remplace « Ton colis est parti, attends » par une preuve à chaque étape.</div>
   <div class="qa-grid" id="qaGrid"></div>
   <div class="partner-cta" style="margin-top:14px">
     <div class="qa-answer" style="padding:14px 4px 4px">
       <div class="a1">« Ton colis est parti, attends. »</div>
-      <div class="a2">« Voici exactement ou se trouve ton colis, son historique et la derniere preuve enregistree. »</div>
+      <div class="a2">« Voici exactement où se trouve ton colis, son historique et la dernière preuve enregistrée. »</div>
     </div>
   </div>
 
   <!-- CTA Partenaire -->
   <div class="partner-cta">
-    <div class="pc-h2">Vous etes transporteur ou gerant de point relais ?<br>Rejoignez le <span>reseau SenLink</span></div>
-    <div class="pc-sub">SenLink orchestre le corridor Casablanca → Dakar sans devenir lui-meme transporteur : nous digitalisons votre activite existante.</div>
+    <div class="pc-h2">Vous êtes transporteur ou gérant de point relais ?<br>Rejoignez le <span>réseau SenLink</span></div>
+    <div class="pc-sub">SenLink orchestre le corridor Casablanca → Dakar sans devenir lui-même transporteur : nous digitalisons votre activité existante.</div>
     <div class="pc-feats">
-      <div class="pc-feat"><span class="pc-chk">✓</span> Preuve numerique a chaque scan</div>
-      <div class="pc-feat"><span class="pc-chk">✓</span> Manifestes et lots geres depuis un dashboard</div>
-      <div class="pc-feat"><span class="pc-chk">✓</span> Score de confiance public (a terme)</div>
+      <div class="pc-feat"><span class="pc-chk">✓</span> Preuve numérique a chaque scan</div>
+      <div class="pc-feat"><span class="pc-chk">✓</span> Manifestes et lots gérés depuis un dashboard</div>
+      <div class="pc-feat"><span class="pc-chk">✓</span> Score de confiance public (à terme)</div>
     </div>
     <button class="hb-cta" style="width:100%;justify-content:center;background:var(--gd);color:#fff" id="btnOuvrirPartenaire">🤝 Devenir partenaire</button>
   </div>
@@ -538,12 +538,12 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
       <button class="btn-go" id="btnSuivre">Suivre</button>
     </div>
   </div>
-  <div class="track-demo" id="trackDemo"></div>
+  <div class="track-démo" id="trackDemo"></div>
   <div id="trackOutput">
     <div class="track-empty">
       <div class="te-ico">📮</div>
       <div class="te-ttl">Entrez un code de suivi</div>
-      <div class="te-sub">Ou essayez un des codes de demonstration ci-dessus.</div>
+      <div class="te-sub">Ou essayez un des codes de démonstration ci-dessus.</div>
     </div>
   </div>
 </section>
@@ -551,41 +551,41 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
 <!-- ================================================================
      PAGE EXPEDIER
      ================================================================ -->
-<section class="page" id="page-expedier" aria-label="Creer un envoi">
+<section class="page" id="page-expedier" aria-label="Créer un envoi">
   <div class="form-wrap">
-    <div class="form-intro">Casablanca → Dakar -- pilote controle. Renseignez l'expediteur, le destinataire et le colis ; SenLink genere le code de suivi et le QR code.</div>
+    <div class="form-intro">Casablanca → Dakar -- pilote contrôle. Renseignez l'expéditeur, le destinataire et le colis ; SenLink génère le code de suivi et le QR code.</div>
     <form id="formExpedier">
       <div class="fieldset">
-        <div class="fieldset-lgd">Expediteur</div>
+        <div class="fieldset-lgd">Expéditeur</div>
         <div class="field"><label for="expSenderName">Nom complet</label><input id="expSenderName" required placeholder="Youssef El Amrani"></div>
-        <div class="field"><label for="expSenderPhone">Telephone</label><input id="expSenderPhone" required placeholder="+212 6 61 23 45 67"></div>
-        <div class="field"><label for="expOriginCity">Ville de depart</label><input id="expOriginCity" required value="Casablanca"></div>
+        <div class="field"><label for="expSenderPhone">Téléphone</label><input id="expSenderPhone" required placeholder="+212 6 61 23 45 67"></div>
+        <div class="field"><label for="expOriginCity">Ville de départ</label><input id="expOriginCity" required value="Casablanca"></div>
       </div>
       <div class="fieldset">
         <div class="fieldset-lgd">Destinataire</div>
         <div class="field"><label for="expRecipientName">Nom complet</label><input id="expRecipientName" required placeholder="Aissatou Diallo"></div>
-        <div class="field"><label for="expRecipientPhone">Telephone</label><input id="expRecipientPhone" required placeholder="+221 77 123 45 67"></div>
-        <div class="field"><label for="expDestCity">Ville d'arrivee</label><input id="expDestCity" required value="Dakar"></div>
+        <div class="field"><label for="expRecipientPhone">Téléphone</label><input id="expRecipientPhone" required placeholder="+221 77 123 45 67"></div>
+        <div class="field"><label for="expDestCity">Ville d'arrivée</label><input id="expDestCity" required value="Dakar"></div>
       </div>
       <div class="fieldset">
         <div class="fieldset-lgd">Colis</div>
         <div class="field-row">
-          <div class="field"><label for="expCategory">Categorie</label>
+          <div class="field"><label for="expCategory">Catégorie</label>
             <select id="expCategory">
-              <option>Textile</option><option>Documents</option><option>Electronique</option>
-              <option>Alimentaire</option><option>Cosmetique</option><option>Autre</option>
+              <option>Textile</option><option>Documents</option><option>Électronique</option>
+              <option>Alimentaire</option><option>Cosmétique</option><option>Autre</option>
             </select>
           </div>
-          <div class="field"><label for="expWeight">Poids declare (kg)</label><input id="expWeight" type="number" min="0" step="0.1" placeholder="3.2"></div>
+          <div class="field"><label for="expWeight">Poids déclaré (kg)</label><input id="expWeight" type="number" min="0" step="0.1" placeholder="3.2"></div>
         </div>
-        <div class="field"><label for="expValue">Valeur declaree (MAD)</label><input id="expValue" type="number" min="0" placeholder="450"></div>
+        <div class="field"><label for="expValue">Valeur déclarée (MAD)</label><input id="expValue" type="number" min="0" placeholder="450"></div>
         <div class="field">
           <label for="expPhoto">Photo du colis</label>
           <input id="expPhoto" type="file" accept="image/*" disabled>
-          <div class="field-hint">Apercu uniquement dans ce prototype -- pas d'upload reel.</div>
+          <div class="field-hint">Aperçu uniquement dans ce prototype -- pas d'upload réel.</div>
         </div>
       </div>
-      <button class="btn-primary" type="submit">Creer l'envoi</button>
+      <button class="btn-primary" type="submit">Créer l'envoi</button>
     </form>
   </div>
 </section>
@@ -599,13 +599,13 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
 </section>
 
 <!-- ================================================================
-     PAGE AGENT (demo) -- ecran de scan/preuve, hors barre d'onglets
-     client (persona differente), accessible depuis le Profil
+     PAGE AGENT (démo) -- écran de scan/preuve, hors barre d'onglets
+     client (persona différente), accessible depuis le Profil
      ================================================================ -->
-<section class="page" id="page-agent" aria-label="Espace agent (demo)">
+<section class="page" id="page-agent" aria-label="Espace agent (démo)">
   <div class="agent-back" onclick="navigate('profil')" role="button" style="cursor:pointer">← Retour au profil</div>
   <div class="sec-hd"><span class="sec-ttl">🚚 Espace agent (démo)</span></div>
-  <div class="sec-sub">Simulation du scan et de la preuve a chaque etape -- aucune donnee reelle, aucun appel reseau. Le code de retrait n'est jamais affiche ici : seul le destinataire le voit, sur la page Suivre.</div>
+  <div class="sec-sub">Simulation du scan et de la preuve à chaque étape -- aucune donnée réelle, aucun appel réseau. Le code de retrait n'est jamais affiché ici : seul le destinataire le voit, sur la page Suivre.</div>
   <div class="ship-list" id="agentPicker" role="list"></div>
   <div id="agentStepWrap"></div>
 </section>
@@ -628,17 +628,17 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
     </div>
     <div class="pcard-item">
       <div class="pi-ico pi-b" aria-hidden="true">🔔</div>
-      <div class="pi-txt"><strong>Notifications</strong><span>Colis enregistre, depart, arrivee, livraison</span></div>
+      <div class="pi-txt"><strong>Notifications</strong><span>Colis enregistré, départ, arrivée, livraison</span></div>
       <span class="pi-arr" aria-hidden="true">›</span>
     </div>
     <div class="pcard-item" id="btnMenuIncident">
       <div class="pi-ico pi-r" aria-hidden="true">⚠️</div>
-      <div class="pi-txt"><strong>Signaler un incident</strong><span>Colis endommage, retard, adresse...</span></div>
+      <div class="pi-txt"><strong>Signaler un incident</strong><span>Colis endommagé, retard, adresse...</span></div>
       <span class="pi-arr" aria-hidden="true">›</span>
     </div>
     <div class="pcard-item" id="btnMenuAgentDemo">
       <div class="pi-ico pi-g" aria-hidden="true">🚚</div>
-      <div class="pi-txt"><strong>Ecran agent (demo)</strong><span>Scan, preuve, code de retrait -- simulation</span></div>
+      <div class="pi-txt"><strong>Écran agent (démo)</strong><span>Scan, preuve, code de retrait -- simulation</span></div>
       <span class="pi-arr" aria-hidden="true">›</span>
     </div>
   </div>
@@ -650,12 +650,12 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
     <div class="pcard-ttl">Devenir partenaire</div>
     <div class="pcard-item" id="btnMenuAgent">
       <div class="pi-ico pi-g" aria-hidden="true">🏪</div>
-      <div class="pi-txt"><strong>Devenir agent point relais</strong><span>Depot, scan, remise des colis</span></div>
+      <div class="pi-txt"><strong>Devenir agent point relais</strong><span>Dépôt, scan, remise des colis</span></div>
       <span class="pi-arr" aria-hidden="true">›</span>
     </div>
     <div class="pcard-item" id="btnMenuTransporteur">
       <div class="pi-ico pi-g" aria-hidden="true">🚚</div>
-      <div class="pi-txt"><strong>Devenir transporteur</strong><span>Lots, departs, arrivees, manifestes</span></div>
+      <div class="pi-txt"><strong>Devenir transporteur</strong><span>Lots, départs, arrivées, manifestes</span></div>
       <span class="pi-arr" aria-hidden="true">›</span>
     </div>
   </div>
@@ -663,24 +663,24 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
     <div class="pcard-ttl">Aide</div>
     <div class="pcard-item" id="btnSupportWa">
       <div class="pi-ico pi-y" aria-hidden="true">💬</div>
-      <div class="pi-txt"><strong>Support WhatsApp</strong><span>Reponse en moins de 2h</span></div>
+      <div class="pi-txt"><strong>Support WhatsApp</strong><span>Réponse en moins de 2h</span></div>
       <span class="pi-arr" aria-hidden="true">›</span>
     </div>
     <div class="pcard-item">
       <div class="pi-ico pi-g" aria-hidden="true">📄</div>
-      <div class="pi-txt"><strong>Conditions d'utilisation</strong><span>Politique de confidentialite</span></div>
+      <div class="pi-txt"><strong>Conditions d'utilisation</strong><span>Politique de confidentialité</span></div>
       <span class="pi-arr" aria-hidden="true">›</span>
     </div>
   </div>
   <div style="text-align:center;padding:20px 16px 4px">
-    <button id="btnResetDemo" style="font-size:12px;color:var(--mut);text-decoration:underline">Reinitialiser les donnees de demo</button>
+    <button id="btnResetDemo" style="font-size:12px;color:var(--mut);text-decoration:underline">Réinitialiser les données de démo</button>
   </div>
   <div style="height:16px"></div>
 </section>
 
-<!-- SHEET -- Detail d'un envoi -->
+<!-- SHEET -- Détail d'un envoi -->
 <div class="overlay" id="detailOverlay" onclick="closeSheet('detail')"></div>
-<div class="sheet" id="detailSheet" role="dialog" aria-modal="true" aria-label="Detail du colis">
+<div class="sheet" id="detailSheet" role="dialog" aria-modal="true" aria-label="Détail du colis">
   <div class="sheet-hd">
     <span class="sheet-ttl">Suivi du colis</span>
     <button class="sheet-x" onclick="closeSheet('detail')" aria-label="Fermer">✕</button>
@@ -698,7 +698,7 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
   <div class="sheet-bd">
     <form id="formPartner">
       <div class="field"><label for="pName">Nom complet</label><input id="pName" required></div>
-      <div class="field"><label for="pPhone">Telephone</label><input id="pPhone" required></div>
+      <div class="field"><label for="pPhone">Téléphone</label><input id="pPhone" required></div>
       <div class="field"><label for="pCity">Ville</label><input id="pCity" required></div>
       <div class="field">
         <label for="pType">Type de partenariat</label>
@@ -707,7 +707,7 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
           <option value="transporteur">Transporteur</option>
         </select>
       </div>
-      <div class="field"><label for="pMsg">Message (optionnel)</label><textarea id="pMsg" placeholder="Zone couverte, capacite, disponibilite..."></textarea></div>
+      <div class="field"><label for="pMsg">Message (optionnel)</label><textarea id="pMsg" placeholder="Zone couverte, capacité, disponibilité..."></textarea></div>
       <button class="btn-primary" type="submit">Envoyer ma candidature</button>
     </form>
   </div>
@@ -726,35 +726,35 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
       <div class="field">
         <label for="incType">Type d'incident</label>
         <select id="incType">
-          <option value="colis_endommage">Colis endommage</option>
+          <option value="colis_endommage">Colis endommagé</option>
           <option value="colis_manquant">Colis manquant</option>
           <option value="retard">Retard</option>
-          <option value="probleme_douanier">Probleme douanier</option>
+          <option value="probleme_douanier">Problème douanier</option>
           <option value="mauvaise_adresse">Mauvaise adresse</option>
           <option value="destinataire_absent">Destinataire absent</option>
           <option value="autre">Autre</option>
         </select>
       </div>
-      <div class="field"><label for="incDesc">Description</label><textarea id="incDesc" required placeholder="Decrivez le probleme..."></textarea></div>
+      <div class="field"><label for="incDesc">Description</label><textarea id="incDesc" required placeholder="Décrivez le problème..."></textarea></div>
       <div class="field"><label for="incPhoto">Photo</label><input id="incPhoto" type="file" accept="image/*" disabled>
-        <div class="field-hint">Apercu uniquement dans ce prototype.</div>
+        <div class="field-hint">Aperçu uniquement dans ce prototype.</div>
       </div>
       <button class="btn-primary" type="submit" style="background:var(--red)">Signaler</button>
     </form>
   </div>
 </div>
 
-<!-- SHEET -- Nouvel envoi cree -->
+<!-- SHEET -- Nouvel envoi créé -->
 <div class="overlay" id="createdOverlay" onclick="closeSheet('created')"></div>
-<div class="sheet" id="createdSheet" role="dialog" aria-modal="true" aria-label="Envoi cree">
+<div class="sheet" id="createdSheet" role="dialog" aria-modal="true" aria-label="Envoi créé">
   <div class="sheet-hd">
-    <span class="sheet-ttl">Envoi cree ✅</span>
+    <span class="sheet-ttl">Envoi créé ✅</span>
     <button class="sheet-x" onclick="closeSheet('created')" aria-label="Fermer">✕</button>
   </div>
   <div class="sheet-bd" style="text-align:center">
     <div class="qr-box" id="createdQr"></div>
     <div class="qr-copy" id="createdCode">SL-MA-SN-000000</div>
-    <div class="qr-sub">Presentez ce code (ou le QR) au point relais lors du depot.</div>
+    <div class="qr-sub">Présentez ce code (ou le QR) au point relais lors du dépôt.</div>
     <button class="btn-primary" id="btnCreatedSuivre">Voir le suivi</button>
   </div>
 </div>
@@ -762,19 +762,19 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
 <div id="toasts" role="status" aria-live="polite" aria-atomic="true"></div>
 
 <!-- ================================================================
-     JS -- donnees de demo + logique d'affichage (aucun appel reseau)
+     JS -- données de démo + logique d'affichage (aucun appel réseau)
      ================================================================ -->
 <script>
 (function() {
 'use strict';
 
 /* ----------------------------------------------------------------
-   PARCOURS (section 1/2 du document de reference)
+   PARCOURS (section 1/2 du document de référence)
    ---------------------------------------------------------------- */
 var STEPS = [
-  { ico:'✉️', lbl:'Expediteur' },
-  { ico:'📥', lbl:'Depot' },
-  { ico:'🔍', lbl:'Controle' },
+  { ico:'✉️', lbl:'Expéditeur' },
+  { ico:'📥', lbl:'Dépôt' },
+  { ico:'🔍', lbl:'Contrôle' },
   { ico:'📦', lbl:'Consolidation' },
   { ico:'🚚', lbl:'Transport' },
   { ico:'🌍', lbl:'Transit' },
@@ -788,36 +788,36 @@ var STEPS = [
    TRANSPARENCE (section 4)
    ---------------------------------------------------------------- */
 var QA = [
-  { ico:'📍', txt:"Ou est le colis ?" },
+  { ico:'📍', txt:"Où est le colis ?" },
   { ico:'🧑', txt:"Qui l'a eu en dernier ?" },
-  { ico:'⏱️', txt:"Quand a-t-il ete scanne ?" },
-  { ico:'📌', txt:"Ou a-t-il ete scanne ?" },
-  { ico:'📦', txt:"Quel etait son etat ?" },
-  { ico:'❓', txt:"Pourquoi est-il bloque ?" }
+  { ico:'⏱️', txt:"Quand a-t-il été scanné ?" },
+  { ico:'📌', txt:"Où a-t-il été scanné ?" },
+  { ico:'📦', txt:"Quel était son état ?" },
+  { ico:'❓', txt:"Pourquoi est-il bloqué ?" }
 ];
 
 /* ----------------------------------------------------------------
    STATUTS (miroir de lib/shipment-status.ts)
    ---------------------------------------------------------------- */
 var STATUS_META = {
-  created:                    { label:'Cree',                   cls:'st-neutre'  },
-  dropped_off:                { label:'Depose au point relais', cls:'st-neutre'  },
-  inspected:                  { label:'Controle',                cls:'st-neutre'  },
-  departed_origin:            { label:'Depart',                  cls:'st-transit' },
+  created:                    { label:'Créé',                   cls:'st-neutre'  },
+  dropped_off:                { label:'Déposé au point relais', cls:'st-neutre'  },
+  inspected:                  { label:'Contrôle',                cls:'st-neutre'  },
+  departed_origin:            { label:'Départ',                  cls:'st-transit' },
   in_transit_international:   { label:'Transit international',   cls:'st-transit' },
-  customs_clearance:          { label:'Controle douanier',        cls:'st-transit' },
-  arrived_destination:        { label:'Arrive a destination',     cls:'st-arrive'  },
+  customs_clearance:          { label:'Contrôle douanier',        cls:'st-transit' },
+  arrived_destination:        { label:'Arrivé à destination',     cls:'st-arrive'  },
   at_hub:                     { label:'Au hub',                   cls:'st-arrive'  },
   at_pickup_point:            { label:'Au point relais',          cls:'st-arrive'  },
   out_for_delivery:           { label:'En cours de livraison',    cls:'st-arrive'  },
-  delivered:                  { label:'Livre',                    cls:'st-livre'   },
+  delivered:                  { label:'Livré',                    cls:'st-livre'   },
   incident:                   { label:'Incident',                 cls:'st-incident'},
-  cancelled:                  { label:'Annule',                   cls:'st-incident'}
+  cancelled:                  { label:'Annulé',                   cls:'st-incident'}
 };
 
 /* ----------------------------------------------------------------
-   POINTS RELAIS (demo) -- reference du document : 2-3 a Casablanca,
-   quelques-uns a Dakar + 1 hub
+   POINTS RELAIS (démo) -- référence du document : 2-3 à Casablanca,
+   quelques-uns à Dakar + 1 hub
    ---------------------------------------------------------------- */
 var PICKUP_POINTS = [
   { name:'Point relais Maarif', city:'Casablanca' },
@@ -828,9 +828,9 @@ var PICKUP_POINTS = [
 ];
 
 /* ----------------------------------------------------------------
-   MACHINE A ETATS (miroir simplifie, cote demo uniquement -- la
-   version qui fait autorite est celle de Migration 1, cote SQL,
-   jamais appliquee. Ne pas utiliser ceci comme source de verite.)
+   MACHINE À ÉTATS (miroir simplifié, côté démo uniquement -- la
+   version qui fait autorite est celle de Migration 1, côté SQL,
+   jamais appliquée. Ne pas utiliser ceci comme source de vérité.)
    ---------------------------------------------------------------- */
 var TRANSITIONS = {
   created: ['dropped_off'],
@@ -852,9 +852,9 @@ function locForStatus(s, status) {
 }
 
 /* ----------------------------------------------------------------
-   DONNEES DE DEMO -- colis (codees en dur, jamais issues d'un backend)
-   Mutables une fois chargees dans ST.shipments (voir plus bas) --
-   ce tableau-ci n'est que le "seed" initial, jamais modifie lui-meme.
+   DONNÉES DE DÉMO -- colis (codées en dur, jamais issues d'un backend)
+   Mutables une fois chargées dans ST.shipments (voir plus bas) --
+   ce tableau-ci n'est que le "seed" initial, jamais modifié lui-même.
    ---------------------------------------------------------------- */
 var SEED_SHIPMENTS = [
   {
@@ -863,29 +863,29 @@ var SEED_SHIPMENTS = [
     senderName:'Youssef El Amrani', recipientName:'Aissatou Diallo',
     category:'Textile', weight:3.2, value:450, deliveryOtp:null,
     timeline:[
-      { key:'created', lbl:'Cree', ico:'✅', loc:'Casablanca', actor:'Youssef (expediteur)', time:'12 aout, 09:14', proof:false },
-      { key:'dropped_off', lbl:'Depose a Casablanca', ico:'✅', loc:'Point relais Maarif', actor:'Agent Karim B.', time:'12 aout, 11:02', proof:true },
-      { key:'inspected', lbl:'Controle', ico:'✅', loc:'Point relais Maarif', actor:'Agent Karim B.', time:'12 aout, 11:05', proof:true },
-      { key:'departed_origin', lbl:'Depart Maroc', ico:'🚚', loc:'Hub Casablanca', actor:'Atlas Cargo', time:'13 aout, 07:40', proof:false },
-      { key:'in_transit_international', lbl:'Transit international', ico:'🌍', loc:'En route', actor:'Atlas Cargo', time:'13 aout, 22:10', proof:false },
-      { key:'customs_clearance', lbl:'Controle douane', ico:'🛃', loc:'Douane Dakar-Port', actor:'—', time:'15 aout, 06:30', proof:false },
-      { key:'arrived_destination', lbl:'Arrive au Senegal', ico:'🇸🇳', loc:'Dakar', actor:'—', time:'15 aout, 08:15', proof:true },
-      { key:'at_hub', lbl:'Hub Dakar', ico:'📍', loc:'Hub Dakar Plateau', actor:'Agent Moussa T.', time:'15 aout, 09:00', proof:false },
-      { key:'at_pickup_point', lbl:'Point relais', ico:'📦', loc:'Point relais Sandaga', actor:'Agent Ndeye F.', time:'15 aout, 14:20', proof:true },
-      { key:'delivered', lbl:'Livre', ico:'✅', loc:'Point relais Sandaga', actor:'Ndeye F.', time:'16 aout, 10:47', proof:true }
+      { key:'created', lbl:'Créé', ico:'✅', loc:'Casablanca', actor:'Youssef (expéditeur)', time:'12 août, 09:14', proof:false },
+      { key:'dropped_off', lbl:'Déposé à Casablanca', ico:'✅', loc:'Point relais Maarif', actor:'Agent Karim B.', time:'12 août, 11:02', proof:true },
+      { key:'inspected', lbl:'Contrôle', ico:'✅', loc:'Point relais Maarif', actor:'Agent Karim B.', time:'12 août, 11:05', proof:true },
+      { key:'departed_origin', lbl:'Départ Maroc', ico:'🚚', loc:'Hub Casablanca', actor:'Atlas Cargo', time:'13 août, 07:40', proof:false },
+      { key:'in_transit_international', lbl:'Transit international', ico:'🌍', loc:'En route', actor:'Atlas Cargo', time:'13 août, 22:10', proof:false },
+      { key:'customs_clearance', lbl:'Contrôle douane', ico:'🛃', loc:'Douane Dakar-Port', actor:'—', time:'15 août, 06:30', proof:false },
+      { key:'arrived_destination', lbl:'Arrivé au Sénégal', ico:'🇸🇳', loc:'Dakar', actor:'—', time:'15 août, 08:15', proof:true },
+      { key:'at_hub', lbl:'Hub Dakar', ico:'📍', loc:'Hub Dakar Plateau', actor:'Agent Moussa T.', time:'15 août, 09:00', proof:false },
+      { key:'at_pickup_point', lbl:'Point relais', ico:'📦', loc:'Point relais Sandaga', actor:'Agent Ndeye F.', time:'15 août, 14:20', proof:true },
+      { key:'delivered', lbl:'Livré', ico:'✅', loc:'Point relais Sandaga', actor:'Ndeye F.', time:'16 août, 10:47', proof:true }
     ]
   },
   {
     code:'SL-MA-SN-118420', status:'in_transit_international',
     originCity:'Casablanca', destCity:'Dakar',
     senderName:'Salma Bennis', recipientName:'Cheikh Fall',
-    category:'Electronique', weight:1.4, value:1200, deliveryOtp:null,
+    category:'Électronique', weight:1.4, value:1200, deliveryOtp:null,
     timeline:[
-      { key:'created', lbl:'Cree', ico:'✅', loc:'Casablanca', actor:'Salma (expediteur)', time:'22 aout, 08:02', proof:false },
-      { key:'dropped_off', lbl:'Depose a Casablanca', ico:'✅', loc:'Point relais Gauthier', actor:'Agent Rania S.', time:'22 aout, 10:30', proof:true },
-      { key:'inspected', lbl:'Controle', ico:'✅', loc:'Point relais Gauthier', actor:'Agent Rania S.', time:'22 aout, 10:33', proof:true },
-      { key:'departed_origin', lbl:'Depart Maroc', ico:'🚚', loc:'Hub Casablanca', actor:'Atlas Cargo', time:'23 aout, 07:15', proof:false },
-      { key:'in_transit_international', lbl:'Transit international', ico:'🌍', loc:'En route', actor:'Atlas Cargo', time:'23 aout, 21:45', proof:false }
+      { key:'created', lbl:'Créé', ico:'✅', loc:'Casablanca', actor:'Salma (expéditeur)', time:'22 août, 08:02', proof:false },
+      { key:'dropped_off', lbl:'Déposé à Casablanca', ico:'✅', loc:'Point relais Gauthier', actor:'Agent Rania S.', time:'22 août, 10:30', proof:true },
+      { key:'inspected', lbl:'Contrôle', ico:'✅', loc:'Point relais Gauthier', actor:'Agent Rania S.', time:'22 août, 10:33', proof:true },
+      { key:'departed_origin', lbl:'Départ Maroc', ico:'🚚', loc:'Hub Casablanca', actor:'Atlas Cargo', time:'23 août, 07:15', proof:false },
+      { key:'in_transit_international', lbl:'Transit international', ico:'🌍', loc:'En route', actor:'Atlas Cargo', time:'23 août, 21:45', proof:false }
     ]
   },
   {
@@ -894,21 +894,21 @@ var SEED_SHIPMENTS = [
     senderName:'Hamza Idrissi', recipientName:'Fatou Ndiaye',
     category:'Documents', weight:0.4, value:0, deliveryOtp:null,
     timeline:[
-      { key:'created', lbl:'Cree', ico:'✅', loc:'Casablanca', actor:'Hamza (expediteur)', time:'24 aout, 13:20', proof:false },
-      { key:'dropped_off', lbl:'Depose a Casablanca', ico:'✅', loc:'Point relais Maarif', actor:'Agent Karim B.', time:'24 aout, 15:10', proof:true },
-      { key:'inspected', lbl:'Controle', ico:'✅', loc:'Point relais Maarif', actor:'Agent Karim B.', time:'24 aout, 15:12', proof:true },
-      { key:'departed_origin', lbl:'Depart Maroc', ico:'🚚', loc:'Hub Casablanca', actor:'Atlas Cargo', time:'25 aout, 07:50', proof:false },
-      { key:'in_transit_international', lbl:'Transit international', ico:'🌍', loc:'En route', actor:'Atlas Cargo', time:'25 aout, 23:05', proof:false },
-      { key:'customs_clearance', lbl:'Controle douane', ico:'🛃', loc:'Douane Dakar-Port', actor:'—', time:'27 aout, 09:12', proof:false }
+      { key:'created', lbl:'Créé', ico:'✅', loc:'Casablanca', actor:'Hamza (expéditeur)', time:'24 août, 13:20', proof:false },
+      { key:'dropped_off', lbl:'Déposé à Casablanca', ico:'✅', loc:'Point relais Maarif', actor:'Agent Karim B.', time:'24 août, 15:10', proof:true },
+      { key:'inspected', lbl:'Contrôle', ico:'✅', loc:'Point relais Maarif', actor:'Agent Karim B.', time:'24 août, 15:12', proof:true },
+      { key:'departed_origin', lbl:'Départ Maroc', ico:'🚚', loc:'Hub Casablanca', actor:'Atlas Cargo', time:'25 août, 07:50', proof:false },
+      { key:'in_transit_international', lbl:'Transit international', ico:'🌍', loc:'En route', actor:'Atlas Cargo', time:'25 août, 23:05', proof:false },
+      { key:'customs_clearance', lbl:'Contrôle douane', ico:'🛃', loc:'Douane Dakar-Port', actor:'—', time:'27 août, 09:12', proof:false }
     ]
   },
   {
     code:'SL-MA-SN-902174', status:'created',
     originCity:'Casablanca', destCity:'Dakar',
     senderName:'Nadia Alaoui', recipientName:'Ousmane Sarr',
-    category:'Cosmetique', weight:2.0, value:300, deliveryOtp:null,
+    category:'Cosmétique', weight:2.0, value:300, deliveryOtp:null,
     timeline:[
-      { key:'created', lbl:'Cree', ico:'✅', loc:'Casablanca', actor:'Nadia (expediteur)', time:'29 aout, 17:40', proof:false }
+      { key:'created', lbl:'Créé', ico:'✅', loc:'Casablanca', actor:'Nadia (expéditeur)', time:'29 août, 17:40', proof:false }
     ]
   },
   {
@@ -917,20 +917,20 @@ var SEED_SHIPMENTS = [
     senderName:'Omar Benjelloun', recipientName:'Mariama Sow',
     category:'Textile', weight:1.8, value:280, deliveryOtp:'618452',
     timeline:[
-      { key:'created', lbl:'Cree', ico:'✅', loc:'Casablanca', actor:'Omar (expediteur)', time:'26 aout, 10:05', proof:false },
-      { key:'dropped_off', lbl:'Depose a Casablanca', ico:'✅', loc:'Point relais Ain Sebaa', actor:'Agent Youssra L.', time:'26 aout, 12:40', proof:true },
-      { key:'inspected', lbl:'Controle', ico:'✅', loc:'Point relais Ain Sebaa', actor:'Agent Youssra L.', time:'26 aout, 12:42', proof:true },
-      { key:'departed_origin', lbl:'Depart Maroc', ico:'🚚', loc:'Hub Casablanca', actor:'Atlas Cargo', time:'27 aout, 07:20', proof:false },
-      { key:'in_transit_international', lbl:'Transit international', ico:'🌍', loc:'En route', actor:'Atlas Cargo', time:'27 aout, 22:00', proof:false },
-      { key:'arrived_destination', lbl:'Arrive au Senegal', ico:'🇸🇳', loc:'Dakar', actor:'—', time:'29 aout, 07:30', proof:true },
-      { key:'at_hub', lbl:'Hub Dakar', ico:'📍', loc:'Hub Dakar Plateau', actor:'Agent Moussa T.', time:'29 aout, 08:15', proof:false },
-      { key:'at_pickup_point', lbl:'Point relais', ico:'📦', loc:'Point relais Plateau', actor:'Agent Aminata D.', time:'29 aout, 13:50', proof:true }
+      { key:'created', lbl:'Créé', ico:'✅', loc:'Casablanca', actor:'Omar (expéditeur)', time:'26 août, 10:05', proof:false },
+      { key:'dropped_off', lbl:'Déposé à Casablanca', ico:'✅', loc:'Point relais Ain Sebaa', actor:'Agent Youssra L.', time:'26 août, 12:40', proof:true },
+      { key:'inspected', lbl:'Contrôle', ico:'✅', loc:'Point relais Ain Sebaa', actor:'Agent Youssra L.', time:'26 août, 12:42', proof:true },
+      { key:'departed_origin', lbl:'Départ Maroc', ico:'🚚', loc:'Hub Casablanca', actor:'Atlas Cargo', time:'27 août, 07:20', proof:false },
+      { key:'in_transit_international', lbl:'Transit international', ico:'🌍', loc:'En route', actor:'Atlas Cargo', time:'27 août, 22:00', proof:false },
+      { key:'arrived_destination', lbl:'Arrivé au Sénégal', ico:'🇸🇳', loc:'Dakar', actor:'—', time:'29 août, 07:30', proof:true },
+      { key:'at_hub', lbl:'Hub Dakar', ico:'📍', loc:'Hub Dakar Plateau', actor:'Agent Moussa T.', time:'29 août, 08:15', proof:false },
+      { key:'at_pickup_point', lbl:'Point relais', ico:'📦', loc:'Point relais Plateau', actor:'Agent Aminata D.', time:'29 août, 13:50', proof:true }
     ]
   }
 ];
 
 /* ----------------------------------------------------------------
-   ETAT + PERSISTANCE LOCALE (localStorage uniquement, pas de reseau)
+   ETAT + PERSISTANCE LOCALE (localStorage uniquement, pas de réseau)
    ---------------------------------------------------------------- */
 var ST = { page:'accueil', shipments:[], _toastMap:{} };
 
@@ -948,7 +948,7 @@ function resetDemo() {
   renderAgentPicker();
   document.getElementById('agentStepWrap').innerHTML = '';
   if (ST.page === 'suivi') runSearch('');
-  showToast('Donnees de demonstration reinitialisees','i');
+  showToast('Données de démonstration réinitialisées','i');
 }
 
 function allShipments() {
@@ -984,7 +984,7 @@ function bindNav() {
     navigate(tab.id.replace('tab-',''));
   });
   document.getElementById('btnProfilNav').addEventListener('click', function(){ navigate('profil'); });
-  document.getElementById('btnNotif').addEventListener('click', function(){ showToast('Aucune nouvelle notification (demo)','i'); });
+  document.getElementById('btnNotif').addEventListener('click', function(){ showToast('Aucune nouvelle notification (démo)','i'); });
   document.getElementById('btnHeroSuivre').addEventListener('click', function(){ navigate('suivi'); });
   document.getElementById('btnHeroExpedier').addEventListener('click', function(){ navigate('expedier'); });
   document.getElementById('btnOuvrirPartenaire').addEventListener('click', function(){ openSheet('partner'); });
@@ -1009,7 +1009,7 @@ function bindNav() {
 }
 
 /* ----------------------------------------------------------------
-   RENDU -- ETAPES / TRANSPARENCE
+   RENDU -- ÉTAPES / TRANSPARENCE
    ---------------------------------------------------------------- */
 function renderSteps() {
   var el = document.getElementById('stepsTrack');
@@ -1025,10 +1025,10 @@ function renderQa() {
 }
 
 /* ----------------------------------------------------------------
-   STATISTIQUES D'ACCUEIL -- toujours recalculees depuis les donnees
-   de demo visibles (jamais une constante en dur, cf. audit). Ces
-   chiffres restent des donnees d'exemple, jamais une performance
-   reelle -- voir le libelle "hb-demo-tag" affiche a cote.
+   STATISTIQUES D'ACCUEIL -- toujours recalculees depuis les données
+   de démo visibles (jamais une constante en dur, cf. audit). Ces
+   chiffres restent des données d'exemple, jamais une performance
+   réelle -- voir le libelle "hb-démo-tag" affiche a côté.
    ---------------------------------------------------------------- */
 function renderHeroStats() {
   var all = ST.shipments;
@@ -1054,7 +1054,7 @@ function statusBadge(status) {
 }
 
 /* ----------------------------------------------------------------
-   TIMELINE (reutilisee par la page Suivi et la sheet Detail)
+   TIMELINE (réutilisée par la page Suivi et la sheet Détail)
    ---------------------------------------------------------------- */
 function timelineHtml(shipment) {
   var items = shipment.timeline.map(function(ev){
@@ -1064,7 +1064,7 @@ function timelineHtml(shipment) {
       +   '<div class="tl-lbl">'+h(ev.lbl)+'</div>'
       +   '<div class="tl-loc">'+h(ev.loc)+' -- '+h(ev.actor)+'</div>'
       +   '<div class="tl-meta">'+h(ev.time)+'</div>'
-      +   (ev.proof ? '<div class="tl-proof">📷 Preuve enregistree</div>' : '')
+      +   (ev.proof ? '<div class="tl-proof">📷 Preuve enregistrée</div>' : '')
       + '</div></li>';
   }).join('');
   return '<ul class="timeline">'+items+'</ul>';
@@ -1078,14 +1078,14 @@ function shipmentHeadHtml(shipment) {
     + '<div class="tr-meta" style="margin-top:10px">'
     +   '<span>'+h(shipment.category)+'</span>'
     +   '<span>'+shipment.weight+' kg</span>'
-    +   (shipment.value ? '<span>'+shipment.value+' MAD declares</span>' : '')
+    +   (shipment.value ? '<span>'+shipment.value+' MAD déclarés</span>' : '')
     + '</div></div>';
 }
 
 /* ----------------------------------------------------------------
-   CODE DE RETRAIT -- experience destinataire (section 2 du document :
+   CODE DE RETRAIT -- expérience destinataire (section 2 du document :
    "retrait avec QR Code ou OTP"). Visible uniquement ici (page Suivre
-   / detail d'un envoi), jamais dans l'ecran agent -- l'agent ne doit
+   / détail d'un envoi), jamais dans l'écran agent -- l'agent ne doit
    jamais pouvoir lire ce code, seulement verifier ce que le
    destinataire lui communique.
    ---------------------------------------------------------------- */
@@ -1094,7 +1094,7 @@ function otpRevealHtml(shipment) {
   return '<div class="otp-box">'
     + '<div class="otp-lbl">Code de retrait</div>'
     + '<div class="otp-code">'+h(shipment.deliveryOtp)+'</div>'
-    + '<div class="otp-hint">Presentez ce code (ou cet ecran) a l\'agent du point relais pour recuperer le colis. Il n\'est jamais visible cote agent -- seul vous, le destinataire, le connaissez.</div>'
+    + '<div class="otp-hint">Présentez ce code (ou cet écran) à l\'agent du point relais pour récupérer le colis. Il n\'est jamais visible côté agent -- seul vous, le destinataire, le connaissez.</div>'
     + '</div>';
 }
 
@@ -1110,12 +1110,12 @@ function renderTrackDemo() {
 function runSearch(code) {
   var out = document.getElementById('trackOutput');
   if (!code || !code.trim()) {
-    out.innerHTML = '<div class="track-empty"><div class="te-ico">📮</div><div class="te-ttl">Entrez un code de suivi</div><div class="te-sub">Ou essayez un des codes de demonstration ci-dessus.</div></div>';
+    out.innerHTML = '<div class="track-empty"><div class="te-ico">📮</div><div class="te-ttl">Entrez un code de suivi</div><div class="te-sub">Ou essayez un des codes de démonstration ci-dessus.</div></div>';
     return;
   }
   var s = findShipment(code);
   if (!s) {
-    out.innerHTML = '<div class="track-empty"><div class="te-ico">🔎</div><div class="te-ttl">Aucun colis trouve</div><div class="te-sub">Verifiez le code « '+h(code)+' » ou essayez un code de demonstration.</div></div>';
+    out.innerHTML = '<div class="track-empty"><div class="te-ico">🔎</div><div class="te-ttl">Aucun colis trouvé</div><div class="te-sub">Vérifiez le code « '+h(code)+' » ou essayez un code de démonstration.</div></div>';
     return;
   }
   out.innerHTML = '<div class="track-result">'+shipmentHeadHtml(s)+otpRevealHtml(s)+timelineHtml(s)+'</div>';
@@ -1170,10 +1170,10 @@ function bindHistorique() {
 }
 
 /* ----------------------------------------------------------------
-   PAGE AGENT (demo) -- scan simule + preuve. Miroir volontairement
-   simplifie de record_shipment_event() (Migration 1, jamais
-   appliquee) : matrice role/statut et machine a etats reelles restent
-   cote SQL, ceci n'est qu'une demonstration visuelle.
+   PAGE AGENT (démo) -- scan simulé + preuve. Miroir volontairement
+   simplifié de record_shipment_event() (Migration 1, jamais
+   appliquée) : matrice rôle/statut et machine à états réelles restent
+   côté SQL, ceci n'est qu'une démonstration visuelle.
    ---------------------------------------------------------------- */
 function renderAgentPicker() {
   var el = document.getElementById('agentPicker');
@@ -1204,13 +1204,13 @@ function renderAgentStep(code) {
   wrap.innerHTML = '<div class="form-wrap">'
     + shipmentHeadHtml(s)
     + '<div class="fieldset">'
-    +   '<div class="fieldset-lgd">Prochaine etape</div>'
-    +   '<div class="field"><label for="agentNextStatus">Statut a enregistrer</label>'
+    +   '<div class="fieldset-lgd">Prochaine étape</div>'
+    +   '<div class="field"><label for="agentNextStatus">Statut à enregistrer</label>'
     +     '<select id="agentNextStatus">'+opts+'</select></div>'
     +   '<div class="field" id="agentPhotoField"></div>'
     +   '<div class="field" id="agentOtpField"></div>'
     + '</div>'
-    + '<button class="btn-primary" id="btnAgentConfirm">Valider cette etape</button>'
+    + '<button class="btn-primary" id="btnAgentConfirm">Valider cette étape</button>'
     + '</div>';
   updateAgentFields();
   document.getElementById('agentNextStatus').addEventListener('change', updateAgentFields);
@@ -1225,7 +1225,7 @@ function updateAgentFields() {
   var otpField = document.getElementById('agentOtpField');
   photoField.innerHTML = PROOF_REQUIRED.indexOf(status) > -1
     ? '<label class="field-check"><input type="checkbox" id="agentPhotoTaken"> 📷 Photo prise (preuve obligatoire pour ce statut)</label>'
-    : '<div class="field-hint">Aucune preuve requise pour ce statut (transit declaratif).</div>';
+    : '<div class="field-hint">Aucune preuve requise pour ce statut (transit déclaratif).</div>';
   otpField.innerHTML = status === 'delivered'
     ? '<label for="agentOtpInput">Code de retrait fourni par le destinataire</label><input id="agentOtpInput" placeholder="6 chiffres" maxlength="6">'
     : '';
@@ -1239,7 +1239,7 @@ function confirmAgentStep(code) {
 
   if (needsPhoto) {
     var chk = document.getElementById('agentPhotoTaken');
-    if (!chk || !chk.checked) { showToast('Photo requise pour cette etape (demo)','e'); return; }
+    if (!chk || !chk.checked) { showToast('Photo requise pour cette étape (démo)','e'); return; }
   }
   if (status === 'delivered') {
     var otpInput = document.getElementById('agentOtpInput');
@@ -1251,13 +1251,13 @@ function confirmAgentStep(code) {
   var meta = STATUS_META[status] || { label: status };
   s.timeline.push({
     key: status, lbl: meta.label, ico:'✅',
-    loc: locForStatus(s, status), actor:'Agent (demo)', time:'A l\'instant', proof: needsPhoto
+    loc: locForStatus(s, status), actor:'Agent (démo)', time:'à l\'instant', proof: needsPhoto
   });
   s.status = status;
   if (status === 'at_pickup_point') {
     s.deliveryOtp = String(Math.floor(100000 + Math.random() * 900000));
   } else if (status === 'delivered') {
-    s.deliveryOtp = null; // consommation immediate, comme dans Migration 1
+    s.deliveryOtp = null; // consommation immédiate, comme dans Migration 1
   }
 
   saveShipments();
@@ -1265,7 +1265,7 @@ function confirmAgentStep(code) {
   renderHistorique();
   renderAgentPicker();
   renderAgentStep(code);
-  showToast('Etape enregistree : ' + meta.label, 's');
+  showToast('Étape enregistrée : ' + meta.label, 's');
 }
 
 function bindAgent() {
@@ -1277,7 +1277,7 @@ function bindAgent() {
 }
 
 /* ----------------------------------------------------------------
-   QR DE DEMONSTRATION (motif deterministe, PAS un vrai QR scannable)
+   QR DE DÉMONSTRATION (motif déterministe, PAS un vrai QR scannable)
    ---------------------------------------------------------------- */
 function fakeQrSvg(seed) {
   var n = 11, cell = 160 / n, cells = '';
@@ -1291,7 +1291,7 @@ function fakeQrSvg(seed) {
       if (on) cells += '<rect x="'+(x*cell)+'" y="'+(y*cell)+'" width="'+cell+'" height="'+cell+'" fill="#0A1A0F"/>';
     }
   }
-  return '<svg viewBox="0 0 160 160" width="100%" height="100%" role="img" aria-label="QR code de demonstration">'+cells+'</svg>';
+  return '<svg viewBox="0 0 160 160" width="100%" height="100%" role="img" aria-label="QR code de démonstration">'+cells+'</svg>';
 }
 
 /* ----------------------------------------------------------------
@@ -1321,7 +1321,7 @@ function bindExpedier() {
     e.preventDefault();
     var senderName = document.getElementById('expSenderName').value.trim();
     var recipientName = document.getElementById('expRecipientName').value.trim();
-    if (!senderName || !recipientName) { showToast('Expediteur et destinataire sont requis','e'); return; }
+    if (!senderName || !recipientName) { showToast('Expéditeur et destinataire sont requis','e'); return; }
 
     var code = genTrackingCode();
     var shipment = {
@@ -1334,7 +1334,7 @@ function bindExpedier() {
       value: parseFloat(document.getElementById('expValue').value) || 0,
       deliveryOtp: null,
       timeline: [
-        { key:'created', lbl:'Cree', ico:'✅', loc: document.getElementById('expOriginCity').value.trim() || 'Casablanca', actor: senderName+' (expediteur)', time:'A l\'instant', proof:false }
+        { key:'created', lbl:'Créé', ico:'✅', loc: document.getElementById('expOriginCity').value.trim() || 'Casablanca', actor: senderName+' (expéditeur)', time:'à l\'instant', proof:false }
       ]
     };
     ST.shipments.unshift(shipment);
@@ -1348,19 +1348,19 @@ function bindExpedier() {
     document.getElementById('expOriginCity').value = 'Casablanca';
     document.getElementById('expDestCity').value = 'Dakar';
     openSheet('created');
-    showToast('Envoi cree : '+code,'s');
+    showToast('Envoi créé : '+code,'s');
   });
 }
 
 /* ----------------------------------------------------------------
-   FORMULAIRES -- PARTENAIRE / INCIDENT (demo, aucun reseau)
+   FORMULAIRES -- PARTENAIRE / INCIDENT (démo, aucun réseau)
    ---------------------------------------------------------------- */
 function bindPartner() {
   document.getElementById('formPartner').addEventListener('submit', function(e){
     e.preventDefault();
     closeSheet('partner');
     e.target.reset();
-    showToast('Merci ! Notre equipe vous recontactera sous peu.','s');
+    showToast('Merci ! Notre équipe vous recontactera sous peu.','s');
   });
 }
 function bindIncident() {
@@ -1368,7 +1368,7 @@ function bindIncident() {
     e.preventDefault();
     closeSheet('incident');
     e.target.reset();
-    showToast('Incident signale. Nous revenons vers vous rapidement.','s');
+    showToast('Incident signalé. Nous revenons vers vous rapidement.','s');
   });
 }
 

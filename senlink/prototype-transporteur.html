@@ -1003,6 +1003,7 @@ function openSheet(id) {
 function closeSheet(id) {
   if (id === 'lot') stopGpsMapRefresh();
   if (id === 'incident') destroyIncidentMap();
+  if (id === 'colis') destroyColisMap();
   document.getElementById(id+'Overlay').classList.remove('on');
   document.getElementById(id+'Sheet').classList.remove('on');
   document.body.style.overflow = '';
@@ -1182,6 +1183,46 @@ function timelineHtml(shipment) {
   }).join('');
   return '<ul class="timeline">'+items+'</ul>';
 }
+/* ----------------------------------------------------------------
+   POSITION GPS SUR LE DÉTAIL D'UN COLIS -- même logique et même
+   fonction de rendu que sur l'écran Incidents (gpsMapCanvasHtml),
+   même noyau Leaflet partagé (mountRouteOnMap) que Lots/Incidents.
+   // DEMO ONLY -- réutilise GPS_DEMO du lot, jamais une donnée propre
+   // au colis ; aucun appel Supabase.
+   ---------------------------------------------------------------- */
+var colisLeafletMap = null;
+function destroyColisMap() {
+  if (colisLeafletMap) { colisLeafletMap.remove(); colisLeafletMap = null; }
+}
+function colisGpsHtml(s, lot) {
+  var reason = null;
+  if (!lot) reason = 'Colis non rattaché à un lot suivi -- aucune position GPS disponible.';
+  else if (lot.status === 'open') reason = 'Le lot ' + lotLabel(lot) + ' n\'est pas encore en transit.';
+  else if (lot.status !== 'in_transit' && !GPS_DEMO[lot.id]) reason = 'Aucune position GPS simulée disponible pour le lot ' + lotLabel(lot) + ' dans cette session de démonstration.';
+
+  if (reason) {
+    return '<div class="sec-hd" style="padding-top:8px"><span class="sec-ttl">Position GPS</span></div>'
+      + '<p style="padding:0 16px 12px;font-size:12.5px;color:var(--mut)">' + h(reason) + '</p>';
+  }
+  var st = gpsDemoState(lot.id); // in_transit -> crée si besoin ; arrived/closed -> déjà garanti présent
+  var canvasId = 'colis-' + s.code;
+  return '<div class="sec-hd" style="padding-top:8px"><span class="sec-ttl">Position GPS</span></div>'
+    + '<div class="gps-map" style="margin:0 16px 14px">'
+    +   gpsMapCanvasHtml({ id: canvasId }, st.progress, true)
+    +   '<div class="gps-cities"><span>' + h(hubById(lot.originHubId).city) + '</span><span>' + h(hubById(lot.destHubId).city) + '</span></div>'
+    +   '<div class="gps-note">Lot ' + h(lotLabel(lot)) + '</div>'
+    +   '<div class="gps-demo-badge">🧪 MODE DÉMO · Position simulée</div>'
+    + '</div>';
+}
+function mountColisGpsMapIfReady(s, lot) {
+  destroyColisMap();
+  if (!lot || lot.status === 'open' || (lot.status !== 'in_transit' && !GPS_DEMO[lot.id]) || !canUseRealGpsMap()) return;
+  var oh = hubById(lot.originHubId), dh = hubById(lot.destHubId);
+  var oc = [oh.lat, oh.lng], dc = [dh.lat, dh.lng];
+  var progress = gpsDemoState(lot.id).progress;
+  colisLeafletMap = mountRouteOnMap('gpsMapCanvas-colis-' + s.code, oc, dc, progress, true, function () { return colisLeafletMap; });
+}
+
 function openColisSheet(code) {
   var s = findShipment(code);
   if (!s) return;
@@ -1196,9 +1237,11 @@ function openColisSheet(code) {
     +   '<span>'+s.weight+' kg</span>'
     +   (lot ? '<span>🚚 '+h(lotLabel(lot))+'</span>' : '<span>Non rattaché à un lot</span>')
     + '</div></div>'
+    + colisGpsHtml(s, lot)
     + '<div class="sec-hd" style="padding-top:8px"><span class="sec-ttl">Historique et preuves</span></div>'
     + timelineHtml(s);
   openSheet('colis');
+  mountColisGpsMapIfReady(s, lot);
 }
 
 /* ----------------------------------------------------------------
@@ -1292,15 +1335,22 @@ function lerpLatLng(a, b, t) {
 function destroyGpsMap() {
   if (gpsLeafletMap) { gpsLeafletMap.remove(); gpsLeafletMap = null; }
 }
-function mountGpsMap(lot, mode) {
-  // mode : 'planned' (pas de marqueur), 'live' (camion animé), 'frozen' (dernière position figée)
-  var el = document.getElementById('gpsMapCanvas-' + lot.id);
-  if (!el) return;
-  var oh = hubById(lot.originHubId), dh = hubById(lot.destHubId);
-  var oc = [oh.lat, oh.lng], dc = [dh.lat, dh.lng];
-  destroyGpsMap();
+/* ----------------------------------------------------------------
+   mountRouteOnMap() -- coeur Leaflet partagé par les 3 cartes GPS du
+   prototype (Lots, Incidents, Colis). Chaque appelant garde sa propre
+   instance trackée (gpsLeafletMap / incidentLeafletMap / colisLeafletMap)
+   et sa propre logique de rafraîchissement -- seule l'initialisation
+   de la carte (tuiles, marqueurs origine/destination, ligne, camion,
+   cadrage différé) est mutualisée, pour ne jamais la réécrire une
+   quatrième fois avec un risque de divergence.
+   getCurrentFn() doit renvoyer l'instance actuellement trackée par
+   l'appelant, pour que le fitBounds différé ne s'applique pas à une
+   carte déjà remplacée entre-temps.
+   ---------------------------------------------------------------- */
+function mountRouteOnMap(canvasId, oc, dc, markerProgress, markerMuted, getCurrentFn) {
+  var el = document.getElementById(canvasId);
+  if (!el) return null;
   var map = L.map(el, { zoomControl:false, scrollWheelZoom:false, dragging:false, tap:false, attributionControl:true });
-  gpsLeafletMap = map;
   // Fond de carte CartoDB Positron (clair, épuré) plutôt que le style OSM par défaut
   // (trop chargé en couleurs/routes secondaires pour une petite carte de statut) --
   // même service de tuiles, double attribution requise (OSM + CARTO).
@@ -1311,20 +1361,29 @@ function mountGpsMap(lot, mode) {
   L.circleMarker(oc, { radius:7, color:'#fff', weight:2, fillColor:'#0A1A0F', fillOpacity:1 }).addTo(map);
   L.circleMarker(dc, { radius:7, color:'#fff', weight:2, fillColor:'#D4A017', fillOpacity:1 }).addTo(map);
   L.polyline([oc, dc], { color:'#00C96B', weight:3, opacity:.75, dashArray:'1,9', lineCap:'round' }).addTo(map);
+  if (markerProgress != null) {
+    var truckIcon = L.divIcon({ html:'<div class="map-truck-ico" style="' + (markerMuted ? 'opacity:.55' : '') + '">🚚</div>', className:'', iconSize:[24,24], iconAnchor:[12,12] });
+    map._truckMarker = L.marker(lerpLatLng(oc, dc, markerProgress / 100), { icon: truckIcon }).addTo(map);
+  }
   map.setView(oc, 4); // vue provisoire -- le conteneur peut ne pas encore avoir sa taille
                        // finale ici (sheet en cours de transition), donc fitBounds() est
                        // recalculé plus bas une fois la mise en page stabilisée, sinon
                        // Leaflet peut se caler sur maxZoom au lieu du bon niveau de zoom.
-  if (mode === 'live' || mode === 'frozen') {
-    var st = gpsDemoState(lot.id);
-    var truckIcon = L.divIcon({ html:'<div class="map-truck-ico" style="' + (mode === 'frozen' ? 'opacity:.55' : '') + '">🚚</div>', className:'', iconSize:[24,24], iconAnchor:[12,12] });
-    map._truckMarker = L.marker(lerpLatLng(oc, dc, st.progress / 100), { icon: truckIcon }).addTo(map);
-  }
   setTimeout(function () {
-    if (gpsLeafletMap !== map) return;
+    if (getCurrentFn() !== map) return;
     map.invalidateSize();
     map.fitBounds(L.latLngBounds([oc, dc]), { padding:[32,32] });
   }, 350);
+  return map;
+}
+function mountGpsMap(lot, mode) {
+  // mode : 'planned' (pas de marqueur), 'live' (camion animé), 'frozen' (dernière position figée)
+  var oh = hubById(lot.originHubId), dh = hubById(lot.destHubId);
+  var oc = [oh.lat, oh.lng], dc = [dh.lat, dh.lng];
+  destroyGpsMap();
+  var progress = null;
+  if (mode === 'live' || mode === 'frozen') progress = gpsDemoState(lot.id).progress;
+  gpsLeafletMap = mountRouteOnMap('gpsMapCanvas-' + lot.id, oc, dc, progress, mode === 'frozen', function () { return gpsLeafletMap; });
 }
 function stopGpsMapRefresh() {
   if (gpsMapInterval) { clearInterval(gpsMapInterval); gpsMapInterval = null; }
@@ -2018,29 +2077,10 @@ function mountIncidentGpsMapIfReady(inc) {
   var s = findShipment(inc.shipmentCode);
   var lot = (s && s.lotId) ? findLot(s.lotId) : null;
   if (!lot || lot.status === 'open' || (lot.status !== 'in_transit' && !GPS_DEMO[lot.id]) || !canUseRealGpsMap()) return;
-  var canvasId = 'inc-' + inc.id;
-  var el = document.getElementById('gpsMapCanvas-' + canvasId);
-  if (!el) return;
   var oh = hubById(lot.originHubId), dh = hubById(lot.destHubId);
   var oc = [oh.lat, oh.lng], dc = [dh.lat, dh.lng];
   var progress = gpsDemoState(lot.id).progress;
-  var map = L.map(el, { zoomControl:false, scrollWheelZoom:false, dragging:false, tap:false });
-  incidentLeafletMap = map;
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    minZoom: 2, maxZoom: 12, subdomains: 'abcd',
-    attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
-  }).addTo(map);
-  L.circleMarker(oc, { radius:7, color:'#fff', weight:2, fillColor:'#0A1A0F', fillOpacity:1 }).addTo(map);
-  L.circleMarker(dc, { radius:7, color:'#fff', weight:2, fillColor:'#D4A017', fillOpacity:1 }).addTo(map);
-  L.polyline([oc, dc], { color:'#00C96B', weight:3, opacity:.75, dashArray:'1,9', lineCap:'round' }).addTo(map);
-  var truckIcon = L.divIcon({ html:'<div class="map-truck-ico" style="opacity:.6">🚚</div>', className:'', iconSize:[24,24], iconAnchor:[12,12] });
-  L.marker(lerpLatLng(oc, dc, progress / 100), { icon: truckIcon }).addTo(map);
-  map.setView(oc, 4);
-  setTimeout(function () {
-    if (incidentLeafletMap !== map) return;
-    map.invalidateSize();
-    map.fitBounds(L.latLngBounds([oc, dc]), { padding:[32,32] });
-  }, 350);
+  incidentLeafletMap = mountRouteOnMap('gpsMapCanvas-inc-' + inc.id, oc, dc, progress, true, function () { return incidentLeafletMap; });
 }
 
 function openIncidentSheet(id) {

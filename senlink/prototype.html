@@ -460,6 +460,26 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
 .otp-hint { font-size:11.5px; color:var(--txt2); line-height:1.5; }
 
 /* ================================================================
+   CARTE DE TRAJET (V1 démo) -- représentation stylisée du trajet
+   d'un lot, PAS une vraie carte géographique (round de conception
+   Map+GPS, Option A). Position toujours simulée côté client, jamais
+   lue depuis get_lot_last_location() -- voir commentaire JS.
+   ================================================================ */
+.route-map { background:var(--card); border:1px solid var(--bdr); border-radius:var(--r16); padding:16px; margin-bottom:16px; }
+.route-map--active { border-color:var(--g); background:var(--gg); }
+.route-hd { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--mut); margin-bottom:20px; }
+.route-hd.active { color:var(--gm); }
+.route-dot { width:7px; height:7px; border-radius:50%; background:var(--mut); flex-shrink:0; }
+.route-hd.active .route-dot { background:var(--g); box-shadow:0 0 0 3px var(--gg); }
+.route-track { position:relative; height:4px; background:var(--bdr); border-radius:2px; margin:0 4px 10px; }
+.route-track-fill { position:absolute; left:0; top:0; height:100%; background:var(--g); border-radius:2px; transition:width 1.4s var(--ease); }
+.route-truck { position:absolute; top:50%; transform:translate(-50%,-50%); font-size:18px; transition:left 1.4s var(--ease); }
+.route-cities { display:flex; justify-content:space-between; font-size:12px; font-weight:700; color:var(--txt); }
+.route-note { font-size:12px; color:var(--mut); margin-top:10px; }
+.route-note strong { color:var(--txt2); font-weight:700; }
+.route-demo-badge { display:inline-flex; align-items:center; gap:5px; font-size:10px; font-weight:700; color:var(--gold); background:var(--amberb); border-radius:var(--rpill); padding:4px 9px; margin-top:10px; }
+
+/* ================================================================
    ÉCRAN AGENT (démo)
    ================================================================ */
 .agent-back { display:inline-flex; align-items:center; gap:4px; font-size:12.5px; font-weight:600; color:var(--gm); padding:0 16px 4px; }
@@ -1041,6 +1061,7 @@ function findShipment(code) {
    NAVIGATION
    ---------------------------------------------------------------- */
 function navigate(page) {
+  if (ST.page === 'suivi' && page !== 'suivi') stopGpsRouteRefresh();
   document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('on'); });
   document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('on'); t.setAttribute('aria-selected','false'); });
   var pg = document.getElementById('page-'+page);
@@ -1146,6 +1167,73 @@ function trackingAdHtml() {
 }
 
 /* ----------------------------------------------------------------
+   CARTE DE TRAJET -- Map + GPS temps réel, V1 démo (round de
+   conception dédié, Option A validée : route stylisée, pas de
+   Leaflet/tuiles OSM, pas de coordonnées).
+   // DEMO ONLY -- position GPS simulée localement.
+   // Aucun appel Supabase / record_lot_location() / get_lot_last_location().
+   Visible uniquement pour la page Suivi (pas la sheet Détail
+   Historique), même périmètre que ad-slot--tracking.
+   ---------------------------------------------------------------- */
+var GPS_DEMO = {};           // état de simulation par code de colis
+var gpsRouteInterval = null;
+var PRE_TRANSIT_STATUSES = ['created','dropped_off','inspected'];
+var GPS_TRANSIT_STATUSES = ['departed_origin','in_transit_international','customs_clearance'];
+
+function gpsDemoState(code) {
+  if (!GPS_DEMO[code]) {
+    GPS_DEMO[code] = { progress: 8 + Math.random() * 10, lastPos: Date.now() };
+  }
+  return GPS_DEMO[code];
+}
+function tickGpsDemo(code) {
+  var st = gpsDemoState(code);
+  st.progress = Math.min(94, st.progress + 2 + Math.random() * 3);
+  st.lastPos = Date.now();
+  return st;
+}
+function timeAgoShort(ts) {
+  var s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+  if (s < 60) return 'il y a ' + s + ' s';
+  return 'il y a ' + Math.round(s / 60) + ' min';
+}
+function stopGpsRouteRefresh() {
+  if (gpsRouteInterval) { clearInterval(gpsRouteInterval); gpsRouteInterval = null; }
+}
+function startGpsRouteRefresh(shipment) {
+  stopGpsRouteRefresh();
+  if (GPS_TRANSIT_STATUSES.indexOf(shipment.status) === -1) return;
+  gpsRouteInterval = setInterval(function () {
+    var el = document.getElementById('routeMap-' + shipment.code);
+    if (!el) { stopGpsRouteRefresh(); return; }
+    var st = tickGpsDemo(shipment.code);
+    el.querySelector('.route-track-fill').style.width = st.progress + '%';
+    el.querySelector('.route-truck').style.left = st.progress + '%';
+    el.querySelector('.route-note strong').textContent = timeAgoShort(st.lastPos);
+  }, 10000);
+}
+function routeMapHtml(shipment) {
+  if (PRE_TRANSIT_STATUSES.indexOf(shipment.status) > -1) {
+    return '<div class="route-map">'
+      + '<div class="route-hd"><span class="route-dot"></span>Trajet prévu</div>'
+      + '<div class="route-track"><div class="route-track-fill" style="width:0%"></div></div>'
+      + '<div class="route-cities"><span>' + h(shipment.originCity) + '</span><span>' + h(shipment.destCity) + '</span></div>'
+      + '<div class="route-note">Le transport n\'a pas encore démarré.</div>'
+      + '</div>';
+  }
+  if (GPS_TRANSIT_STATUSES.indexOf(shipment.status) === -1) return '';
+  var st = gpsDemoState(shipment.code);
+  return '<div class="route-map route-map--active" id="routeMap-' + h(shipment.code) + '">'
+    + '<div class="route-hd active"><span class="route-dot"></span>Transport en cours</div>'
+    + '<div class="route-track"><div class="route-track-fill" style="width:' + st.progress + '%"></div>'
+    +   '<div class="route-truck" style="left:' + st.progress + '%">🚚</div></div>'
+    + '<div class="route-cities"><span>' + h(shipment.originCity) + '</span><span>' + h(shipment.destCity) + '</span></div>'
+    + '<div class="route-note">Dernière position : <strong>' + timeAgoShort(st.lastPos) + '</strong></div>'
+    + '<div class="route-demo-badge">🧪 MODE DÉMO · Position simulée</div>'
+    + '</div>';
+}
+
+/* ----------------------------------------------------------------
    TIMELINE (réutilisée par la page Suivi et la sheet Détail)
    ---------------------------------------------------------------- */
 function timelineHtml(shipment) {
@@ -1201,6 +1289,7 @@ function renderTrackDemo() {
 }
 function runSearch(code) {
   var out = document.getElementById('trackOutput');
+  stopGpsRouteRefresh();
   if (!code || !code.trim()) {
     out.innerHTML = '<div class="track-empty"><div class="te-ico">📮</div><div class="te-ttl">Entrez un code de suivi</div><div class="te-sub">Ou essayez un des codes de démonstration ci-dessus.</div></div>';
     return;
@@ -1210,7 +1299,8 @@ function runSearch(code) {
     out.innerHTML = '<div class="track-empty"><div class="te-ico">🔎</div><div class="te-ttl">Aucun colis trouvé</div><div class="te-sub">Vérifiez le code « '+h(code)+' » ou essayez un code de démonstration.</div></div>';
     return;
   }
-  out.innerHTML = '<div class="track-result">'+shipmentHeadHtml(s)+otpRevealHtml(s)+trackingAdHtml()+timelineHtml(s)+'</div>';
+  out.innerHTML = '<div class="track-result">'+shipmentHeadHtml(s)+routeMapHtml(s)+otpRevealHtml(s)+trackingAdHtml()+timelineHtml(s)+'</div>';
+  startGpsRouteRefresh(s);
 }
 function bindSuivi() {
   document.getElementById('btnSuivre').addEventListener('click', function(){

@@ -326,6 +326,32 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
 .recon-card.ok .recon-n { color:var(--gm); }
 
 /* ================================================================
+   CARTE GPS DU LOT (V1 démo) -- représentation stylisée du trajet,
+   PAS une vraie carte géographique (round de conception Map+GPS,
+   Option A validée). Position/vitesse/précision toujours simulées,
+   voir commentaire JS.
+   ================================================================ */
+.gps-map { background:var(--card); border:1px solid var(--bdr); border-radius:var(--r16); padding:16px; margin:0 16px 14px; }
+.gps-map--live { border-color:var(--g); background:var(--gg); }
+.gps-hd { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--mut); margin-bottom:20px; }
+.gps-hd.live { color:var(--gm); }
+.gps-dot { width:7px; height:7px; border-radius:50%; background:var(--mut); flex-shrink:0; }
+.gps-hd.live .gps-dot { background:var(--g); box-shadow:0 0 0 3px var(--gg); }
+.gps-track { position:relative; height:4px; background:var(--bdr); border-radius:2px; margin:0 4px 10px; }
+.gps-track-fill { position:absolute; left:0; top:0; height:100%; background:var(--g); border-radius:2px; transition:width 1.4s var(--ease); }
+.gps-truck { position:absolute; top:50%; transform:translate(-50%,-50%); font-size:18px; transition:left 1.4s var(--ease); }
+.gps-cities { display:flex; justify-content:space-between; font-size:12px; font-weight:700; color:var(--txt); }
+.gps-note { font-size:12px; color:var(--mut); margin-top:10px; }
+.gps-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:14px; }
+.gps-stat { background:var(--card); border:1px solid var(--bdr); border-radius:var(--r12); padding:10px 6px; text-align:center; }
+.gps-stat-n { font-size:14.5px; font-weight:700; color:var(--txt); }
+.gps-stat-l { font-size:10px; color:var(--mut); margin-top:2px; }
+.gps-demo-badge { display:inline-flex; align-items:center; gap:5px; font-size:10px; font-weight:700; color:var(--gold); background:var(--amberb); border-radius:var(--rpill); padding:4px 9px; margin-top:12px; }
+.gps-hist-item { display:flex; justify-content:space-between; align-items:center; padding:10px 16px; border-top:1px solid var(--bdrs); font-size:12.5px; }
+.gps-hist-item:first-child { border-top:none; }
+.gps-hist-time { color:var(--mut); font-size:11px; }
+
+/* ================================================================
    TIMELINE (preuves)
    ================================================================ */
 .timeline { list-style:none; padding:2px 16px; }
@@ -728,6 +754,16 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
   <div class="sheet-bd" id="manifestSheetBody"></div>
 </div>
 
+<!-- SHEET -- Historique du trajet GPS (V1 démo, projection des positions simulées) -->
+<div class="overlay" id="gpsHistOverlay" onclick="closeSheet('gpsHist')"></div>
+<div class="sheet" id="gpsHistSheet" role="dialog" aria-modal="true" aria-label="Historique du trajet">
+  <div class="sheet-hd">
+    <span class="sheet-ttl">Historique du trajet</span>
+    <button class="sheet-x" onclick="closeSheet('gpsHist')" aria-label="Fermer">✕</button>
+  </div>
+  <div class="sheet-bd" id="gpsHistSheetBody"></div>
+</div>
+
 <!-- SHEET -- Détail incident -->
 <div class="overlay" id="incidentOverlay" onclick="closeSheet('incident')"></div>
 <div class="sheet" id="incidentSheet" role="dialog" aria-modal="true" aria-label="Détail de l'incident">
@@ -957,6 +993,7 @@ function openSheet(id) {
   document.body.style.overflow = 'hidden';
 }
 function closeSheet(id) {
+  if (id === 'lot') stopGpsMapRefresh();
   document.getElementById(id+'Overlay').classList.remove('on');
   document.getElementById(id+'Sheet').classList.remove('on');
   document.body.style.overflow = '';
@@ -1197,12 +1234,134 @@ function renderLots() {
   bindLotCards(el);
 }
 
+/* ----------------------------------------------------------------
+   CARTE GPS DU LOT -- Map + GPS temps réel, V1 démo (round de
+   conception dédié, Option A validée : route stylisée, pas de
+   Leaflet/tuiles OSM, pas de coordonnées).
+   // DEMO ONLY -- position/vitesse/précision GPS simulées localement.
+   // Aucun appel Supabase / record_lot_location() / get_lot_last_location().
+   Le GPS Core (Migration 3) alimentera cette même vue plus tard sans
+   changer sa structure (lot_id reste l'ancrage).
+   ---------------------------------------------------------------- */
+var GPS_DEMO = {};        // état de simulation par lot.id
+var gpsMapInterval = null;
+
+function gpsDemoState(lotId) {
+  if (!GPS_DEMO[lotId]) {
+    GPS_DEMO[lotId] = {
+      progress: 10 + Math.random() * 15,
+      speed: 60 + Math.round(Math.random() * 40),
+      accuracy: 5 + Math.round(Math.random() * 15),
+      lastPos: Date.now(),
+      history: []
+    };
+  }
+  return GPS_DEMO[lotId];
+}
+function tickGpsDemo(lotId) {
+  var st = gpsDemoState(lotId);
+  st.progress = Math.min(94, st.progress + 2 + Math.random() * 3);
+  st.speed = Math.max(30, Math.min(110, st.speed + Math.round((Math.random() - 0.5) * 16)));
+  st.accuracy = Math.max(3, Math.min(30, st.accuracy + Math.round((Math.random() - 0.5) * 4)));
+  st.lastPos = Date.now();
+  st.history.unshift({ progress: st.progress, speed: st.speed, accuracy: st.accuracy, at: st.lastPos });
+  if (st.history.length > 20) st.history.pop();
+  return st;
+}
+function timeAgoShort(ts) {
+  var s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+  if (s < 60) return 'il y a ' + s + ' s';
+  return 'il y a ' + Math.round(s / 60) + ' min';
+}
+function stopGpsMapRefresh() {
+  if (gpsMapInterval) { clearInterval(gpsMapInterval); gpsMapInterval = null; }
+}
+function startGpsMapRefresh(lot) {
+  stopGpsMapRefresh();
+  if (lot.status !== 'in_transit') return;
+  gpsMapInterval = setInterval(function () {
+    var el = document.getElementById('gpsMap-' + lot.id);
+    if (!el) { stopGpsMapRefresh(); return; }
+    var st = tickGpsDemo(lot.id);
+    el.querySelector('.gps-track-fill').style.width = st.progress + '%';
+    el.querySelector('.gps-truck').style.left = st.progress + '%';
+    el.querySelector('.gps-stat-speed').textContent = st.speed + ' km/h';
+    el.querySelector('.gps-stat-accuracy').textContent = st.accuracy + ' m';
+    el.querySelector('.gps-stat-lastupd').textContent = timeAgoShort(st.lastPos);
+  }, 10000);
+}
+function gpsMapHtml(lot) {
+  var oh = hubById(lot.originHubId), dh = hubById(lot.destHubId);
+  if (lot.status === 'open') {
+    return '<div class="gps-map">'
+      + '<div class="gps-hd"><span class="gps-dot"></span>Trajet prévu</div>'
+      + '<div class="gps-track"><div class="gps-track-fill" style="width:0%"></div></div>'
+      + '<div class="gps-cities"><span>' + h(oh.city) + '</span><span>' + h(dh.city) + '</span></div>'
+      + '<div class="gps-note">Le tracking GPS démarrera au départ du lot.</div>'
+      + '</div>';
+  }
+  if (lot.status === 'in_transit') {
+    var st = gpsDemoState(lot.id);
+    return '<div class="gps-map gps-map--live" id="gpsMap-' + h(lot.id) + '">'
+      + '<div class="gps-hd live"><span class="gps-dot"></span>GPS actif</div>'
+      + '<div class="gps-track"><div class="gps-track-fill" style="width:' + st.progress + '%"></div>'
+      +   '<div class="gps-truck" style="left:' + st.progress + '%">🚚</div></div>'
+      + '<div class="gps-cities"><span>' + h(oh.city) + '</span><span>' + h(dh.city) + '</span></div>'
+      + '<div class="gps-stats">'
+      +   '<div class="gps-stat"><div class="gps-stat-n gps-stat-speed">' + st.speed + ' km/h</div><div class="gps-stat-l">Vitesse</div></div>'
+      +   '<div class="gps-stat"><div class="gps-stat-n gps-stat-accuracy">' + st.accuracy + ' m</div><div class="gps-stat-l">Précision</div></div>'
+      +   '<div class="gps-stat"><div class="gps-stat-n gps-stat-lastupd">' + timeAgoShort(st.lastPos) + '</div><div class="gps-stat-l">Dernière maj</div></div>'
+      + '</div>'
+      + '<button class="btn-secondary" id="btnGpsHistory" data-lot="' + h(lot.id) + '" style="margin-top:12px">📜 Historique du trajet</button>'
+      + '<div class="gps-demo-badge">🧪 MODE DÉMO · Position simulée</div>'
+      + '</div>';
+  }
+  if (lot.status === 'arrived' || lot.status === 'closed') {
+    var stF = GPS_DEMO[lot.id];
+    if (!stF) {
+      return '<div class="gps-map">'
+        + '<div class="gps-hd"><span class="gps-dot"></span>Historique GPS</div>'
+        + '<div class="gps-note">Aucune position GPS simulée disponible pour ce lot dans cette session de démonstration.</div>'
+        + '</div>';
+    }
+    return '<div class="gps-map">'
+      + '<div class="gps-hd"><span class="gps-dot"></span>Historique figé</div>'
+      + '<div class="gps-track"><div class="gps-track-fill" style="width:100%"></div></div>'
+      + '<div class="gps-cities"><span>' + h(oh.city) + '</span><span>' + h(dh.city) + '</span></div>'
+      + '<div class="gps-note">Dernière position connue : ' + timeAgoShort(stF.lastPos) + '. Aucun tracking actif.</div>'
+      + '<button class="btn-secondary" id="btnGpsHistory" data-lot="' + h(lot.id) + '" style="margin-top:12px">📜 Historique du trajet</button>'
+      + '</div>';
+  }
+  return '';
+}
+function openGpsHistorySheet(lotId) {
+  var lot = findLot(lotId);
+  if (!lot) return;
+  closeSheet('lot');
+  var st = GPS_DEMO[lotId];
+  var body = document.getElementById('gpsHistSheetBody');
+  var html = '<p style="padding:0 16px 10px;font-size:11.5px;color:var(--mut)">🧪 Positions simulées localement pour cette démonstration -- aucune n\'est issue de shipment_lot_locations.</p>';
+  if (!st || !st.history.length) {
+    html += '<div class="empty-state"><div class="es-ico">📡</div><div class="es-ttl">Aucune position enregistrée</div><div class="es-sub">Le tracking n\'a pas encore produit de point pour ce lot.</div></div>';
+  } else {
+    html += st.history.map(function (p) {
+      return '<div class="gps-hist-item">'
+        + '<span>' + Math.round(p.progress) + '% du trajet · ' + p.speed + ' km/h · ' + p.accuracy + ' m</span>'
+        + '<span class="gps-hist-time">' + timeAgoShort(p.at) + '</span>'
+        + '</div>';
+    }).join('');
+  }
+  body.innerHTML = html;
+  openSheet('gpsHist');
+}
+
 function openLotSheet(lotId) {
   var lot = findLot(lotId);
   if (!lot) return;
   document.getElementById('lotSheetTtl').textContent = lotLabel(lot);
   renderLotSheetBody(lot);
   openSheet('lot');
+  startGpsMapRefresh(lot);
 }
 
 function renderLotSheetBody(lot) {
@@ -1216,7 +1375,8 @@ function renderLotSheetBody(lot) {
     + (lot.departedAt ? '<span>Départ : '+h(lot.departedAt)+'</span>' : '')
     + (lot.arrivedAt ? '<span>Arrivée : '+h(lot.arrivedAt)+'</span>' : '')
     + '</div></div>'
-    + '<div class="form-wrap" style="padding:0 16px 4px"><button class="btn-secondary" id="btnViewManifest" style="margin-top:0">📋 Voir le manifeste</button></div>';
+    + '<div class="form-wrap" style="padding:0 16px 4px"><button class="btn-secondary" id="btnViewManifest" style="margin-top:0">📋 Voir le manifeste</button></div>'
+    + gpsMapHtml(lot);
 
   if (lot.status === 'open') {
     html += lotOpenChecklistHtml(lot, ships);
@@ -1331,6 +1491,8 @@ function bindLotSheetActions(lot) {
   if (btnCancel) btnCancel.addEventListener('click', function(){ cancelEmptyLot(lot.id); });
   var btnManifest = body.querySelector('#btnViewManifest');
   if (btnManifest) btnManifest.addEventListener('click', function(){ openManifestSheet(lot.id); });
+  var btnGpsHist = body.querySelector('#btnGpsHistory');
+  if (btnGpsHist) btnGpsHist.addEventListener('click', function(){ openGpsHistorySheet(lot.id); });
 }
 
 /* ----------------------------------------------------------------

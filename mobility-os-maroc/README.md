@@ -18,7 +18,7 @@ Si la réponse est non, ou si elle est « ça fait joli », la fonctionnalité n
 
 - [x] **Étape 1 — Aujourd'hui** : verrouiller le concept, le modèle économique, les utilisateurs, le MVP, le modèle white-label, les rôles FlowDynamicsAgency / partenaire. → [`01-concept-verrouille.md`](./01-concept-verrouille.md) — **Option A validée** : le partenaire est le premier opérateur pilote.
 - [x] **Étape 2** : architecture fonctionnelle — parcours Passager, parcours Chauffeur, dashboard Opérateur, système de dispatch, GPS/cartographie, modèle multi-opérateur, architecture technique. → [`02-architecture-fonctionnelle.md`](./02-architecture-fonctionnelle.md)
-- [ ] **Étape 3** : maquettes des écrans, identité visuelle du projet, démonstration du parcours complet.
+- [x] **Étape 3** : maquettes des écrans, identité visuelle du projet, démonstration du parcours complet. → maquettes cliquables dans [`prototype/`](./prototype/index.html), script de démo dans [`03-maquettes-identite-demo.md`](./03-maquettes-identite-demo.md)
 - [ ] **Étape 4** : dossier commercial — présentation partenaire, EOI, modèle économique détaillé, proposition de déploiement.
 - [ ] **Étape 5 — Samedi** : présentation au partenaire (concept → démonstration → modèle commercial → stratégie → pilote → proposition de partenariat).
 
@@ -28,5 +28,7 @@ Si la réponse est non, ou si elle est « ça fait joli », la fonctionnalité n
 |---|---|---|
 | `01-concept-verrouille.md` | Concept, modèle économique, utilisateurs, MVP, white-label, rôles | 1 |
 | `02-architecture-fonctionnelle.md` | Parcours Passager/Chauffeur, dashboard Opérateur, dispatch, GPS/cartographie, modèle multi-opérateur, architecture technique | 2 |
+| `03-maquettes-identite-demo.md` | Identité visuelle, guide des maquettes, script de démonstration pas-à-pas | 3 |
+| `prototype/` | Maquettes cliquables (HTML/CSS/JS statique) : app Passager, app Chauffeur, dashboard Opérateur | 3 |
 
 D'autres fichiers seront ajoutés au fur et à mesure (architecture, maquettes, dossier commercial) pour garder chaque étape traçable et validable séparément avant de passer à la suivante.

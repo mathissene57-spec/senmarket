@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mobility OS Maroc — Dashboard Opérateur (maquette)</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="top-note">Maquette cliquable — Dashboard Opérateur · <a href="index.html">← retour au hub</a></div>
+
+<div class="dashboard">
+  <div class="sidebar">
+    <div class="brand"><span class="brand-mark"></span><span class="brand-label"></span></div>
+    <nav style="margin-top:28px;">
+      <button class="nav-item active" data-tab="apercu" onclick="showTab('apercu', this)">Vue d'ensemble</button>
+      <button class="nav-item" data-tab="chauffeurs" onclick="showTab('chauffeurs', this)">Chauffeurs</button>
+      <button class="nav-item" data-tab="zones" onclick="showTab('zones', this)">Zones et tarifs</button>
+      <button class="nav-item" data-tab="courses" onclick="showTab('courses', this)">Courses</button>
+      <button class="nav-item" data-tab="marque" onclick="showTab('marque', this)">Marque</button>
+    </nav>
+  </div>
+
+  <div class="main">
+
+    <div class="tab-panel active" id="tab-apercu">
+      <h1>Vue d'ensemble</h1>
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="muted">Courses aujourd'hui</div><div class="value">42</div></div>
+        <div class="kpi-card"><div class="muted">Chiffre d'affaires (jour)</div><div class="value">1 340 DH</div></div>
+        <div class="kpi-card"><div class="muted">Chauffeurs actifs</div><div class="value">11 / 14</div></div>
+      </div>
+      <h3>Courses en cours</h3>
+      <table>
+        <tr><th>Passager</th><th>Chauffeur</th><th>Statut</th><th>Prix</th></tr>
+        <tr><td>Amina R.</td><td>Youssef B.</td><td><span class="badge ok">En cours</span></td><td>28 DH</td></tr>
+        <tr><td>Karim T.</td><td>Rachid E.</td><td><span class="badge warn">Assignée</span></td><td>45 DH</td></tr>
+        <tr><td>Sara M.</td><td>—</td><td><span class="badge off">Recherche…</span></td><td>32 DH</td></tr>
+      </table>
+    </div>
+
+    <div class="tab-panel" id="tab-chauffeurs">
+      <h1>Chauffeurs</h1>
+      <table>
+        <tr><th>Nom</th><th>Véhicule</th><th>Note</th><th>Statut</th><th></th></tr>
+        <tr><td>Youssef B.</td><td>Dacia Logan · 4521-A-12</td><td>4.8</td><td><span class="badge ok">Disponible</span></td><td>Détails</td></tr>
+        <tr><td>Rachid E.</td><td>Renault Symbol · 8890-B-06</td><td>4.6</td><td><span class="badge warn">En course</span></td><td>Détails</td></tr>
+        <tr><td>Hind O.</td><td>Dacia Sandero · 2210-A-12</td><td>4.9</td><td><span class="badge off">Hors ligne</span></td><td>Détails</td></tr>
+      </table>
+      <button class="btn" style="width:auto; margin-top:16px; padding:10px 18px;">+ Ajouter un chauffeur</button>
+    </div>
+
+    <div class="tab-panel" id="tab-zones">
+      <h1>Zones et tarifs</h1>
+      <table>
+        <tr><th>Zone</th><th>Tarif de base</th><th>Tarif / km</th><th></th></tr>
+        <tr><td>Casablanca — Centre</td><td>12 DH</td><td>4,5 DH</td><td>Modifier</td></tr>
+        <tr><td>Casablanca — Aéroport</td><td>25 DH</td><td>4,5 DH</td><td>Modifier</td></tr>
+      </table>
+      <button class="btn" style="width:auto; margin-top:16px; padding:10px 18px;">+ Ajouter une zone</button>
+    </div>
+
+    <div class="tab-panel" id="tab-courses">
+      <h1>Courses</h1>
+      <table>
+        <tr><th>Date</th><th>Passager</th><th>Chauffeur</th><th>Statut</th><th>Prix</th></tr>
+        <tr><td>Aujourd'hui 09:14</td><td>Amina R.</td><td>Youssef B.</td><td><span class="badge ok">Terminée</span></td><td>28 DH</td></tr>
+        <tr><td>Aujourd'hui 08:40</td><td>Karim T.</td><td>Rachid E.</td><td><span class="badge ok">Terminée</span></td><td>76 DH</td></tr>
+        <tr><td>Hier 19:02</td><td>Sara M.</td><td>Hind O.</td><td><span class="badge danger">Annulée</span></td><td>—</td></tr>
+      </table>
+    </div>
+
+    <div class="tab-panel" id="tab-marque">
+      <h1>Marque</h1>
+      <p class="muted">Personnalisez l'apparence de vos applications Passager et Chauffeur — sans aucun développement. Ouvrez les maquettes <a href="passager.html" target="_blank">App Passager</a> ou <a href="chauffeur.html" target="_blank">App Chauffeur</a> dans un nouvel onglet après avoir choisi une identité ci-dessous : le thème s'applique instantanément.</p>
+      <div class="swatch-row">
+        <div class="swatch" data-brand="platform" onclick="pickBrand('platform', this)">
+          <div class="dot" style="background:#101B3D;"></div>
+          Mobility OS (par défaut)
+        </div>
+        <div class="swatch" data-brand="transatlas" onclick="pickBrand('transatlas', this)">
+          <div class="dot" style="background:#0E6B5C;"></div>
+          TransAtlas (opérateur pilote)
+        </div>
+      </div>
+      <div class="card" style="max-width:420px;">
+        <label class="muted">Nom affiché aux passagers et chauffeurs</label>
+        <input type="text" value="TransAtlas">
+        <label class="muted">Logo</label>
+        <div class="muted" style="margin-bottom:10px;">transatlas-logo.png (démo)</div>
+        <button class="btn outline" style="width:auto; padding:8px 16px;">Changer le logo</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="js/brand.js"></script>
+<script>
+  function showTab(id, btn) {
+    document.querySelectorAll('.tab-panel').forEach(function (el) { el.classList.remove('active'); });
+    document.getElementById('tab-' + id).classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(function (el) { el.classList.remove('active'); });
+    btn.classList.add('active');
+  }
+  function pickBrand(brand, el) {
+    MobilityOSDemo.setBrand(brand);
+    document.querySelectorAll('.swatch').forEach(function (s) { s.classList.remove('selected'); });
+    el.classList.add('selected');
+  }
+  (function () {
+    var current = MobilityOSDemo.currentBrand();
+    var el = document.querySelector('.swatch[data-brand="' + current + '"]');
+    if (el) el.classList.add('selected');
+  })();
+</script>
+</body>
+</html>

@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 const OPERATEUR_ID = process.env.NEXT_PUBLIC_OPERATEUR_ID!
 
 type Operateur = { id: string; nom: string; couleur_primaire: string; couleur_secondaire: string }
-type Zone = { tarif_base: number; tarif_km: number }
+type Zone = { id: string; nom: string; tarif_base: number; tarif_km: number }
 type Course = {
   id: string
   statut: string
@@ -21,7 +21,8 @@ type Chauffeur = { id: string; nom: string; vehicule: string | null; plaque: str
 export default function PassagerPage() {
   const supabase = createClient()
   const [operateur, setOperateur] = useState<Operateur | null>(null)
-  const [zone, setZone] = useState<Zone | null>(null)
+  const [zones, setZones] = useState<Zone[]>([])
+  const [zoneId, setZoneId] = useState<string>('')
   const [ecran, setEcran] = useState<'connexion' | 'accueil' | 'recherche' | 'course' | 'fin' | 'historique' | 'sans_chauffeur'>('connexion')
   const [telephone, setTelephone] = useState('06 61 22 33 44')
   const [nom, setNom] = useState('')
@@ -39,8 +40,11 @@ export default function PassagerPage() {
   useEffect(() => {
     supabase.from('operateurs').select('id,nom,couleur_primaire,couleur_secondaire').eq('id', OPERATEUR_ID).single()
       .then(({ data }) => setOperateur(data))
-    supabase.from('zones_operateur').select('tarif_base,tarif_km').eq('operateur_id', OPERATEUR_ID).limit(1).single()
-      .then(({ data }) => setZone(data))
+    supabase.from('zones_operateur').select('id,nom,tarif_base,tarif_km').eq('operateur_id', OPERATEUR_ID).order('nom')
+      .then(({ data }) => {
+        setZones(data || [])
+        if (data && data.length > 0) setZoneId(data[0].id)
+      })
   }, [])
 
   useEffect(() => { courseRef.current = course }, [course])
@@ -68,6 +72,7 @@ export default function PassagerPage() {
     return () => { supabase.removeChannel(channel) }
   }, [course?.id])
 
+  const zone = zones.find((z) => z.id === zoneId) || null
   const prixEstime = zone ? Math.round((Number(zone.tarif_base) + Number(zone.tarif_km) * distanceKm) * 100) / 100 : 0
 
   async function commander() {
@@ -85,6 +90,12 @@ export default function PassagerPage() {
     if (error) { setErreur(error.message); return }
     setCourse({ id: data as string, statut: 'en_recherche', adresse_depart: depart, adresse_arrivee: arrivee, prix_estime: prixEstime, prix_final: null, chauffeur_id: null })
     setEcran('recherche')
+  }
+
+  async function annulerCommande() {
+    if (course) await supabase.rpc('annuler_course', { p_course_id: course.id })
+    setCourse(null)
+    setEcran('accueil')
   }
 
   async function envoyerNote() {
@@ -136,6 +147,16 @@ export default function PassagerPage() {
               <input type="text" value={depart} onChange={(e) => setDepart(e.target.value)} />
               <label className="field-label">Destination</label>
               <input type="text" value={arrivee} onChange={(e) => setArrivee(e.target.value)} />
+              {zones.length > 0 && (
+                <>
+                  <label className="field-label">Zone tarifaire</label>
+                  <select value={zoneId} onChange={(e) => setZoneId(e.target.value)} style={{ width: '100%', padding: '13px 14px', borderRadius: 12, border: '1px solid #DDD', fontSize: 15, marginBottom: 12, fontFamily: 'inherit' }}>
+                    {zones.map((z) => (
+                      <option key={z.id} value={z.id}>{z.nom}</option>
+                    ))}
+                  </select>
+                </>
+              )}
               <label className="field-label">Distance estimée (km)</label>
               <input type="number" step="0.1" min="0.5" value={distanceKm} onChange={(e) => setDistanceKm(parseFloat(e.target.value) || 0)} />
               {zone && (
@@ -158,7 +179,7 @@ export default function PassagerPage() {
               <h3>Recherche d&apos;un chauffeur…</h3>
               <p className="muted">Un chauffeur disponible est notifié en direct</p>
             </div>
-            <div className="screen-footer"><button className="btn outline" onClick={() => setEcran('accueil')}>Annuler</button></div>
+            <div className="screen-footer"><button className="btn outline" onClick={annulerCommande}>Annuler</button></div>
           </>
         )}
 

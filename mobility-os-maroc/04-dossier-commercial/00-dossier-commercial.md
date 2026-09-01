@@ -1,6 +1,6 @@
 # Dossier commercial — Mobility OS Maroc
 
-Document de synthèse pour la présentation au partenaire (Étape 5). Il relie tout ce qui a été construit aux Étapes 1 à 4 dans l'ordre où le partenaire doit le découvrir : **concept → démonstration → modèle commercial → stratégie → pilote → proposition de partenariat**. Le support visuel (diapositives) suit exactement ce même plan — voir `presentation-partenaire.pptx` dans ce dossier.
+Document de synthèse pour la présentation au partenaire (Étape 5). Il relie tout ce qui a été construit aux Étapes 1 à 4 dans l'ordre où le partenaire doit le découvrir : **concept → démonstration → modèle commercial → stratégie → pilote → proposition de partenariat**. Le support visuel (diapositives) suit exactement ce même plan — voir `presentation-partenaire-v2.pptx` dans ce dossier (v2 : reconstruit pour refléter le produit réel déployé, `presentation-partenaire.pptx` d'origine gardé pour mémoire uniquement).
 
 ## 1. Concept
 

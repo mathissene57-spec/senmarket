@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mobility OS Maroc — App Passager (maquette)</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="top-note">Maquette cliquable — App Passager · <a href="index.html">← retour au hub</a></div>
+
+<div class="page-shell">
+  <div class="phone">
+    <div class="phone-notch"></div>
+
+    <!-- 1. Connexion -->
+    <div class="screen active" id="p-connexion">
+      <div class="screen-body center" style="justify-content:center; display:flex; flex-direction:column;">
+        <div style="margin:0 auto 24px;"><span class="brand-mark"></span></div>
+        <h2 style="margin-bottom:4px;"><span class="brand-label"></span></h2>
+        <p class="muted">Réservez une course en quelques secondes</p>
+        <div style="margin-top:24px; text-align:left;">
+          <label class="muted">Numéro de téléphone</label>
+          <input type="tel" placeholder="06 12 34 56 78" value="06 61 22 33 44">
+        </div>
+        <button class="btn" onclick="showScreen('p-otp')">Recevoir le code</button>
+      </div>
+    </div>
+
+    <!-- 1b. OTP -->
+    <div class="screen" id="p-otp">
+      <div class="screen-header"><strong>Vérification</strong><button class="btn ghost" onclick="showScreen('p-connexion')">Retour</button></div>
+      <div class="screen-body">
+        <p class="muted">Code envoyé par SMS au 06 61 22 33 44</p>
+        <input type="text" value="4 4 8 2" style="text-align:center; font-size:22px; letter-spacing:8px;">
+      </div>
+      <div class="screen-footer"><button class="btn" onclick="showScreen('p-accueil')">Valider</button></div>
+    </div>
+
+    <!-- 2. Accueil / carte -->
+    <div class="screen" id="p-accueil">
+      <div class="screen-header">
+        <span class="brand"><span class="brand-mark"></span><span class="brand-label"></span></span>
+        <span class="badge ok">En ligne</span>
+      </div>
+      <div class="screen-body">
+        <div class="map-placeholder">
+          <div class="map-pin depart"></div>
+        </div>
+        <label class="muted">Où allez-vous ?</label>
+        <input type="text" placeholder="Destination" value="Gare Casa-Voyageurs">
+        <div class="card">
+          <div class="muted">Point de départ</div>
+          <strong>Position actuelle — Boulevard Zerktouni</strong>
+        </div>
+      </div>
+      <div class="screen-footer"><button class="btn accent" onclick="showScreen('p-confirmation')">Voir le prix</button></div>
+    </div>
+
+    <!-- 3. Confirmation trajet -->
+    <div class="screen" id="p-confirmation">
+      <div class="screen-header"><strong>Confirmer la course</strong><button class="btn ghost" onclick="showScreen('p-accueil')">Modifier</button></div>
+      <div class="screen-body">
+        <div class="map-placeholder">
+          <div class="map-pin depart"></div>
+          <div class="map-pin arrivee"></div>
+        </div>
+        <div class="card">
+          <div class="card-row"><span class="muted">Trajet</span><span>4,2 km</span></div>
+          <div class="card-row"><span class="muted">Durée estimée</span><span>12 min</span></div>
+        </div>
+        <div class="card">
+          <div class="card-row"><span>Prix estimé</span><span class="price">32 DH</span></div>
+          <div class="muted">Paiement en espèces à l'arrivée</div>
+        </div>
+      </div>
+      <div class="screen-footer"><button class="btn" onclick="showScreen('p-recherche'); demoDispatch();">Commander</button></div>
+    </div>
+
+    <!-- 4. Recherche chauffeur -->
+    <div class="screen" id="p-recherche">
+      <div class="screen-body center" style="justify-content:center; display:flex; flex-direction:column;">
+        <div class="pulse"></div>
+        <h3>Recherche d'un chauffeur…</h3>
+        <p class="muted">Un chauffeur disponible à proximité va être notifié</p>
+      </div>
+      <div class="screen-footer"><button class="btn outline" onclick="showScreen('p-accueil')">Annuler</button></div>
+    </div>
+
+    <!-- 5. Course en cours -->
+    <div class="screen" id="p-course">
+      <div class="screen-header"><strong id="p-course-statut">Le chauffeur arrive</strong></div>
+      <div class="screen-body">
+        <div class="map-placeholder">
+          <div class="map-pin driver"></div>
+          <div class="map-pin arrivee"></div>
+        </div>
+        <div class="card card-row">
+          <div>
+            <strong>Youssef B.</strong>
+            <div class="muted">Dacia Logan blanche · 4521-A-12</div>
+          </div>
+          <span>⭐ 4.8</span>
+        </div>
+        <div class="btn-row">
+          <button class="btn outline">📞 Appeler</button>
+          <button class="btn ghost">💬 Message</button>
+        </div>
+      </div>
+      <div class="screen-footer"><button class="btn accent" onclick="showScreen('p-fin')">Simuler l'arrivée</button></div>
+    </div>
+
+    <!-- 6. Fin de course / notation -->
+    <div class="screen" id="p-fin">
+      <div class="screen-header"><strong>Course terminée</strong></div>
+      <div class="screen-body center">
+        <p class="muted" style="margin-top:16px;">Montant à régler en espèces</p>
+        <div class="price">32 DH</div>
+        <div class="card" style="margin-top:24px; text-align:left;">
+          <div class="muted center" style="margin-bottom:8px;">Notez votre chauffeur</div>
+          <div class="stars center" id="p-stars" onclick="handleStarClick(event)">
+            <span class="star" data-i="1">★</span><span class="star" data-i="2">★</span><span class="star" data-i="3">★</span><span class="star" data-i="4">★</span><span class="star" data-i="5">★</span>
+          </div>
+        </div>
+      </div>
+      <div class="screen-footer"><button class="btn" onclick="showScreen('p-historique')">Terminer</button></div>
+    </div>
+
+    <!-- 7. Historique -->
+    <div class="screen" id="p-historique">
+      <div class="screen-header"><strong>Historique</strong><button class="btn ghost" onclick="showScreen('p-accueil')">Accueil</button></div>
+      <div class="screen-body">
+        <div class="card card-row"><span>Aujourd'hui · Gare Casa-Voyageurs</span><span>32 DH</span></div>
+        <div class="card card-row"><span>Hier · Aéroport Mohammed V</span><span>85 DH</span></div>
+        <div class="card card-row"><span>28 août · Marina</span><span>21 DH</span></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="js/brand.js"></script>
+<script src="js/screens.js"></script>
+<script>
+  function demoDispatch() {
+    setTimeout(function () {
+      showScreen('p-course');
+      document.getElementById('p-course-statut').textContent = "Le chauffeur arrive";
+      setTimeout(function () {
+        document.getElementById('p-course-statut').textContent = "Course en cours";
+      }, 3500);
+    }, 3000);
+  }
+  function handleStarClick(e) {
+    if (!e.target.classList.contains('star')) return;
+    setStars(document.getElementById('p-stars'), parseInt(e.target.dataset.i, 10));
+  }
+</script>
+</body>
+</html>

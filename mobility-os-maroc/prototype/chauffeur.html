@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mobility OS Maroc — App Chauffeur (maquette)</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="top-note">Maquette cliquable — App Chauffeur · <a href="index.html">← retour au hub</a></div>
+
+<div class="page-shell">
+  <div class="phone">
+    <div class="phone-notch"></div>
+
+    <!-- 1. Connexion -->
+    <div class="screen active" id="c-connexion">
+      <div class="screen-body center" style="justify-content:center; display:flex; flex-direction:column;">
+        <div style="margin:0 auto 24px;"><span class="brand-mark"></span></div>
+        <h2 style="margin-bottom:4px;"><span class="brand-label"></span> Chauffeur</h2>
+        <p class="muted">Espace réservé aux chauffeurs de la flotte</p>
+        <div style="margin-top:24px; text-align:left;">
+          <label class="muted">Numéro de téléphone</label>
+          <input type="tel" placeholder="06 12 34 56 78" value="06 55 11 22 33">
+        </div>
+        <button class="btn" onclick="showScreen('c-accueil')">Se connecter</button>
+      </div>
+    </div>
+
+    <!-- 2. Accueil -->
+    <div class="screen" id="c-accueil">
+      <div class="screen-header">
+        <span class="brand"><span class="brand-mark"></span><span class="brand-label"></span></span>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="muted" id="c-dispo-label">Disponible</span>
+          <div class="toggle on" id="c-toggle" onclick="toggleDispo()"></div>
+        </div>
+      </div>
+      <div class="screen-body">
+        <div class="map-placeholder"><div class="map-pin driver"></div></div>
+        <div class="kpi-grid" style="grid-template-columns:1fr 1fr; gap:10px;">
+          <div class="card"><div class="muted">Gains aujourd'hui</div><div class="price" style="font-size:20px;">184 DH</div></div>
+          <div class="card"><div class="muted">Courses</div><div class="price" style="font-size:20px;">6</div></div>
+        </div>
+        <button class="btn outline" onclick="showScreen('c-historique')">Voir l'historique</button>
+      </div>
+      <div class="screen-footer"><button class="btn accent" onclick="simulateDemande()">Simuler une demande de course</button></div>
+    </div>
+
+    <!-- 3. Notification course -->
+    <div class="screen" id="c-demande">
+      <div class="screen-header"><strong>Nouvelle course</strong></div>
+      <div class="screen-body">
+        <div class="timer-bar"><div class="timer-bar-fill" id="c-timer"></div></div>
+        <div class="card">
+          <div class="card-row"><span class="muted">Client</span><span>Amina R.</span></div>
+          <div class="card-row"><span class="muted">Distance jusqu'au client</span><span>1,8 km</span></div>
+          <div class="card-row"><span class="muted">Trajet estimé</span><span>4,2 km · 12 min</span></div>
+        </div>
+        <div class="card card-row"><span>Vous gagnez</span><span class="price">28 DH</span></div>
+      </div>
+      <div class="screen-footer">
+        <div class="btn-row">
+          <button class="btn outline" onclick="showScreen('c-accueil')">Refuser</button>
+          <button class="btn accent" onclick="showScreen('c-navigation')">Accepter</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. Navigation vers passager -->
+    <div class="screen" id="c-navigation">
+      <div class="screen-header"><strong>En route vers le passager</strong></div>
+      <div class="screen-body">
+        <div class="map-placeholder">
+          <div class="map-pin driver"></div>
+          <div class="map-pin depart"></div>
+        </div>
+        <div class="card card-row">
+          <div><strong>Amina R.</strong><div class="muted">Boulevard Zerktouni</div></div>
+          <span>📞</span>
+        </div>
+        <a class="btn outline" href="https://www.google.com/maps" target="_blank" style="display:block; text-align:center; text-decoration:none; margin-top:10px;">Ouvrir la navigation (Waze / Google Maps)</a>
+      </div>
+      <div class="screen-footer"><button class="btn" onclick="showScreen('c-encours')">Je suis arrivé</button></div>
+    </div>
+
+    <!-- 5. Course en cours -->
+    <div class="screen" id="c-encours">
+      <div class="screen-header"><strong>Passager à bord</strong></div>
+      <div class="screen-body">
+        <div class="map-placeholder">
+          <div class="map-pin driver"></div>
+          <div class="map-pin arrivee"></div>
+        </div>
+        <div class="card"><div class="muted">Destination</div><strong>Gare Casa-Voyageurs</strong></div>
+      </div>
+      <div class="screen-footer"><button class="btn accent" onclick="showScreen('c-fin')">Terminer la course</button></div>
+    </div>
+
+    <!-- 6. Fin de course -->
+    <div class="screen" id="c-fin">
+      <div class="screen-header"><strong>Course terminée</strong></div>
+      <div class="screen-body center">
+        <p class="muted" style="margin-top:16px;">Montant encaissé (espèces)</p>
+        <div class="price">28 DH</div>
+        <p class="muted" style="margin-top:16px;">Ajouté à vos gains du jour</p>
+      </div>
+      <div class="screen-footer"><button class="btn" onclick="showScreen('c-accueil')">Retour à l'accueil</button></div>
+    </div>
+
+    <!-- 7. Historique -->
+    <div class="screen" id="c-historique">
+      <div class="screen-header"><strong>Historique</strong><button class="btn ghost" onclick="showScreen('c-accueil')">Accueil</button></div>
+      <div class="screen-body">
+        <div class="card card-row"><span>09:14 · Gare Casa-Voyageurs</span><span>28 DH</span></div>
+        <div class="card card-row"><span>08:40 · Aéroport Mohammed V</span><span>76 DH</span></div>
+        <div class="card card-row"><span>08:05 · Marina</span><span>19 DH</span></div>
+        <div class="card card-row"><span class="muted">Total du jour</span><strong>184 DH</strong></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="js/brand.js"></script>
+<script src="js/screens.js"></script>
+<script>
+  function toggleDispo() {
+    var t = document.getElementById('c-toggle');
+    var on = t.classList.toggle('on');
+    document.getElementById('c-dispo-label').textContent = on ? "Disponible" : "Indisponible";
+  }
+  function simulateDemande() {
+    showScreen('c-demande');
+    var fill = document.getElementById('c-timer');
+    fill.style.animation = 'none';
+    void fill.offsetWidth;
+    fill.style.animation = null;
+  }
+</script>
+</body>
+</html>

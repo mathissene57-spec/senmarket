@@ -1,0 +1,681 @@
+<title>Mobility OS Maroc</title>
+<style>
+:root {
+  --primary: #101B3D;
+  --accent: #FF7A28;
+  --bg: #F7F5F1;
+  --surface: #FFFFFF;
+  --text: #1A1A1A;
+  --muted: #6B7280;
+  --success: #1E8E5A;
+  --danger: #D64545;
+  --radius: 16px;
+  --brand-name: "Mobility OS";
+  --brand-initial: "M";
+}
+[data-brand="transatlas"] {
+  --primary: #0E6B5C;
+  --accent: #F2B705;
+  --brand-name: "TransAtlas";
+  --brand-initial: "T";
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+a { color: inherit; }
+
+/* ---------- Nav globale (remplace les onglets de navigateur séparés) ---------- */
+.top-nav {
+  height: 56px;
+  box-sizing: border-box;
+  background: var(--primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.view-tabs { display: flex; gap: 4px; }
+.view-tab-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.7);
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+}
+.view-tab-btn.active, .view-tab-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
+.view-tab-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- Logo / marque ---------- */
+.brand { display: flex; align-items: center; gap: 8px; }
+.brand-mark {
+  width: 32px; height: 32px;
+  border-radius: 9px;
+  background: var(--primary);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 15px;
+  flex-shrink: 0;
+}
+.top-nav .brand-mark { background: rgba(255,255,255,0.18); }
+.brand-mark::before { content: var(--brand-initial); }
+.brand-label { font-weight: 700; font-size: 15px; }
+.brand-label::before { content: var(--brand-name); }
+
+.view[hidden] { display: none; }
+
+/* ---------- Cadre téléphone (apps Passager / Chauffeur) ---------- */
+.page-shell {
+  height: calc(100vh - 56px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 16px;
+  box-sizing: border-box;
+}
+.phone {
+  width: auto;
+  max-width: 100%;
+  height: min(780px, 86vh);
+  aspect-ratio: 375 / 780;
+  background: var(--surface);
+  border-radius: 36px;
+  border: 8px solid #14141a;
+  box-shadow: 0 30px 60px rgba(0,0,0,0.25);
+  overflow: hidden;
+  position: relative;
+}
+.phone-notch {
+  position: absolute;
+  top: 8px; left: 50%; transform: translateX(-50%);
+  width: 120px; height: 18px;
+  background: #14141a;
+  border-radius: 0 0 12px 12px;
+  z-index: 5;
+}
+.screen { display: none; height: 100%; flex-direction: column; }
+.screen.active { display: flex; }
+.screen-header {
+  padding: 34px 18px 12px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid #EEE;
+}
+.screen-body { flex: 1; overflow-y: auto; padding: 16px 18px; }
+.screen-footer { padding: 14px 18px 20px; border-top: 1px solid #EEE; }
+
+.map-placeholder {
+  height: 260px;
+  border-radius: var(--radius);
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255,255,255,0.5), transparent 40%),
+    repeating-linear-gradient(45deg, #E3E8F0 0 12px, #DCE3ED 12px 24px);
+  position: relative;
+  margin-bottom: 16px;
+}
+.map-pin {
+  position: absolute; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--accent); border: 3px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+.map-pin.depart { top: 70%; left: 25%; }
+.map-pin.arrivee { top: 25%; left: 70%; background: var(--primary); }
+.map-pin.driver { top: 45%; left: 45%; }
+
+input[type="tel"], input[type="text"] {
+  width: 100%; padding: 13px 14px; border-radius: 12px;
+  border: 1px solid #DDD; font-size: 15px; margin-bottom: 12px;
+  font-family: inherit;
+}
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 100%; padding: 14px; border-radius: 12px; border: none;
+  background: var(--primary); color: #fff; font-weight: 700; font-size: 15px;
+  cursor: pointer; font-family: inherit;
+}
+.btn.accent { background: var(--accent); }
+.btn.outline { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
+.btn.danger { background: var(--danger); }
+.btn.ghost { background: transparent; color: var(--muted); font-weight: 500; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn-row { display: flex; gap: 10px; }
+.btn-row .btn { flex: 1; }
+
+.card {
+  background: var(--surface); border: 1px solid #EEE; border-radius: var(--radius);
+  padding: 14px; margin-bottom: 12px;
+}
+.card-row { display: flex; justify-content: space-between; align-items: center; }
+
+.badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+.badge.ok { background: #E6F4EC; color: var(--success); }
+.badge.warn { background: #FFF1DE; color: #B25E00; }
+.badge.off { background: #F0F0F0; color: var(--muted); }
+.badge.danger { background: #FBE7E7; color: var(--danger); }
+
+.muted { color: var(--muted); font-size: 13px; }
+.price { font-size: 28px; font-weight: 800; }
+.center { text-align: center; }
+
+.pulse {
+  width: 64px; height: 64px; margin: 24px auto; border-radius: 50%;
+  background: var(--accent); opacity: 0.85; animation: pulse 1.4s ease-in-out infinite;
+}
+@keyframes pulse {
+  0% { transform: scale(0.85); opacity: 0.6; }
+  50% { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(0.85); opacity: 0.6; }
+}
+
+.toggle {
+  position: relative; width: 52px; height: 30px; border-radius: 999px;
+  background: #DDD; cursor: pointer; transition: background 0.2s;
+}
+.toggle.on { background: var(--success); }
+.toggle::after {
+  content: ""; position: absolute; top: 3px; left: 3px;
+  width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: left 0.2s;
+}
+.toggle.on::after { left: 25px; }
+
+.stars { font-size: 28px; letter-spacing: 4px; cursor: pointer; }
+.star { color: #DDD; }
+.star.filled { color: var(--accent); }
+
+.timer-bar { height: 6px; border-radius: 999px; background: #EEE; overflow: hidden; margin: 10px 0 16px; }
+.timer-bar-fill { height: 100%; background: var(--accent); width: 100%; animation: shrink 16s linear forwards; }
+@keyframes shrink { from { width: 100%; } to { width: 0%; } }
+
+/* ---------- Dashboard opérateur ---------- */
+.dashboard { display: grid; grid-template-columns: 220px 1fr; min-height: calc(100vh - 56px); }
+.sidebar { background: var(--primary); color: #fff; padding: 20px 16px; }
+.sidebar .brand-label, .sidebar .brand-mark { color: #fff; }
+.sidebar .brand-mark { background: rgba(255,255,255,0.15); }
+.nav-item {
+  display: block; padding: 10px 12px; border-radius: 10px;
+  color: rgba(255,255,255,0.75); text-decoration: none; font-size: 14px; margin-top: 6px;
+  cursor: pointer; border: none; background: none; width: 100%; text-align: left; font-family: inherit;
+}
+.nav-item.active, .nav-item:hover { background: rgba(255,255,255,0.12); color: #fff; }
+.main { padding: 28px 36px; overflow-x: auto; }
+.main h1 { margin-top: 0; }
+.kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 28px; }
+.kpi-card { background: var(--surface); border: 1px solid #EEE; border-radius: var(--radius); padding: 18px; }
+.kpi-card .value { font-size: 26px; font-weight: 800; color: var(--primary); }
+table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: var(--radius); overflow: hidden; }
+th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid #EEE; font-size: 14px; }
+th { background: #FAFAFA; color: var(--muted); font-weight: 600; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+.swatch-row { display: flex; gap: 12px; margin: 16px 0; }
+.swatch {
+  width: 84px; padding: 12px 8px; border-radius: 12px; border: 2px solid transparent;
+  cursor: pointer; text-align: center; font-size: 12px; font-weight: 700; background: var(--surface);
+  font-family: inherit;
+}
+.swatch.selected { border-color: var(--primary); }
+.swatch .dot { width: 28px; height: 28px; border-radius: 50%; margin: 0 auto 6px; }
+
+.hub { max-width: 880px; margin: 0 auto; padding: 48px 24px; }
+.hub-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-top: 24px; }
+.hub-card {
+  display: block; width: 100%; background: var(--surface); border: 1px solid #EEE; border-radius: var(--radius);
+  padding: 24px; text-decoration: none; color: var(--text); cursor: pointer; font-family: inherit; text-align: left;
+}
+.hub-card h3 { margin: 12px 0 6px; }
+.hub-card .tag { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); font-weight: 800; }
+</style>
+
+<header class="top-nav">
+  <div class="brand"><span class="brand-mark"></span><span class="brand-label"></span></div>
+  <nav class="view-tabs">
+    <button class="view-tab-btn active" data-view="hub" onclick="showView('hub', this)">Accueil</button>
+    <button class="view-tab-btn" data-view="passager" onclick="showView('passager', this)">App Passager</button>
+    <button class="view-tab-btn" data-view="chauffeur" onclick="showView('chauffeur', this)">App Chauffeur</button>
+    <button class="view-tab-btn" data-view="dashboard" onclick="showView('dashboard', this)">Dashboard Opérateur</button>
+  </nav>
+</header>
+
+<!-- ===================== HUB ===================== -->
+<section class="view" id="view-hub">
+  <div class="hub">
+    <p class="muted">Maquette cliquable — trois expériences reliées par une même plateforme. Utilisez les onglets en haut pour naviguer entre elles.</p>
+    <div class="hub-grid">
+      <button class="hub-card" onclick="goTo('passager')">
+        <div class="tag">App Passager</div>
+        <h3>Commander une course</h3>
+        <p class="muted">Connexion → trajet → recherche chauffeur → course → notation.</p>
+      </button>
+      <button class="hub-card" onclick="goTo('chauffeur')">
+        <div class="tag">App Chauffeur</div>
+        <h3>Prendre une course</h3>
+        <p class="muted">Disponibilité → notification → navigation → course → gains.</p>
+      </button>
+      <button class="hub-card" onclick="goTo('dashboard')">
+        <div class="tag">Dashboard Opérateur</div>
+        <h3>Piloter sa flotte</h3>
+        <p class="muted">Vue d'ensemble, chauffeurs, zones/tarifs, courses, marque.</p>
+      </button>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== APP PASSAGER ===================== -->
+<section class="view" id="view-passager" hidden>
+  <div class="page-shell">
+    <div class="phone">
+      <div class="phone-notch"></div>
+
+      <div class="screen active" id="p-connexion">
+        <div class="screen-body center" style="justify-content:center; display:flex; flex-direction:column;">
+          <div style="margin:0 auto 24px;"><span class="brand-mark"></span></div>
+          <h2 style="margin-bottom:4px;"><span class="brand-label"></span></h2>
+          <p class="muted">Réservez une course en quelques secondes</p>
+          <div style="margin-top:24px; text-align:left;">
+            <label class="muted">Numéro de téléphone</label>
+            <input type="tel" placeholder="06 12 34 56 78" value="06 61 22 33 44">
+          </div>
+          <button class="btn" onclick="showScreen('p-otp')">Recevoir le code</button>
+        </div>
+      </div>
+
+      <div class="screen" id="p-otp">
+        <div class="screen-header"><strong>Vérification</strong><button class="btn ghost" onclick="showScreen('p-connexion')">Retour</button></div>
+        <div class="screen-body">
+          <p class="muted">Code envoyé par SMS au 06 61 22 33 44</p>
+          <input type="text" value="4 4 8 2" style="text-align:center; font-size:22px; letter-spacing:8px;">
+        </div>
+        <div class="screen-footer"><button class="btn" onclick="showScreen('p-accueil')">Valider</button></div>
+      </div>
+
+      <div class="screen" id="p-accueil">
+        <div class="screen-header">
+          <span class="brand"><span class="brand-mark"></span><span class="brand-label"></span></span>
+          <span class="badge ok">En ligne</span>
+        </div>
+        <div class="screen-body">
+          <div class="map-placeholder"><div class="map-pin depart"></div></div>
+          <label class="muted">Où allez-vous ?</label>
+          <input type="text" placeholder="Destination" value="Gare Casa-Voyageurs">
+          <div class="card">
+            <div class="muted">Point de départ</div>
+            <strong>Position actuelle — Boulevard Zerktouni</strong>
+          </div>
+        </div>
+        <div class="screen-footer"><button class="btn accent" onclick="showScreen('p-confirmation')">Voir le prix</button></div>
+      </div>
+
+      <div class="screen" id="p-confirmation">
+        <div class="screen-header"><strong>Confirmer la course</strong><button class="btn ghost" onclick="showScreen('p-accueil')">Modifier</button></div>
+        <div class="screen-body">
+          <div class="map-placeholder">
+            <div class="map-pin depart"></div>
+            <div class="map-pin arrivee"></div>
+          </div>
+          <div class="card">
+            <div class="card-row"><span class="muted">Trajet</span><span>4,2 km</span></div>
+            <div class="card-row"><span class="muted">Durée estimée</span><span>12 min</span></div>
+          </div>
+          <div class="card">
+            <div class="card-row"><span>Prix estimé</span><span class="price">32 DH</span></div>
+            <div class="muted">Paiement en espèces à l'arrivée</div>
+          </div>
+        </div>
+        <div class="screen-footer"><button class="btn" onclick="showScreen('p-recherche'); demoDispatch();">Commander</button></div>
+      </div>
+
+      <div class="screen" id="p-recherche">
+        <div class="screen-body center" style="justify-content:center; display:flex; flex-direction:column;">
+          <div class="pulse"></div>
+          <h3>Recherche d'un chauffeur…</h3>
+          <p class="muted">Un chauffeur disponible à proximité va être notifié</p>
+        </div>
+        <div class="screen-footer"><button class="btn outline" onclick="showScreen('p-accueil')">Annuler</button></div>
+      </div>
+
+      <div class="screen" id="p-course">
+        <div class="screen-header"><strong id="p-course-statut">Le chauffeur arrive</strong></div>
+        <div class="screen-body">
+          <div class="map-placeholder">
+            <div class="map-pin driver"></div>
+            <div class="map-pin arrivee"></div>
+          </div>
+          <div class="card card-row">
+            <div>
+              <strong>Youssef B.</strong>
+              <div class="muted">Dacia Logan blanche · 4521-A-12</div>
+            </div>
+            <span>⭐ 4.8</span>
+          </div>
+          <div class="btn-row">
+            <button class="btn outline">📞 Appeler</button>
+            <button class="btn ghost">💬 Message</button>
+          </div>
+        </div>
+        <div class="screen-footer"><button class="btn accent" onclick="showScreen('p-fin')">Simuler l'arrivée</button></div>
+      </div>
+
+      <div class="screen" id="p-fin">
+        <div class="screen-header"><strong>Course terminée</strong></div>
+        <div class="screen-body center">
+          <p class="muted" style="margin-top:16px;">Montant à régler en espèces</p>
+          <div class="price">32 DH</div>
+          <div class="card" style="margin-top:24px; text-align:left;">
+            <div class="muted center" style="margin-bottom:8px;">Notez votre chauffeur</div>
+            <div class="stars center" id="p-stars" onclick="handleStarClick(event)">
+              <span class="star" data-i="1">★</span><span class="star" data-i="2">★</span><span class="star" data-i="3">★</span><span class="star" data-i="4">★</span><span class="star" data-i="5">★</span>
+            </div>
+          </div>
+        </div>
+        <div class="screen-footer"><button class="btn" onclick="showScreen('p-historique')">Terminer</button></div>
+      </div>
+
+      <div class="screen" id="p-historique">
+        <div class="screen-header"><strong>Historique</strong><button class="btn ghost" onclick="showScreen('p-accueil')">Accueil</button></div>
+        <div class="screen-body">
+          <div class="card card-row"><span>Aujourd'hui · Gare Casa-Voyageurs</span><span>32 DH</span></div>
+          <div class="card card-row"><span>Hier · Aéroport Mohammed V</span><span>85 DH</span></div>
+          <div class="card card-row"><span>28 août · Marina</span><span>21 DH</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ===================== APP CHAUFFEUR ===================== -->
+<section class="view" id="view-chauffeur" hidden>
+  <div class="page-shell">
+    <div class="phone">
+      <div class="phone-notch"></div>
+
+      <div class="screen active" id="c-connexion">
+        <div class="screen-body center" style="justify-content:center; display:flex; flex-direction:column;">
+          <div style="margin:0 auto 24px;"><span class="brand-mark"></span></div>
+          <h2 style="margin-bottom:4px;"><span class="brand-label"></span> Chauffeur</h2>
+          <p class="muted">Espace réservé aux chauffeurs de la flotte</p>
+          <div style="margin-top:24px; text-align:left;">
+            <label class="muted">Numéro de téléphone</label>
+            <input type="tel" placeholder="06 12 34 56 78" value="06 55 11 22 33">
+          </div>
+          <button class="btn" onclick="showScreen('c-accueil')">Se connecter</button>
+        </div>
+      </div>
+
+      <div class="screen" id="c-accueil">
+        <div class="screen-header">
+          <span class="brand"><span class="brand-mark"></span><span class="brand-label"></span></span>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="muted" id="c-dispo-label">Disponible</span>
+            <div class="toggle on" id="c-toggle" onclick="toggleDispo()"></div>
+          </div>
+        </div>
+        <div class="screen-body">
+          <div class="map-placeholder"><div class="map-pin driver"></div></div>
+          <div class="kpi-grid" style="grid-template-columns:1fr 1fr; gap:10px;">
+            <div class="card"><div class="muted">Gains aujourd'hui</div><div class="price" style="font-size:20px;">184 DH</div></div>
+            <div class="card"><div class="muted">Courses</div><div class="price" style="font-size:20px;">6</div></div>
+          </div>
+          <button class="btn outline" onclick="showScreen('c-historique')">Voir l'historique</button>
+        </div>
+        <div class="screen-footer"><button class="btn accent" onclick="simulateDemande()">Simuler une demande de course</button></div>
+      </div>
+
+      <div class="screen" id="c-demande">
+        <div class="screen-header"><strong>Nouvelle course</strong></div>
+        <div class="screen-body">
+          <div class="timer-bar"><div class="timer-bar-fill" id="c-timer"></div></div>
+          <div class="card">
+            <div class="card-row"><span class="muted">Client</span><span>Amina R.</span></div>
+            <div class="card-row"><span class="muted">Distance jusqu'au client</span><span>1,8 km</span></div>
+            <div class="card-row"><span class="muted">Trajet estimé</span><span>4,2 km · 12 min</span></div>
+          </div>
+          <div class="card card-row"><span>Vous gagnez</span><span class="price">28 DH</span></div>
+        </div>
+        <div class="screen-footer">
+          <div class="btn-row">
+            <button class="btn outline" onclick="showScreen('c-accueil')">Refuser</button>
+            <button class="btn accent" onclick="showScreen('c-navigation')">Accepter</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="screen" id="c-navigation">
+        <div class="screen-header"><strong>En route vers le passager</strong></div>
+        <div class="screen-body">
+          <div class="map-placeholder">
+            <div class="map-pin driver"></div>
+            <div class="map-pin depart"></div>
+          </div>
+          <div class="card card-row">
+            <div><strong>Amina R.</strong><div class="muted">Boulevard Zerktouni</div></div>
+            <span>📞</span>
+          </div>
+          <a class="btn outline" href="https://www.google.com/maps" target="_blank" rel="noopener" style="display:block; text-align:center; text-decoration:none; margin-top:10px;">Ouvrir la navigation (Waze / Google Maps)</a>
+        </div>
+        <div class="screen-footer"><button class="btn" onclick="showScreen('c-encours')">Je suis arrivé</button></div>
+      </div>
+
+      <div class="screen" id="c-encours">
+        <div class="screen-header"><strong>Passager à bord</strong></div>
+        <div class="screen-body">
+          <div class="map-placeholder">
+            <div class="map-pin driver"></div>
+            <div class="map-pin arrivee"></div>
+          </div>
+          <div class="card"><div class="muted">Destination</div><strong>Gare Casa-Voyageurs</strong></div>
+        </div>
+        <div class="screen-footer"><button class="btn accent" onclick="showScreen('c-fin')">Terminer la course</button></div>
+      </div>
+
+      <div class="screen" id="c-fin">
+        <div class="screen-header"><strong>Course terminée</strong></div>
+        <div class="screen-body center">
+          <p class="muted" style="margin-top:16px;">Montant encaissé (espèces)</p>
+          <div class="price">28 DH</div>
+          <p class="muted" style="margin-top:16px;">Ajouté à vos gains du jour</p>
+        </div>
+        <div class="screen-footer"><button class="btn" onclick="showScreen('c-accueil')">Retour à l'accueil</button></div>
+      </div>
+
+      <div class="screen" id="c-historique">
+        <div class="screen-header"><strong>Historique</strong><button class="btn ghost" onclick="showScreen('c-accueil')">Accueil</button></div>
+        <div class="screen-body">
+          <div class="card card-row"><span>09:14 · Gare Casa-Voyageurs</span><span>28 DH</span></div>
+          <div class="card card-row"><span>08:40 · Aéroport Mohammed V</span><span>76 DH</span></div>
+          <div class="card card-row"><span>08:05 · Marina</span><span>19 DH</span></div>
+          <div class="card card-row"><span class="muted">Total du jour</span><strong>184 DH</strong></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ===================== DASHBOARD OPÉRATEUR ===================== -->
+<section class="view" id="view-dashboard" hidden>
+  <div class="dashboard">
+    <div class="sidebar">
+      <div class="brand"><span class="brand-mark"></span><span class="brand-label"></span></div>
+      <nav style="margin-top:28px;">
+        <button class="nav-item active" data-tab="apercu" onclick="showTab('apercu', this)">Vue d'ensemble</button>
+        <button class="nav-item" data-tab="chauffeurs" onclick="showTab('chauffeurs', this)">Chauffeurs</button>
+        <button class="nav-item" data-tab="zones" onclick="showTab('zones', this)">Zones et tarifs</button>
+        <button class="nav-item" data-tab="courses" onclick="showTab('courses', this)">Courses</button>
+        <button class="nav-item" data-tab="marque" onclick="showTab('marque', this)">Marque</button>
+      </nav>
+    </div>
+
+    <div class="main">
+
+      <div class="tab-panel active" id="tab-apercu">
+        <h1>Vue d'ensemble</h1>
+        <div class="kpi-grid">
+          <div class="kpi-card"><div class="muted">Courses aujourd'hui</div><div class="value">42</div></div>
+          <div class="kpi-card"><div class="muted">Chiffre d'affaires (jour)</div><div class="value">1 340 DH</div></div>
+          <div class="kpi-card"><div class="muted">Chauffeurs actifs</div><div class="value">11 / 14</div></div>
+        </div>
+        <h3>Courses en cours</h3>
+        <table>
+          <tr><th>Passager</th><th>Chauffeur</th><th>Statut</th><th>Prix</th></tr>
+          <tr><td>Amina R.</td><td>Youssef B.</td><td><span class="badge ok">En cours</span></td><td>28 DH</td></tr>
+          <tr><td>Karim T.</td><td>Rachid E.</td><td><span class="badge warn">Assignée</span></td><td>45 DH</td></tr>
+          <tr><td>Sara M.</td><td>—</td><td><span class="badge off">Recherche…</span></td><td>32 DH</td></tr>
+        </table>
+      </div>
+
+      <div class="tab-panel" id="tab-chauffeurs">
+        <h1>Chauffeurs</h1>
+        <table>
+          <tr><th>Nom</th><th>Véhicule</th><th>Note</th><th>Statut</th><th></th></tr>
+          <tr><td>Youssef B.</td><td>Dacia Logan · 4521-A-12</td><td>4.8</td><td><span class="badge ok">Disponible</span></td><td>Détails</td></tr>
+          <tr><td>Rachid E.</td><td>Renault Symbol · 8890-B-06</td><td>4.6</td><td><span class="badge warn">En course</span></td><td>Détails</td></tr>
+          <tr><td>Hind O.</td><td>Dacia Sandero · 2210-A-12</td><td>4.9</td><td><span class="badge off">Hors ligne</span></td><td>Détails</td></tr>
+        </table>
+        <button class="btn" style="width:auto; margin-top:16px; padding:10px 18px;">+ Ajouter un chauffeur</button>
+      </div>
+
+      <div class="tab-panel" id="tab-zones">
+        <h1>Zones et tarifs</h1>
+        <table>
+          <tr><th>Zone</th><th>Tarif de base</th><th>Tarif / km</th><th></th></tr>
+          <tr><td>Casablanca — Centre</td><td>12 DH</td><td>4,5 DH</td><td>Modifier</td></tr>
+          <tr><td>Casablanca — Aéroport</td><td>25 DH</td><td>4,5 DH</td><td>Modifier</td></tr>
+        </table>
+        <button class="btn" style="width:auto; margin-top:16px; padding:10px 18px;">+ Ajouter une zone</button>
+      </div>
+
+      <div class="tab-panel" id="tab-courses">
+        <h1>Courses</h1>
+        <table>
+          <tr><th>Date</th><th>Passager</th><th>Chauffeur</th><th>Statut</th><th>Prix</th></tr>
+          <tr><td>Aujourd'hui 09:14</td><td>Amina R.</td><td>Youssef B.</td><td><span class="badge ok">Terminée</span></td><td>28 DH</td></tr>
+          <tr><td>Aujourd'hui 08:40</td><td>Karim T.</td><td>Rachid E.</td><td><span class="badge ok">Terminée</span></td><td>76 DH</td></tr>
+          <tr><td>Hier 19:02</td><td>Sara M.</td><td>Hind O.</td><td><span class="badge danger">Annulée</span></td><td>—</td></tr>
+        </table>
+      </div>
+
+      <div class="tab-panel" id="tab-marque">
+        <h1>Marque</h1>
+        <p class="muted">Personnalisez l'apparence de vos applications Passager et Chauffeur — sans aucun développement. Choisissez une identité ci-dessous, puis basculez sur l'onglet « App Passager » ou « App Chauffeur » en haut de page : le thème s'applique instantanément.</p>
+        <div class="swatch-row">
+          <div class="swatch" data-brand="platform" onclick="pickBrand('platform', this)">
+            <div class="dot" style="background:#101B3D;"></div>
+            Mobility OS (par défaut)
+          </div>
+          <div class="swatch" data-brand="transatlas" onclick="pickBrand('transatlas', this)">
+            <div class="dot" style="background:#0E6B5C;"></div>
+            TransAtlas (opérateur pilote)
+          </div>
+        </div>
+        <div class="card" style="max-width:420px;">
+          <label class="muted">Nom affiché aux passagers et chauffeurs</label>
+          <input type="text" value="TransAtlas">
+          <label class="muted">Logo</label>
+          <div class="muted" style="margin-bottom:10px;">transatlas-logo.png (démo)</div>
+          <button class="btn outline" style="width:auto; padding:8px 16px;">Changer le logo</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<script>
+  // ---------- Navigation entre vues (Accueil / Passager / Chauffeur / Dashboard) ----------
+  function showView(view, btn) {
+    document.querySelectorAll('.view').forEach(function (el) {
+      el.hidden = el.id !== 'view-' + view;
+    });
+    document.querySelectorAll('.view-tab-btn').forEach(function (el) {
+      el.classList.toggle('active', el === btn);
+    });
+  }
+  function goTo(view) {
+    var btn = document.querySelector('.view-tab-btn[data-view="' + view + '"]');
+    showView(view, btn);
+  }
+
+  // ---------- Navigation entre écrans à l'intérieur d'une app (scopée par téléphone) ----------
+  function showScreen(id) {
+    var target = document.getElementById(id);
+    var scope = target.closest('.phone') || document;
+    scope.querySelectorAll('.screen').forEach(function (el) {
+      el.classList.toggle('active', el.id === id);
+    });
+  }
+  function setStars(container, count) {
+    container.querySelectorAll('.star').forEach(function (el, i) {
+      el.classList.toggle('filled', i < count);
+    });
+    container.dataset.value = count;
+  }
+
+  // ---------- App Passager ----------
+  function demoDispatch() {
+    setTimeout(function () {
+      showScreen('p-course');
+      document.getElementById('p-course-statut').textContent = "Le chauffeur arrive";
+      setTimeout(function () {
+        document.getElementById('p-course-statut').textContent = "Course en cours";
+      }, 3500);
+    }, 3000);
+  }
+  function handleStarClick(e) {
+    if (!e.target.classList.contains('star')) return;
+    setStars(document.getElementById('p-stars'), parseInt(e.target.dataset.i, 10));
+  }
+
+  // ---------- App Chauffeur ----------
+  function toggleDispo() {
+    var t = document.getElementById('c-toggle');
+    var on = t.classList.toggle('on');
+    document.getElementById('c-dispo-label').textContent = on ? "Disponible" : "Indisponible";
+  }
+  function simulateDemande() {
+    showScreen('c-demande');
+    var fill = document.getElementById('c-timer');
+    fill.style.animation = 'none';
+    void fill.offsetWidth;
+    fill.style.animation = null;
+  }
+
+  // ---------- Dashboard Opérateur ----------
+  function showTab(id, btn) {
+    document.querySelectorAll('.tab-panel').forEach(function (el) { el.classList.remove('active'); });
+    document.getElementById('tab-' + id).classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(function (el) { el.classList.remove('active'); });
+    btn.classList.add('active');
+  }
+  function pickBrand(brand, el) {
+    setBrand(brand);
+    document.querySelectorAll('.swatch').forEach(function (s) { s.classList.remove('selected'); });
+    el.classList.add('selected');
+  }
+
+  // ---------- Marque (white-label), persistée pour cette page ----------
+  var BRAND_KEY = "mobilityos_demo_brand";
+  function setBrand(brand) {
+    try { localStorage.setItem(BRAND_KEY, brand); } catch (e) {}
+    document.documentElement.setAttribute("data-brand", brand);
+  }
+  function currentBrand() {
+    try { return localStorage.getItem(BRAND_KEY) || "platform"; } catch (e) { return "platform"; }
+  }
+  (function () {
+    document.documentElement.setAttribute("data-brand", currentBrand());
+    var el = document.querySelector('.swatch[data-brand="' + currentBrand() + '"]');
+    if (el) el.classList.add('selected');
+  })();
+</script>

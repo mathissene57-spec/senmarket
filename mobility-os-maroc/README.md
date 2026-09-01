@@ -19,7 +19,7 @@ Si la réponse est non, ou si elle est « ça fait joli », la fonctionnalité n
 - [x] **Étape 1 — Aujourd'hui** : verrouiller le concept, le modèle économique, les utilisateurs, le MVP, le modèle white-label, les rôles FlowDynamicsAgency / partenaire. → [`01-concept-verrouille.md`](./01-concept-verrouille.md) — **Option A validée** : le partenaire est le premier opérateur pilote.
 - [x] **Étape 2** : architecture fonctionnelle — parcours Passager, parcours Chauffeur, dashboard Opérateur, système de dispatch, GPS/cartographie, modèle multi-opérateur, architecture technique. → [`02-architecture-fonctionnelle.md`](./02-architecture-fonctionnelle.md)
 - [x] **Étape 3** : maquettes des écrans, identité visuelle du projet, démonstration du parcours complet. → maquettes cliquables dans [`prototype/`](./prototype/index.html), script de démo dans [`03-maquettes-identite-demo.md`](./03-maquettes-identite-demo.md)
-- [ ] **Étape 4** : dossier commercial — présentation partenaire, EOI, modèle économique détaillé, proposition de déploiement.
+- [x] **Étape 4** : dossier commercial — présentation partenaire, EOI, modèle économique détaillé, proposition de déploiement. → dossier complet dans [`04-dossier-commercial/`](./04-dossier-commercial/00-dossier-commercial.md), support de présentation dans [`04-dossier-commercial/presentation-partenaire.pptx`](./04-dossier-commercial/presentation-partenaire.pptx)
 - [ ] **Étape 5 — Samedi** : présentation au partenaire (concept → démonstration → modèle commercial → stratégie → pilote → proposition de partenariat).
 
 ## Fichiers du chantier
@@ -30,5 +30,10 @@ Si la réponse est non, ou si elle est « ça fait joli », la fonctionnalité n
 | `02-architecture-fonctionnelle.md` | Parcours Passager/Chauffeur, dashboard Opérateur, dispatch, GPS/cartographie, modèle multi-opérateur, architecture technique | 2 |
 | `03-maquettes-identite-demo.md` | Identité visuelle, guide des maquettes, script de démonstration pas-à-pas | 3 |
 | `prototype/` | Maquettes cliquables (HTML/CSS/JS statique) : app Passager, app Chauffeur, dashboard Opérateur | 3 |
+| `04-dossier-commercial/00-dossier-commercial.md` | Synthèse qui relie concept, démo, modèle, stratégie, pilote et partenariat | 4 |
+| `04-dossier-commercial/01-modele-economique-chiffre.md` | Chiffrage indicatif (setup fee, abonnement, commission, projection sur 3 mois) | 4 |
+| `04-dossier-commercial/02-proposition-deploiement-pilote.md` | Plan de déploiement en 5 phases | 4 |
+| `04-dossier-commercial/03-expression-interet-eoi.md` | Expression d'intérêt (EOI) à faire signer | 4 |
+| `04-dossier-commercial/presentation-partenaire.pptx` | Support de présentation (11 diapositives, captures des maquettes intégrées) | 4 |
 
-D'autres fichiers seront ajoutés au fur et à mesure (architecture, maquettes, dossier commercial) pour garder chaque étape traçable et validable séparément avant de passer à la suivante.
+D'autres fichiers seront ajoutés au fur et à mesure (script détaillé de la présentation de samedi) pour garder chaque étape traçable et validable séparément avant de passer à la suivante.

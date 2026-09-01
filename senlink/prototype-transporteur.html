@@ -645,6 +645,7 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
     <div class="page-ttl">📅 Planning</div>
     <div class="page-sub">Agenda des créations, départs et arrivées de lots -- dérivé des données réelles des lots, aucune saisie manuelle indépendante n'existe encore dans le modèle.</div>
   </div>
+  <div class="filter-row" id="planningFilters"></div>
   <div id="planningList"></div>
 </section>
 
@@ -924,7 +925,7 @@ var SEED_INCIDENTS = [
 /* ----------------------------------------------------------------
    ÉTAT + PERSISTANCE (localStorage uniquement)
    ---------------------------------------------------------------- */
-var ST = { page:'accueil', shipments:[], lots:[], incidents:[], colisFilter:'all', lotsFilter:'all', incidentsFilter:'all', scanTarget:null, lotCodeSeq:41, _toastMap:{} };
+var ST = { page:'accueil', shipments:[], lots:[], incidents:[], colisFilter:'all', lotsFilter:'all', incidentsFilter:'all', planningFilter:'all', scanTarget:null, lotCodeSeq:41, _toastMap:{} };
 
 function lsGet(k) { try { return JSON.parse(localStorage.getItem(k)); } catch(e) { return null; } }
 function lsSet(k,v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {} }
@@ -1710,16 +1711,31 @@ function agendaSortKey(timeStr) {
   if (!m) return 0;
   return parseInt(m[1],10) * 10000 + parseInt(m[2],10) * 100 + parseInt(m[3],10);
 }
+var PLANNING_FILTERS = [
+  { key:'all', lbl:'Tous' },
+  { key:'created', lbl:'Créations' },
+  { key:'departed', lbl:'Départs' },
+  { key:'arrived', lbl:'Arrivées' }
+];
+function renderPlanningFilters() {
+  document.getElementById('planningFilters').innerHTML = PLANNING_FILTERS.map(function(f){
+    return '<button class="filter-chip'+(ST.planningFilter===f.key?' on':'')+'" data-key="'+f.key+'">'+h(f.lbl)+'</button>';
+  }).join('');
+  Array.prototype.forEach.call(document.getElementById('planningFilters').querySelectorAll('.filter-chip'), function(btn){
+    btn.addEventListener('click', function(){ ST.planningFilter = btn.dataset.key; renderPlanningFilters(); renderPlanning(); });
+  });
+}
 function renderPlanning() {
   var entries = [];
   ST.lots.forEach(function(lot){
-    entries.push({ time:lot.createdAt, ico:'📥', lbl:'Lot ' + lotLabel(lot) + ' créé', sub:hubById(lot.originHubId).city + ' → ' + hubById(lot.destHubId).city, lotId:lot.id });
-    if (lot.departedAt) entries.push({ time:lot.departedAt, ico:'🚚', lbl:'Départ du lot ' + lotLabel(lot), sub:shipmentsOfLot(lot.id).length + ' colis', lotId:lot.id });
-    if (lot.arrivedAt) entries.push({ time:lot.arrivedAt, ico:'🛬', lbl:'Arrivée du lot ' + lotLabel(lot), sub:hubById(lot.destHubId).name, lotId:lot.id });
+    entries.push({ time:lot.createdAt, ico:'📥', lbl:'Lot ' + lotLabel(lot) + ' créé', sub:hubById(lot.originHubId).city + ' → ' + hubById(lot.destHubId).city, lotId:lot.id, type:'created' });
+    if (lot.departedAt) entries.push({ time:lot.departedAt, ico:'🚚', lbl:'Départ du lot ' + lotLabel(lot), sub:shipmentsOfLot(lot.id).length + ' colis', lotId:lot.id, type:'departed' });
+    if (lot.arrivedAt) entries.push({ time:lot.arrivedAt, ico:'🛬', lbl:'Arrivée du lot ' + lotLabel(lot), sub:hubById(lot.destHubId).name, lotId:lot.id, type:'arrived' });
   });
+  if (ST.planningFilter !== 'all') entries = entries.filter(function(e){ return e.type === ST.planningFilter; });
   var el = document.getElementById('planningList');
   if (!entries.length) {
-    el.innerHTML = '<div class="empty-state"><div class="es-ico">📅</div><div class="es-ttl">Rien à planifier</div><div class="es-sub">Aucun lot pour le moment.</div></div>';
+    el.innerHTML = '<div class="empty-state"><div class="es-ico">📅</div><div class="es-ttl">Rien à planifier</div><div class="es-sub">Aucun résultat pour ce filtre.</div></div>';
     return;
   }
   entries.sort(function(a,b){ return agendaSortKey(b.time) - agendaSortKey(a.time); });
@@ -2195,6 +2211,7 @@ document.addEventListener('DOMContentLoaded', function() {
   renderColisFilters();
   renderLotsFilters();
   renderIncidentsFilters();
+  renderPlanningFilters();
   renderAll();
   renderEquipe();
 

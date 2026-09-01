@@ -20,7 +20,7 @@ Si la réponse est non, ou si elle est « ça fait joli », la fonctionnalité n
 - [x] **Étape 2** : architecture fonctionnelle — parcours Passager, parcours Chauffeur, dashboard Opérateur, système de dispatch, GPS/cartographie, modèle multi-opérateur, architecture technique. → [`02-architecture-fonctionnelle.md`](./02-architecture-fonctionnelle.md)
 - [x] **Étape 3** : maquettes des écrans, identité visuelle du projet, démonstration du parcours complet. → maquettes cliquables dans [`prototype/`](./prototype/index.html), script de démo dans [`03-maquettes-identite-demo.md`](./03-maquettes-identite-demo.md)
 - [x] **Étape 4** : dossier commercial — présentation partenaire, EOI, modèle économique détaillé, proposition de déploiement. → dossier complet dans [`04-dossier-commercial/`](./04-dossier-commercial/00-dossier-commercial.md), support de présentation dans [`04-dossier-commercial/presentation-partenaire.pptx`](./04-dossier-commercial/presentation-partenaire.pptx)
-- [ ] **Étape 5 — Samedi** : présentation au partenaire (concept → démonstration → modèle commercial → stratégie → pilote → proposition de partenariat).
+- [x] **Étape 5 — Samedi** : matériel de présentation finalisé (checklist, déroulé minuté, notes de présentateur, FAQ). L'exécution en direct reste un événement réel, pas quelque chose que ce chantier peut cocher à l'avance. → [`05-jour-j.md`](./05-jour-j.md)
 
 ## Fichiers du chantier
 
@@ -34,6 +34,7 @@ Si la réponse est non, ou si elle est « ça fait joli », la fonctionnalité n
 | `04-dossier-commercial/01-modele-economique-chiffre.md` | Chiffrage indicatif (setup fee, abonnement, commission, projection sur 3 mois) | 4 |
 | `04-dossier-commercial/02-proposition-deploiement-pilote.md` | Plan de déploiement en 5 phases | 4 |
 | `04-dossier-commercial/03-expression-interet-eoi.md` | Expression d'intérêt (EOI) à faire signer | 4 |
-| `04-dossier-commercial/presentation-partenaire.pptx` | Support de présentation (11 diapositives, captures des maquettes intégrées) | 4 |
+| `04-dossier-commercial/presentation-partenaire.pptx` | Support de présentation (11 diapositives, captures des maquettes + notes de présentateur intégrées) | 4 |
+| `05-jour-j.md` | Checklist avant, déroulé minuté, FAQ objections, actions de clôture | 5 |
 
-D'autres fichiers seront ajoutés au fur et à mesure (script détaillé de la présentation de samedi) pour garder chaque étape traçable et validable séparément avant de passer à la suivante.
+Le chantier des 5 étapes est complet. La suite dépend de l'issue de la présentation de samedi (voir `05-jour-j.md`, section "Après la présentation").

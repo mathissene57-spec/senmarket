@@ -106,10 +106,7 @@ export default function PassagerPage() {
   }
 
   async function chargerHistorique() {
-    const { data: passager } = await supabase.from('passagers').select('id').eq('telephone', telephone).single()
-    if (!passager) return
-    const { data } = await supabase.from('courses').select('id,statut,adresse_depart,adresse_arrivee,prix_estime,prix_final,chauffeur_id')
-      .eq('passager_id', passager.id).eq('statut', 'terminee').order('created_at', { ascending: false })
+    const { data } = await supabase.rpc('historique_passager', { p_telephone: telephone })
     setHistorique(data || [])
   }
 

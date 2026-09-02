@@ -3,8 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { distanceHaversineKm } from '@/lib/geo'
-
-const OPERATEUR_ID = process.env.NEXT_PUBLIC_OPERATEUR_ID!
+import { useOperateurId } from '@/lib/useOperateurId'
 
 type Operateur = { id: string; nom: string; couleur_primaire: string; couleur_secondaire: string }
 type ChauffeurRow = { id: string; nom: string; telephone: string; statut: string }
@@ -13,6 +12,7 @@ type CourseTerminee = { id: string; adresse_depart: string; adresse_arrivee: str
 
 export default function ChauffeurPage() {
   const supabase = createClient()
+  const { operateurId: OPERATEUR_ID, chargement: chargementOperateur, erreur: erreurResolution } = useOperateurId()
   const [operateur, setOperateur] = useState<Operateur | null>(null)
   const [ecran, setEcran] = useState<'connexion' | 'accueil' | 'demande' | 'navigation' | 'encours' | 'fin' | 'historique'>('connexion')
   const [telephone, setTelephone] = useState('')
@@ -35,9 +35,10 @@ export default function ChauffeurPage() {
   useEffect(() => { ecranRef.current = ecran }, [ecran])
 
   useEffect(() => {
+    if (!OPERATEUR_ID) return
     supabase.from('operateurs').select('id,nom,couleur_primaire,couleur_secondaire').eq('id', OPERATEUR_ID).single()
       .then(({ data }) => setOperateur(data))
-  }, [])
+  }, [OPERATEUR_ID])
 
   // P1.4 : suit la position du chauffeur pendant qu'il est connecte, et la
   // transmet au serveur au maximum toutes les 15s (pas a chaque evenement
@@ -100,6 +101,7 @@ export default function ChauffeurPage() {
   }, [chauffeur?.id])
 
   async function seConnecter() {
+    if (!OPERATEUR_ID) return
     setErreur(null)
     setChargement(true)
     const { data, error } = await supabase.rpc('connexion_chauffeur', {
@@ -174,6 +176,18 @@ export default function ChauffeurPage() {
   const primary = operateur?.couleur_primaire || '#101B3D'
   const accent = operateur?.couleur_secondaire || '#FF7A28'
   const vars = { ['--primary' as any]: primary, ['--accent' as any]: accent }
+
+  if (chargementOperateur) return null
+  if (erreurResolution || !OPERATEUR_ID) {
+    return (
+      <div className="page-shell">
+        <div className="phone"><div className="screen-body center" style={{ justifyContent: 'center', display: 'flex', flexDirection: 'column' }}>
+          <h3>Opérateur introuvable</h3>
+          <p className="muted">{erreurResolution || "Ce lien ne correspond à aucun opérateur actif."}</p>
+        </div></div>
+      </div>
+    )
+  }
 
   return (
     <div className="page-shell" style={vars}>

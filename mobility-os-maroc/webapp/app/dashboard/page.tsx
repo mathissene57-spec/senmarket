@@ -3,10 +3,9 @@
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
+import { useOperateurId } from '@/lib/useOperateurId'
 
 const Carte = dynamic(() => import('@/components/Carte'), { ssr: false })
-
-const OPERATEUR_ID = process.env.NEXT_PUBLIC_OPERATEUR_ID!
 
 type Operateur = { id: string; nom: string; couleur_primaire: string; couleur_secondaire: string; owner_user_id: string | null }
 type ChauffeurRow = { id: string; nom: string; telephone: string; vehicule: string | null; plaque: string | null; note_moyenne: number; statut: string; position_lat: number | null; position_lng: number | null }
@@ -14,6 +13,7 @@ type CourseRow = { id: string; statut: string; adresse_depart: string; adresse_a
 
 export default function DashboardPage() {
   const supabase = createClient()
+  const { operateurId: OPERATEUR_ID, chargement: chargementOperateur, erreur: erreurResolution } = useOperateurId()
   const [chargement, setChargement] = useState(true)
   const [session, setSession] = useState<any>(null)
   const [mode, setMode] = useState<'connexion' | 'inscription'>('connexion')
@@ -36,9 +36,9 @@ export default function DashboardPage() {
   }, [])
 
   useEffect(() => {
-    if (!session) return
+    if (!session || !OPERATEUR_ID) return
     resoudreOperateur()
-  }, [session])
+  }, [session, OPERATEUR_ID])
 
   useEffect(() => {
     if (!operateur) return
@@ -86,7 +86,10 @@ export default function DashboardPage() {
     else setErreurAuth("Compte créé. Vérifiez votre email si la confirmation est activée, sinon reconnectez-vous.")
   }
 
-  if (chargement) return null
+  if (chargement || chargementOperateur) return null
+  if (erreurResolution || !OPERATEUR_ID) {
+    return <div className="auth-shell"><div className="auth-card"><p>{erreurResolution || "Ce lien ne correspond à aucun opérateur actif."}</p></div></div>
+  }
 
   if (!session) {
     return (

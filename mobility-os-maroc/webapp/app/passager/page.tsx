@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { distanceHaversineKm } from '@/lib/geo'
+import { useOperateurId } from '@/lib/useOperateurId'
 
 const Carte = dynamic(() => import('@/components/Carte'), { ssr: false })
 
@@ -30,8 +31,6 @@ async function geocoder(adresse: string): Promise<{ lat: number; lng: number } |
   }
 }
 
-const OPERATEUR_ID = process.env.NEXT_PUBLIC_OPERATEUR_ID!
-
 type Operateur = { id: string; nom: string; couleur_primaire: string; couleur_secondaire: string }
 type Zone = { id: string; nom: string; tarif_base: number; tarif_km: number }
 type Course = {
@@ -47,6 +46,7 @@ type Chauffeur = { id: string; nom: string; vehicule: string | null; plaque: str
 
 export default function PassagerPage() {
   const supabase = createClient()
+  const { operateurId: OPERATEUR_ID, chargement: chargementOperateur, erreur: erreurResolution } = useOperateurId()
   const [operateur, setOperateur] = useState<Operateur | null>(null)
   const [zones, setZones] = useState<Zone[]>([])
   const [zoneId, setZoneId] = useState<string>('')
@@ -67,6 +67,7 @@ export default function PassagerPage() {
   const courseRef = useRef<Course | null>(null)
 
   useEffect(() => {
+    if (!OPERATEUR_ID) return
     supabase.from('operateurs').select('id,nom,couleur_primaire,couleur_secondaire').eq('id', OPERATEUR_ID).single()
       .then(({ data }) => setOperateur(data))
     supabase.from('zones_operateur').select('id,nom,tarif_base,tarif_km').eq('operateur_id', OPERATEUR_ID).order('nom')
@@ -74,7 +75,7 @@ export default function PassagerPage() {
         setZones(data || [])
         if (data && data.length > 0) setZoneId(data[0].id)
       })
-  }, [])
+  }, [OPERATEUR_ID])
 
   useEffect(() => { courseRef.current = course }, [course])
 
@@ -126,7 +127,7 @@ export default function PassagerPage() {
   const prixEstime = zone ? Math.round((Number(zone.tarif_base) + Number(zone.tarif_km) * distanceEstimeeKm) * 100) / 100 : 0
 
   async function commander() {
-    if (!zoneId) return
+    if (!zoneId || !OPERATEUR_ID) return
     setErreur(null)
     setChargement(true)
     const { data, error } = await supabase.rpc('creer_course', {
@@ -169,6 +170,18 @@ export default function PassagerPage() {
   const primary = operateur?.couleur_primaire || '#101B3D'
   const accent = operateur?.couleur_secondaire || '#FF7A28'
   const vars = { ['--primary' as any]: primary, ['--accent' as any]: accent }
+
+  if (chargementOperateur) return null
+  if (erreurResolution || !OPERATEUR_ID) {
+    return (
+      <div className="page-shell">
+        <div className="phone"><div className="screen-body center" style={{ justifyContent: 'center', display: 'flex', flexDirection: 'column' }}>
+          <h3>Opérateur introuvable</h3>
+          <p className="muted">{erreurResolution || "Ce lien ne correspond à aucun opérateur actif."}</p>
+        </div></div>
+      </div>
+    )
+  }
 
   return (
     <div className="page-shell" style={vars}>

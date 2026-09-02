@@ -600,4 +600,118 @@ begin
 end $$;
 reset role;
 
+-- P1 (2026-09-02) : course_events, l'audit trail permettant de reconstruire
+-- le fil complet d'une course (creation, chaque transition de statut,
+-- notation) avec l'acteur a l'origine de chaque evenement. Alimente par un
+-- trigger sur courses/avis_courses (jamais par les RPC directement -- robuste
+-- a tout nouveau chemin de code), lu via evenements_course() scopee par
+-- propriete de l'operateur (meme patron que courses_operateur()).
+do $$
+declare
+  v_op uuid; v_zone uuid; v_chauffeur uuid;
+  v_tel_chauffeur text := '0790000001';
+  v_tel_passager text := '0790000002';
+  v_course_id uuid;
+  v_code text;
+  v_sequence text;
+begin
+  v_op := provisionner_operateur('Test Events', 'test-events-' || replace(gen_random_uuid()::text, '-', ''), 'TestVille',
+    '#000000', '#ffffff', '[{"nom":"Zone","tarif_base":10,"tarif_km":2}]'::jsonb,
+    format('[{"nom":"Chauffeur","telephone":"%s"}]', v_tel_chauffeur)::jsonb);
+  select id into v_zone from zones_operateur where operateur_id = v_op;
+  select id into v_chauffeur from chauffeurs where operateur_id = v_op;
+
+  v_code := demander_otp(v_tel_chauffeur); perform verifier_otp(v_tel_chauffeur, v_code);
+  v_code := demander_otp(v_tel_passager); perform verifier_otp(v_tel_passager, v_code);
+
+  select id into v_course_id from creer_course(v_op, v_tel_passager, 'Client', 'D', 'A', v_zone, 33.5883, -7.6114, 33.5885, -7.5719);
+  perform accepter_course(v_course_id, v_chauffeur, v_tel_chauffeur);
+  perform avancer_course(v_course_id, 'en_cours', v_tel_chauffeur);
+  perform avancer_course(v_course_id, 'terminee', v_tel_chauffeur);
+  perform noter_course(v_course_id, v_tel_passager, 5, 'top');
+
+  select string_agg(type || ':' || acteur, ' -> ' order by created_at) into v_sequence
+  from course_events where course_id = v_course_id;
+
+  if v_sequence is distinct from
+    'creee:passager:' || v_tel_passager ||
+    ' -> assignee:chauffeur:' || v_tel_chauffeur ||
+    ' -> en_cours:chauffeur:' || v_tel_chauffeur ||
+    ' -> terminee:chauffeur:' || v_tel_chauffeur ||
+    ' -> notee:passager:' || v_tel_passager
+  then
+    raise exception 'FAIL (course_events): sequence inattendue: %', v_sequence;
+  end if;
+  raise notice 'OK: course_events reconstruit le fil complet avec le bon acteur a chaque etape';
+end $$;
+
+-- P1 : annulation (acteur passager) et expiration automatique (acteur systeme)
+do $$
+declare
+  v_op uuid; v_zone uuid;
+  v_tel text := '0790000011';
+  v_course_annulee uuid;
+  v_course_expiree uuid;
+  v_code text;
+begin
+  v_op := provisionner_operateur('Test Events Annul', 'test-events-annul-' || replace(gen_random_uuid()::text, '-', ''), 'TestVille',
+    '#000000', '#ffffff', '[{"nom":"Zone","tarif_base":10,"tarif_km":2}]'::jsonb, '[]'::jsonb);
+  select id into v_zone from zones_operateur where operateur_id = v_op;
+  v_code := demander_otp(v_tel); perform verifier_otp(v_tel, v_code);
+
+  select id into v_course_annulee from creer_course(v_op, v_tel, null, 'D', 'A', v_zone, 33.5883, -7.6114, 33.5885, -7.5719);
+  perform annuler_course(v_course_annulee, v_tel);
+  if not exists (select 1 from course_events where course_id = v_course_annulee and type = 'annulee' and acteur = 'passager:' || v_tel) then
+    raise exception 'FAIL (course_events): evenement annulee manquant ou mauvais acteur';
+  end if;
+
+  select id into v_course_expiree from creer_course(v_op, v_tel, null, 'D', 'A', v_zone, 33.5883, -7.6114, 33.5885, -7.5719);
+  update courses set created_at = now() - interval '5 minutes' where id = v_course_expiree;
+  perform expirer_courses_en_recherche();
+  if not exists (select 1 from course_events where course_id = v_course_expiree and type = 'sans_chauffeur' and acteur = 'systeme:cron') then
+    raise exception 'FAIL (course_events): evenement sans_chauffeur manquant ou mauvais acteur (cron)';
+  end if;
+  raise notice 'OK: course_events distingue bien acteur passager (annulation) et acteur systeme (expiration cron)';
+end $$;
+
+-- P1 : acces a evenements_course() -- scope par propriete de l'operateur
+create temporary table test_events_ids (course_id uuid) on commit drop;
+grant select on test_events_ids to authenticated;
+
+do $$
+declare
+  v_op uuid; v_zone uuid; v_tel text := '0790000021'; v_course_id uuid; v_code text;
+begin
+  v_op := provisionner_operateur('Test Events Acces', 'test-events-acces-' || replace(gen_random_uuid()::text, '-', ''), 'TestVille',
+    '#000000', '#ffffff', '[{"nom":"Zone","tarif_base":10,"tarif_km":2}]'::jsonb, '[]'::jsonb);
+  select id into v_zone from zones_operateur where operateur_id = v_op;
+  v_code := demander_otp(v_tel); perform verifier_otp(v_tel, v_code);
+  select id into v_course_id from creer_course(v_op, v_tel, null, 'D', 'A', v_zone, 33.5883, -7.6114, 33.5885, -7.5719);
+
+  perform set_config('request.jwt.claims', json_build_object('sub', '4fcafad6-ad79-4277-bfa6-4bcb1be5783e', 'role', 'authenticated')::text, true);
+  perform reclamer_operateur(v_op);
+
+  insert into test_events_ids values (v_course_id);
+end $$;
+
+set role authenticated;
+do $$
+declare
+  v_course_id uuid;
+begin
+  select course_id into v_course_id from test_events_ids;
+
+  perform set_config('request.jwt.claims', json_build_object('sub', '61f268e9-c7af-4b43-b871-9413270c418e', 'role', 'authenticated')::text, true);
+  if exists (select 1 from evenements_course(v_course_id)) then
+    raise exception 'FAIL (evenements_course): non-proprietaire a vu des evenements';
+  end if;
+
+  perform set_config('request.jwt.claims', json_build_object('sub', '4fcafad6-ad79-4277-bfa6-4bcb1be5783e', 'role', 'authenticated')::text, true);
+  if not exists (select 1 from evenements_course(v_course_id)) then
+    raise exception 'FAIL (evenements_course): proprietaire n''a rien vu';
+  end if;
+  raise notice 'OK: evenements_course() scopee par propriete de l''operateur (comme courses_operateur())';
+end $$;
+reset role;
+
 rollback;

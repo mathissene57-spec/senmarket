@@ -6,10 +6,28 @@ import { createClient } from '@/lib/supabase/client'
 
 const Carte = dynamic(() => import('@/components/Carte'), { ssr: false })
 
-// Points illustratifs (centre de Casablanca) — pas encore relies au geocodage
-// reel des adresses tapees par le passager (hors-MVP, voir 01-concept-verrouille.md).
-const POINT_DEPART = { lat: 33.5883, lng: -7.6114 }
-const POINT_ARRIVEE = { lat: 33.5885, lng: -7.5719 }
+// Points de repli tant que l'adresse tapee n'a pas encore ete geocodee
+// (ou si le geocodage echoue) — centre de Casablanca par defaut.
+const POINT_DEPART_DEFAUT = { lat: 33.5883, lng: -7.6114 }
+const POINT_ARRIVEE_DEFAUT = { lat: 33.5885, lng: -7.5719 }
+
+// Geocodage via Nominatim (OpenStreetMap), gratuit et sans cle API — usage
+// limite a ~1 requete/seconde par sa politique d'usage publique, largement
+// suffisant pour un pilote. A remplacer par un fournisseur payant si le
+// volume grossit significativement.
+async function geocoder(adresse: string): Promise<{ lat: number; lng: number } | null> {
+  const requete = adresse.trim()
+  if (requete.length < 3) return null
+  try {
+    const params = new URLSearchParams({ q: `${requete}, Casablanca, Maroc`, format: 'json', limit: '1' })
+    const reponse = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`)
+    const resultats = await reponse.json()
+    if (!Array.isArray(resultats) || resultats.length === 0) return null
+    return { lat: parseFloat(resultats[0].lat), lng: parseFloat(resultats[0].lon) }
+  } catch {
+    return null
+  }
+}
 
 const OPERATEUR_ID = process.env.NEXT_PUBLIC_OPERATEUR_ID!
 
@@ -43,6 +61,9 @@ export default function PassagerPage() {
   const [historique, setHistorique] = useState<Course[]>([])
   const [erreur, setErreur] = useState<string | null>(null)
   const [chargement, setChargement] = useState(false)
+  const [pointDepart, setPointDepart] = useState(POINT_DEPART_DEFAUT)
+  const [pointArrivee, setPointArrivee] = useState(POINT_ARRIVEE_DEFAUT)
+  const [repereEnCours, setRepereEnCours] = useState(false)
   const courseRef = useRef<Course | null>(null)
 
   useEffect(() => {
@@ -56,6 +77,22 @@ export default function PassagerPage() {
   }, [])
 
   useEffect(() => { courseRef.current = course }, [course])
+
+  useEffect(() => {
+    setRepereEnCours(true)
+    const delai = setTimeout(() => {
+      geocoder(depart).then((point) => { if (point) setPointDepart(point) }).finally(() => setRepereEnCours(false))
+    }, 700)
+    return () => clearTimeout(delai)
+  }, [depart])
+
+  useEffect(() => {
+    setRepereEnCours(true)
+    const delai = setTimeout(() => {
+      geocoder(arrivee).then((point) => { if (point) setPointArrivee(point) }).finally(() => setRepereEnCours(false))
+    }, 700)
+    return () => clearTimeout(delai)
+  }, [arrivee])
 
   useEffect(() => {
     if (!course) return
@@ -148,8 +185,9 @@ export default function PassagerPage() {
             </div>
             <div className="screen-body">
               <div className="map-placeholder">
-                <Carte points={[{ ...POINT_DEPART, couleur: primary }, { ...POINT_ARRIVEE, couleur: accent }]} zoom={13} />
+                <Carte points={[{ ...pointDepart, couleur: primary }, { ...pointArrivee, couleur: accent }]} zoom={13} />
               </div>
+              {repereEnCours && <p className="muted" style={{ marginTop: -8, marginBottom: 12 }}>Repérage de l&apos;adresse…</p>}
               <label className="field-label">Point de départ</label>
               <input type="text" value={depart} onChange={(e) => setDepart(e.target.value)} />
               <label className="field-label">Destination</label>
@@ -195,7 +233,7 @@ export default function PassagerPage() {
             <div className="screen-header"><strong>{course.statut === 'assignee' ? 'Le chauffeur arrive' : 'Course en cours'}</strong></div>
             <div className="screen-body">
               <div className="map-placeholder">
-                <Carte points={[{ ...POINT_DEPART, couleur: primary }, { ...POINT_ARRIVEE, couleur: accent }]} zoom={13} />
+                <Carte points={[{ ...pointDepart, couleur: primary }, { ...pointArrivee, couleur: accent }]} zoom={13} />
               </div>
               {chauffeur && (
                 <div className="card card-row">

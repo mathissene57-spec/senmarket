@@ -449,17 +449,154 @@ begin
     else raise; end if;
   end;
 
-  -- Proprietaire reel : reussit, libere le chauffeur
+  -- Proprietaire reel : reussit (le retour de la RPC suffit a verifier l'effet ;
+  -- pas de relecture directe de courses/chauffeurs ici, deliberement : depuis le
+  -- correctif P0.2, "authenticated" n'a plus de policy SELECT sur courses -- la
+  -- verification se fait plus bas hors du role authenticated, comme
+  -- courses_operateur()/chauffeurs_operateur() le font deja en production).
   perform set_config('request.jwt.claims', json_build_object('sub', '4fcafad6-ad79-4277-bfa6-4bcb1be5783e', 'role', 'authenticated')::text, true);
   v_result := operateur_cloturer_course(v_course_id, 'terminee');
   if v_result is not true then raise exception 'FAIL (cloture): proprietaire aurait du reussir'; end if;
+  raise notice 'OK: operateur_cloturer_course accepte la cloture par le proprietaire';
+end $$;
+reset role;
+
+-- Verification de l'effet reel (statut, chauffeur libere), hors du role
+-- authenticated : depuis P0.2, courses n'a plus de policy SELECT pour
+-- authenticated (jamais utilisee en production, cf. courses_operateur()) --
+-- relire ici, avec les privileges par defaut de la session, verifie l'effet
+-- sans dependre d'un acces direct a la table que l'app n'utilise jamais.
+do $$
+declare
+  v_course_id uuid;
+  v_chauffeur_id uuid;
+begin
+  select course_id, chauffeur_id into v_course_id, v_chauffeur_id from test_cloture_ids;
   if not exists (select 1 from courses where id = v_course_id and statut = 'terminee') then
     raise exception 'FAIL (cloture): statut non mis a jour';
   end if;
   if not exists (select 1 from chauffeurs where id = v_chauffeur_id and statut = 'disponible') then
     raise exception 'FAIL (cloture): chauffeur non libere apres cloture';
   end if;
-  raise notice 'OK: operateur_cloturer_course cloture la course et libere le chauffeur pour le proprietaire';
+  raise notice 'OK: operateur_cloturer_course cloture bien la course et libere le chauffeur (effet verifie)';
+end $$;
+
+-- P0.1 (2026-09-02) : accepter_course ne verifiait jamais que le chauffeur
+-- appartient au meme operateur que la course -- confirme exploitable par un
+-- test en direct sur la production (un chauffeur reel a pu accepter une
+-- course d'un autre operateur reel). Corrige par une verification croisee
+-- chauffeurs.operateur_id = courses.operateur_id. Deux operateurs isoles,
+-- chacun avec son chauffeur et sa course, verifient les 4 combinaisons.
+do $$
+declare
+  v_op_a uuid; v_op_b uuid;
+  v_zone_a uuid; v_zone_b uuid;
+  v_chauffeur_a uuid; v_chauffeur_b uuid;
+  v_tel_a text := '0788800001';
+  v_tel_b text := '0788800002';
+  v_course_a uuid; v_course_b uuid;
+  v_code text;
+  v_r boolean;
+begin
+  v_op_a := provisionner_operateur('Test P0.1 A', 'test-p01-a-' || replace(gen_random_uuid()::text, '-', ''), 'TestVille',
+    '#000000', '#ffffff', '[{"nom":"Zone","tarif_base":10,"tarif_km":2}]'::jsonb,
+    format('[{"nom":"Chauffeur A","telephone":"%s"}]', v_tel_a)::jsonb);
+  v_op_b := provisionner_operateur('Test P0.1 B', 'test-p01-b-' || replace(gen_random_uuid()::text, '-', ''), 'TestVille',
+    '#000000', '#ffffff', '[{"nom":"Zone","tarif_base":10,"tarif_km":2}]'::jsonb,
+    format('[{"nom":"Chauffeur B","telephone":"%s"}]', v_tel_b)::jsonb);
+  select id into v_zone_a from zones_operateur where operateur_id = v_op_a;
+  select id into v_zone_b from zones_operateur where operateur_id = v_op_b;
+  select id into v_chauffeur_a from chauffeurs where operateur_id = v_op_a;
+  select id into v_chauffeur_b from chauffeurs where operateur_id = v_op_b;
+
+  v_code := demander_otp(v_tel_a); perform verifier_otp(v_tel_a, v_code);
+  v_code := demander_otp(v_tel_b); perform verifier_otp(v_tel_b, v_code);
+  v_code := demander_otp('0788800011'); perform verifier_otp('0788800011', v_code);
+  v_code := demander_otp('0788800012'); perform verifier_otp('0788800012', v_code);
+
+  select id into v_course_a from creer_course(v_op_a, '0788800011', null, 'D', 'A', v_zone_a, 33.5883, -7.6114, 33.5885, -7.5719);
+  select id into v_course_b from creer_course(v_op_b, '0788800012', null, 'D', 'A', v_zone_b, 33.5883, -7.6114, 33.5885, -7.5719);
+
+  -- Chauffeur A tente la course B : DOIT ECHOUER
+  begin
+    perform accepter_course(v_course_b, v_chauffeur_a, v_tel_a);
+    raise exception 'FAIL test P0.1a: chauffeur A a pu accepter la course de l''operateur B';
+  exception when others then
+    if sqlerrm like '%n''appartient pas%' then raise notice 'OK test P0.1a: chauffeur A -> course B rejete (isolation cross-operateur)';
+    else raise; end if;
+  end;
+
+  -- Chauffeur B tente la course A : DOIT ECHOUER
+  begin
+    perform accepter_course(v_course_a, v_chauffeur_b, v_tel_b);
+    raise exception 'FAIL test P0.1b: chauffeur B a pu accepter la course de l''operateur A';
+  exception when others then
+    if sqlerrm like '%n''appartient pas%' then raise notice 'OK test P0.1b: chauffeur B -> course A rejete (isolation cross-operateur)';
+    else raise; end if;
+  end;
+
+  -- Chacun sa propre course : DOIT FONCTIONNER
+  v_r := accepter_course(v_course_a, v_chauffeur_a, v_tel_a);
+  if v_r is not true then raise exception 'FAIL test P0.1c: chauffeur A n''a pas pu accepter sa propre course'; end if;
+  v_r := accepter_course(v_course_b, v_chauffeur_b, v_tel_b);
+  if v_r is not true then raise exception 'FAIL test P0.1d: chauffeur B n''a pas pu accepter sa propre course'; end if;
+  raise notice 'OK test P0.1c/d: chaque chauffeur accepte correctement sa propre course';
+end $$;
+
+-- P0.2 (2026-09-02) : la policy courses_lecture_recente n'avait aucun filtre
+-- par operateur_id, accordee a anon ET authenticated -- confirme exploitable
+-- en direct (role anon pur lisait toutes les courses de tous les operateurs,
+-- y compris terminees/annulees). Corrigee : reservee a anon (authenticated
+-- n'en a jamais eu besoin, cf. courses_operateur() ci-dessus) et restreinte
+-- aux courses encore actives (en_recherche/assignee/en_cours), necessaires
+-- au dispatch temps reel pour les apps passager/chauffeur qui n'ont jamais
+-- de session Supabase Auth. Limite assumee : une course active reste visible
+-- publiquement (voir rapport d'audit) -- fermeture complete hors perimetre
+-- de ce correctif (necessiterait une identite de session pour chauffeurs/
+-- passagers, changement d'architecture non couvert ici).
+create temporary table test_p02_ids (course_active uuid, course_terminee uuid) on commit drop;
+grant select on test_p02_ids to anon;
+
+do $$
+declare
+  v_op uuid;
+  v_zone uuid;
+  v_passager uuid;
+  v_course_active uuid;
+  v_course_terminee uuid;
+  v_code text;
+begin
+  v_op := provisionner_operateur('Test P0.2', 'test-p02-' || replace(gen_random_uuid()::text, '-', ''), 'TestVille',
+    '#000000', '#ffffff', '[{"nom":"Zone","tarif_base":10,"tarif_km":2}]'::jsonb, '[]'::jsonb);
+  select id into v_zone from zones_operateur where operateur_id = v_op;
+
+  v_code := demander_otp('0788800021'); perform verifier_otp('0788800021', v_code);
+  select id into v_course_active from creer_course(v_op, '0788800021', null, 'D', 'A', v_zone, 33.5883, -7.6114, 33.5885, -7.5719);
+
+  select id into v_passager from passagers where telephone = '0788800021';
+  insert into courses (operateur_id, passager_id, statut, adresse_depart, adresse_arrivee, prix_estime, prix_final)
+    values (v_op, v_passager, 'terminee', 'D', 'A', 30, 30) returning id into v_course_terminee;
+
+  insert into test_p02_ids values (v_course_active, v_course_terminee);
+end $$;
+
+set role anon;
+do $$
+declare
+  v_course_active uuid;
+  v_course_terminee uuid;
+begin
+  select course_active, course_terminee into v_course_active, v_course_terminee from test_p02_ids;
+
+  if not exists (select 1 from courses where id = v_course_active) then
+    raise exception 'FAIL test P0.2a: une course active devrait rester lisible par anon (necessaire au dispatch temps reel, limite assumee)';
+  end if;
+  raise notice 'OK test P0.2a: course active toujours visible par anon (limite assumee, voir audit)';
+
+  if exists (select 1 from courses where id = v_course_terminee) then
+    raise exception 'FAIL test P0.2b: une course terminee ne devrait plus etre lisible par anon';
+  end if;
+  raise notice 'OK test P0.2b: course terminee/historique non lisible par anon (fuite fermee)';
 end $$;
 reset role;
 

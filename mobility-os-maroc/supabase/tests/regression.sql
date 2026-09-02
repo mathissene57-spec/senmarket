@@ -18,6 +18,16 @@
 -- par paliers (3/6/9/12/15 km toutes les 30s) avant d'expirer a 180s
 -- (au lieu d'un rayon fixe et d'un timeout a 90s).
 --
+-- Completee le 2026-09-02 (P0.2 OTP) : creer_course/accepter_course/
+-- avancer_course/annuler_course/noter_course/connexion_chauffeur/
+-- definir_disponibilite_chauffeur/mettre_a_jour_position exigent desormais
+-- une verification OTP recente (est_telephone_verifie(), fenetre de 24h)
+-- pour le telephone fourni, en plus de la correspondance de propriete deja
+-- en place. Tous les numeros de test sont donc OTP-verifies au debut du
+-- script via demander_otp()/verifier_otp() (SMS stubbe : le code est
+-- renvoye en clair par demander_otp() tant qu'aucun fournisseur SMS n'est
+-- branche).
+--
 -- A executer dans le SQL Editor du projet Supabase (hfybtcyhhzgwirtqdqmt),
 -- ou via `psql <connection string> -f regression.sql`. Sortie attendue :
 -- une ligne "OK: ..." par test, puis "TOUS LES TESTS RPC SONT PASSES".
@@ -42,6 +52,7 @@ declare
   v_distance numeric;
   v_prix_proche numeric;
   v_prix_loin numeric;
+  v_code text;
 begin
   -- Provisionnement d'un operateur de test isole (slug unique a chaque run)
   v_operateur_id := provisionner_operateur(
@@ -53,6 +64,18 @@ begin
   select id into v_zone_id from zones_operateur where operateur_id = v_operateur_id;
   select id into v_chauffeur1_id from chauffeurs where operateur_id = v_operateur_id and telephone = v_chauffeur1_tel;
   select id into v_chauffeur2_id from chauffeurs where operateur_id = v_operateur_id and telephone = v_chauffeur2_tel;
+
+  -- OTP (P0.2) : verifie tous les numeros de test utilises plus bas, y
+  -- compris '0000000000' (utilise pour les tests de mauvais telephone :
+  -- une fois verifie, il reste un telephone legitime mais different de
+  -- celui attendu, donc les tests de non-correspondance restent valides).
+  v_code := demander_otp(v_chauffeur1_tel); perform verifier_otp(v_chauffeur1_tel, v_code);
+  v_code := demander_otp(v_chauffeur2_tel); perform verifier_otp(v_chauffeur2_tel, v_code);
+  v_code := demander_otp('0711111111'); perform verifier_otp('0711111111', v_code);
+  v_code := demander_otp('0722222222'); perform verifier_otp('0722222222', v_code);
+  v_code := demander_otp('0733333333'); perform verifier_otp('0733333333', v_code);
+  v_code := demander_otp('0733333344'); perform verifier_otp('0733333344', v_code);
+  v_code := demander_otp('0000000000'); perform verifier_otp('0000000000', v_code);
 
   -- Test 1 : creer_course cree bien une course en_recherche, prix calcule serveur
   select id, prix_estime, distance_km into v_course_id, v_prix, v_distance
@@ -196,6 +219,43 @@ begin
   end if;
   raise notice 'OK test 12: chauffeurs_operateur() bloque sans identite owner valide';
 
+  -- Test 13 : OTP (P0.2) - telephone jamais verifie rejete par une RPC sensible
+  begin
+    perform creer_course(v_operateur_id, '0611119999', null, 'D', 'A', v_zone_id, 33.5883, -7.6114, 33.5885, -7.5719);
+    raise exception 'FAIL test 13a: creer_course aurait du etre rejete sans verification OTP prealable';
+  exception when others then
+    if sqlerrm like 'Numero de telephone non verifie%' then raise notice 'OK test 13a: RPC sensible bloquee sans OTP verifie';
+    else raise; end if;
+  end;
+
+  -- Test 13b : mauvais code rejete, bon code accepte
+  v_code := demander_otp('0611119999');
+  if verifier_otp('0611119999', case when v_code = '000000' then '111111' else '000000' end) is not false then
+    raise exception 'FAIL test 13b: mauvais code OTP aurait du etre rejete';
+  end if;
+  if verifier_otp('0611119999', v_code) is not true then
+    raise exception 'FAIL test 13c: bon code OTP aurait du etre accepte';
+  end if;
+  raise notice 'OK test 13b/13c: verifier_otp rejette un mauvais code et accepte le bon';
+
+  -- Test 13d : une fois verifie, la RPC sensible fonctionne
+  if not exists (select 1 from creer_course(v_operateur_id, '0611119999', null, 'D', 'A', v_zone_id, 33.5883, -7.6114, 33.5885, -7.5719)) then
+    raise exception 'FAIL test 13d: creer_course aurait du reussir apres verification OTP';
+  end if;
+  raise notice 'OK test 13d: RPC sensible fonctionne apres verification OTP';
+
+  -- Test 13e : rate limiting sur demander_otp (max 3 demandes / 10 min / numero)
+  perform demander_otp('0611118888');
+  perform demander_otp('0611118888');
+  perform demander_otp('0611118888');
+  begin
+    perform demander_otp('0611118888');
+    raise exception 'FAIL test 13e: 4e demande consecutive aurait du etre rate-limitee';
+  exception when others then
+    if sqlerrm like 'Trop de demandes%' then raise notice 'OK test 13e: rate limiting demander_otp fonctionne';
+    else raise; end if;
+  end;
+
   raise notice 'TOUS LES TESTS RPC SONT PASSES';
 end $$;
 
@@ -245,6 +305,24 @@ begin
     raise exception 'FAIL (permissions): provisionner_operateur aurait du etre bloque pour anon';
   exception when insufficient_privilege then
     raise notice 'OK: provisionner_operateur bloque pour anon';
+  end;
+
+  -- OTP (P0.2) : la table est verrouillee (RLS active, aucune policy, tout
+  -- revoke) meme pour un admin -- seules les RPC y touchent. demander_otp/
+  -- verifier_otp doivent en revanche rester utilisables par anon : c'est le
+  -- chemin invite (passager/chauffeur non authentifies via Supabase Auth).
+  begin
+    perform 1 from otp_codes limit 1;
+    raise exception 'FAIL (permissions): lecture directe de otp_codes aurait du etre bloquee pour anon';
+  exception when insufficient_privilege then
+    raise notice 'OK: lecture directe de otp_codes bloquee pour anon';
+  end;
+
+  begin
+    perform demander_otp('0600000001');
+    raise notice 'OK: demander_otp() executable par anon (chemin invite)';
+  exception when insufficient_privilege then
+    raise exception 'FAIL (permissions): demander_otp() ne devrait pas etre bloque pour anon';
   end;
 
   raise notice 'TOUS LES TESTS DE PERMISSIONS SONT PASSES';

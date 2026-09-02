@@ -25,6 +25,11 @@ export default function ChauffeurPage() {
   const [historique, setHistorique] = useState<CourseTerminee[]>([])
   const [message, setMessage] = useState<string | null>(null)
   const [positionConnue, setPositionConnue] = useState(false)
+  const [otpEnvoye, setOtpEnvoye] = useState(false)
+  const [otpCode, setOtpCode] = useState('')
+  const [otpCodeDebug, setOtpCodeDebug] = useState<string | null>(null)
+  const [otpEnCours, setOtpEnCours] = useState(false)
+  const [otpErreur, setOtpErreur] = useState<string | null>(null)
   const positionRef = useRef<{ lat: number; lng: number } | null>(null)
   const ecranRef = useRef(ecran)
   // P1.6 : courses deja refusees ou en cours d'evaluation par CE chauffeur —
@@ -116,6 +121,29 @@ export default function ChauffeurPage() {
     chargerHistorique(trouve.id, trouve.telephone)
   }
 
+  // P0.2 : verification OTP reelle avant connexion_chauffeur. SMS stubbe —
+  // aucun fournisseur configure — demander_otp() renvoie le code en clair,
+  // affiche ici dans un bandeau "mode demo" au lieu d'un SMS reel.
+  async function demanderOtp() {
+    setOtpErreur(null)
+    setOtpEnCours(true)
+    const { data, error } = await supabase.rpc('demander_otp', { p_telephone: telephone.replace(/\s/g, '') })
+    setOtpEnCours(false)
+    if (error) { setOtpErreur(error.message); return }
+    setOtpCodeDebug(data as string)
+    setOtpEnvoye(true)
+  }
+
+  async function verifierOtpEtConnecter() {
+    setOtpErreur(null)
+    setOtpEnCours(true)
+    const { data, error } = await supabase.rpc('verifier_otp', { p_telephone: telephone.replace(/\s/g, ''), p_code: otpCode })
+    setOtpEnCours(false)
+    if (error) { setOtpErreur(error.message); return }
+    if (!data) { setOtpErreur('Code incorrect.'); return }
+    seConnecter()
+  }
+
   async function toggleDispo() {
     if (!chauffeur) return
     const nouveauStatut = chauffeur.statut === 'disponible' ? 'indisponible' : 'disponible'
@@ -199,12 +227,34 @@ export default function ChauffeurPage() {
             <p className="muted">Espace réservé aux chauffeurs de la flotte</p>
             <div style={{ marginTop: 24, textAlign: 'left' }}>
               <label className="field-label">Numéro de téléphone</label>
-              <input type="tel" value={telephone} onChange={(e) => setTelephone(e.target.value)} placeholder="0655112233" />
+              <input type="tel" value={telephone} onChange={(e) => setTelephone(e.target.value)} placeholder="0655112233" disabled={otpEnvoye} />
+              {otpEnvoye && (
+                <>
+                  {otpCodeDebug && (
+                    <p className="muted" style={{ background: '#FFF1DE', padding: 10, borderRadius: 8 }}>
+                      Mode démo (SMS non branché) — votre code : <strong>{otpCodeDebug}</strong>
+                    </p>
+                  )}
+                  <label className="field-label">Code reçu par SMS</label>
+                  <input type="text" inputMode="numeric" maxLength={6} value={otpCode} onChange={(e) => setOtpCode(e.target.value)} placeholder="123456" />
+                </>
+              )}
             </div>
-            {erreur && <p className="error-text">{erreur}</p>}
-            <button className="btn" onClick={seConnecter} disabled={chargement || !telephone.trim()}>
-              {chargement ? 'Connexion…' : 'Se connecter'}
-            </button>
+            {(erreur || otpErreur) && <p className="error-text">{erreur || otpErreur}</p>}
+            {!otpEnvoye ? (
+              <button className="btn" onClick={demanderOtp} disabled={!telephone.trim() || otpEnCours}>
+                {otpEnCours ? 'Envoi…' : 'Recevoir un code'}
+              </button>
+            ) : (
+              <>
+                <button className="btn" onClick={verifierOtpEtConnecter} disabled={otpCode.length !== 6 || chargement || otpEnCours}>
+                  {chargement || otpEnCours ? 'Connexion…' : 'Confirmer et se connecter'}
+                </button>
+                <button className="btn ghost" style={{ marginTop: 8 }} onClick={() => { setOtpEnvoye(false); setOtpCode(''); setOtpCodeDebug(null); setOtpErreur(null) }}>
+                  Changer de numéro
+                </button>
+              </>
+            )}
           </div>
         )}
 

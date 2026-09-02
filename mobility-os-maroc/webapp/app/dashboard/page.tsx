@@ -31,6 +31,7 @@ export default function DashboardPage() {
   const [nouvellePlaque, setNouvellePlaque] = useState('')
   const [ajoutEnCours, setAjoutEnCours] = useState(false)
   const [ajoutErreur, setAjoutErreur] = useState<string | null>(null)
+  const [clotureEnCoursId, setClotureEnCoursId] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -78,6 +79,17 @@ export default function DashboardPage() {
     setChauffeurs(ch || [])
     const { data: co } = await supabase.rpc('courses_operateur', { p_operateur_id: operateur.id })
     setCourses(co || [])
+  }
+
+  // Aucun mecanisme ne debloquait une course restee coincee en assignee/
+  // en_cours (chauffeur qui n'a jamais clique "terminer" cote app, appli
+  // fermee, etc.) -- seul le chauffeur pouvait avancer sa propre course.
+  // Cloture manuelle reservee au proprietaire (verifie server-side).
+  async function cloturerCourse(courseId: string, nouveauStatut: 'terminee' | 'annulee') {
+    setClotureEnCoursId(courseId)
+    await supabase.rpc('operateur_cloturer_course', { p_course_id: courseId, p_nouveau_statut: nouveauStatut })
+    setClotureEnCoursId(null)
+    chargerDonnees()
   }
 
   async function ajouterChauffeur() {
@@ -189,13 +201,18 @@ export default function DashboardPage() {
             <h3>Courses en cours</h3>
             <table>
               <tbody>
-                <tr><th>Trajet</th><th>Statut</th><th>Prix</th></tr>
-                {coursesEnCours.length === 0 && <tr><td colSpan={3} className="muted">Aucune course en cours.</td></tr>}
+                <tr><th>Trajet</th><th>Statut</th><th>Prix</th><th></th></tr>
+                {coursesEnCours.length === 0 && <tr><td colSpan={4} className="muted">Aucune course en cours.</td></tr>}
                 {coursesEnCours.map((c) => (
                   <tr key={c.id}>
                     <td>{c.adresse_depart} → {c.adresse_arrivee}</td>
                     <td><span className={`badge ${c.statut === 'en_recherche' ? 'off' : 'warn'}`}>{c.statut}</span></td>
                     <td>{c.prix_estime} DH</td>
+                    <td>
+                      <button className="btn outline" style={{ width: 'auto', padding: '6px 12px', fontSize: 13 }} disabled={clotureEnCoursId === c.id} onClick={() => cloturerCourse(c.id, 'terminee')}>
+                        {clotureEnCoursId === c.id ? '…' : 'Clôturer'}
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -265,13 +282,25 @@ export default function DashboardPage() {
             <h1>Courses</h1>
             <table>
               <tbody>
-                <tr><th>Date</th><th>Trajet</th><th>Statut</th><th>Prix</th></tr>
+                <tr><th>Date</th><th>Trajet</th><th>Statut</th><th>Prix</th><th></th></tr>
                 {courses.map((c) => (
                   <tr key={c.id}>
                     <td>{new Date(c.created_at).toLocaleString('fr-FR')}</td>
                     <td>{c.adresse_depart} → {c.adresse_arrivee}</td>
                     <td><span className={`badge ${c.statut === 'terminee' ? 'ok' : c.statut === 'annulee' || c.statut === 'sans_chauffeur' ? 'danger' : 'warn'}`}>{c.statut}</span></td>
                     <td>{c.prix_final ?? c.prix_estime} DH</td>
+                    <td>
+                      {['en_recherche', 'assignee', 'en_cours'].includes(c.statut) && (
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button className="btn outline" style={{ width: 'auto', padding: '6px 10px', fontSize: 13 }} disabled={clotureEnCoursId === c.id} onClick={() => cloturerCourse(c.id, 'terminee')}>
+                            Terminer
+                          </button>
+                          <button className="btn outline" style={{ width: 'auto', padding: '6px 10px', fontSize: 13 }} disabled={clotureEnCoursId === c.id} onClick={() => cloturerCourse(c.id, 'annulee')}>
+                            Annuler
+                          </button>
+                        </div>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

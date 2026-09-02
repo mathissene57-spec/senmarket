@@ -391,4 +391,76 @@ begin
 end $$;
 reset role;
 
+-- Test : operateur_cloturer_course() -- deblocage manuel d'une course
+-- restee coincee en assignee/en_cours (chauffeur qui n'a jamais clique
+-- "terminer"). Reserve au proprietaire reel de l'operateur (owner_user_id),
+-- libere le chauffeur assigne. set role doit rester un statement de haut
+-- niveau (pas utilisable a l'interieur d'un bloc do $$ ... $$), donc la
+-- preparation et les assertions sous role authenticated sont separees en
+-- deux blocs, avec les identifiants passes via une table temporaire.
+create temporary table test_cloture_ids (course_id uuid, chauffeur_id uuid) on commit drop;
+grant select on test_cloture_ids to authenticated;
+
+do $$
+declare
+  v_operateur_id uuid;
+  v_zone_id uuid;
+  v_chauffeur_id uuid;
+  v_course_id uuid;
+  v_code text;
+begin
+  v_operateur_id := provisionner_operateur(
+    'Test Cloture', 'test-cloture-' || replace(gen_random_uuid()::text, '-', ''), 'TestVille',
+    '#000000', '#ffffff',
+    '[{"nom":"Zone","tarif_base":10,"tarif_km":2}]'::jsonb,
+    '[{"nom":"Chauffeur Test","telephone":"0700099001"}]'::jsonb
+  );
+  select id into v_zone_id from zones_operateur where operateur_id = v_operateur_id;
+  select id into v_chauffeur_id from chauffeurs where operateur_id = v_operateur_id;
+
+  v_code := demander_otp('0711100001'); perform verifier_otp('0711100001', v_code);
+  v_code := demander_otp('0700099001'); perform verifier_otp('0700099001', v_code);
+
+  select id into v_course_id from creer_course(v_operateur_id, '0711100001', null, 'D', 'A', v_zone_id, 33.5883, -7.6114, 33.5885, -7.5719);
+  perform accepter_course(v_course_id, v_chauffeur_id, '0700099001');
+
+  perform set_config('request.jwt.claims', json_build_object('sub', '4fcafad6-ad79-4277-bfa6-4bcb1be5783e', 'role', 'authenticated')::text, true);
+  perform reclamer_operateur(v_operateur_id);
+
+  insert into test_cloture_ids (course_id, chauffeur_id) values (v_course_id, v_chauffeur_id);
+end $$;
+
+set role authenticated;
+do $$
+declare
+  v_course_id uuid;
+  v_chauffeur_id uuid;
+  v_result boolean;
+begin
+  select course_id, chauffeur_id into v_course_id, v_chauffeur_id from test_cloture_ids;
+
+  -- Non-proprietaire (lamzi922) : rejete
+  perform set_config('request.jwt.claims', json_build_object('sub', '61f268e9-c7af-4b43-b871-9413270c418e', 'role', 'authenticated')::text, true);
+  begin
+    perform operateur_cloturer_course(v_course_id, 'terminee');
+    raise exception 'FAIL (cloture): non-proprietaire aurait du etre rejete';
+  exception when others then
+    if sqlerrm like 'Non autorise%' then raise notice 'OK: operateur_cloturer_course rejette un non-proprietaire';
+    else raise; end if;
+  end;
+
+  -- Proprietaire reel : reussit, libere le chauffeur
+  perform set_config('request.jwt.claims', json_build_object('sub', '4fcafad6-ad79-4277-bfa6-4bcb1be5783e', 'role', 'authenticated')::text, true);
+  v_result := operateur_cloturer_course(v_course_id, 'terminee');
+  if v_result is not true then raise exception 'FAIL (cloture): proprietaire aurait du reussir'; end if;
+  if not exists (select 1 from courses where id = v_course_id and statut = 'terminee') then
+    raise exception 'FAIL (cloture): statut non mis a jour';
+  end if;
+  if not exists (select 1 from chauffeurs where id = v_chauffeur_id and statut = 'disponible') then
+    raise exception 'FAIL (cloture): chauffeur non libere apres cloture';
+  end if;
+  raise notice 'OK: operateur_cloturer_course cloture la course et libere le chauffeur pour le proprietaire';
+end $$;
+reset role;
+
 rollback;

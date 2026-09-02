@@ -65,7 +65,7 @@ export default function DashboardPage() {
 
   async function chargerDonnees() {
     if (!operateur) return
-    const { data: ch } = await supabase.from('chauffeurs').select('id,nom,telephone,vehicule,plaque,note_moyenne,statut').eq('operateur_id', operateur.id)
+    const { data: ch } = await supabase.rpc('chauffeurs_operateur', { p_operateur_id: operateur.id })
     setChauffeurs(ch || [])
     const { data: co } = await supabase.rpc('courses_operateur', { p_operateur_id: operateur.id })
     setCourses(co || [])

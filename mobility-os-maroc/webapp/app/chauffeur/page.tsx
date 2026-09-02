@@ -77,7 +77,7 @@ export default function ChauffeurPage() {
 
   async function accepter() {
     if (!demande || !chauffeur) return
-    const { data, error } = await supabase.rpc('accepter_course', { p_course_id: demande.id, p_chauffeur_id: chauffeur.id })
+    const { data, error } = await supabase.rpc('accepter_course', { p_course_id: demande.id, p_chauffeur_id: chauffeur.id, p_telephone: chauffeur.telephone })
     if (error) { setMessage(error.message); return }
     if (!data) {
       setMessage('Cette course a déjà été prise par un autre chauffeur.')
@@ -97,14 +97,14 @@ export default function ChauffeurPage() {
   }
 
   async function jeSuisArrive() {
-    if (!courseActive) return
-    await supabase.rpc('avancer_course', { p_course_id: courseActive.id, p_nouveau_statut: 'en_cours' })
+    if (!courseActive || !chauffeur) return
+    await supabase.rpc('avancer_course', { p_course_id: courseActive.id, p_nouveau_statut: 'en_cours', p_telephone: chauffeur.telephone })
     setEcran('encours')
   }
 
   async function terminerCourse() {
     if (!courseActive || !chauffeur) return
-    await supabase.rpc('avancer_course', { p_course_id: courseActive.id, p_nouveau_statut: 'terminee' })
+    await supabase.rpc('avancer_course', { p_course_id: courseActive.id, p_nouveau_statut: 'terminee', p_telephone: chauffeur.telephone })
     setPrixTermine(courseActive.prix_estime)
     setChauffeur({ ...chauffeur, statut: 'disponible' })
     setEcran('fin')

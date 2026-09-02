@@ -159,7 +159,7 @@ export default function PassagerPage() {
   }
 
   async function annulerCommande() {
-    if (course) await supabase.rpc('annuler_course', { p_course_id: course.id })
+    if (course) await supabase.rpc('annuler_course', { p_course_id: course.id, p_telephone: telephone })
     setCourse(null)
     setEcran('accueil')
   }

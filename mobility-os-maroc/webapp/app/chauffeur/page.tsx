@@ -6,16 +6,6 @@ import { distanceHaversineKm } from '@/lib/geo'
 
 const OPERATEUR_ID = process.env.NEXT_PUBLIC_OPERATEUR_ID!
 
-// Rayon de dispatch (P1.5, premiere version) : un chauffeur ne voit une
-// nouvelle demande que si elle est a moins de RAYON_DISPATCH_KM de sa
-// derniere position connue. Filtrage cote client (pas une garantie RLS) —
-// l'acceptation reste protegee par le verrou atomique de accepter_course
-// quel que soit le nombre de chauffeurs qui voient la demande. Si la
-// position du chauffeur n'est pas encore connue (geolocalisation refusee
-// ou indisponible), on retombe sur le comportement precedent (tout montrer)
-// plutot que de bloquer silencieusement les demandes.
-const RAYON_DISPATCH_KM = 6
-
 type Operateur = { id: string; nom: string; couleur_primaire: string; couleur_secondaire: string }
 type ChauffeurRow = { id: string; nom: string; telephone: string; statut: string }
 type CourseNotif = { id: string; adresse_depart: string; adresse_arrivee: string; prix_estime: number; statut: string; distance_km?: number }
@@ -36,6 +26,13 @@ export default function ChauffeurPage() {
   const [message, setMessage] = useState<string | null>(null)
   const [positionConnue, setPositionConnue] = useState(false)
   const positionRef = useRef<{ lat: number; lng: number } | null>(null)
+  const ecranRef = useRef(ecran)
+  // P1.6 : courses deja refusees ou en cours d'evaluation par CE chauffeur —
+  // ne doivent jamais reapparaitre, meme quand le rayon de recherche
+  // s'elargit avec le temps et que la mise a jour de la course est rediffusee.
+  const ignoreesRef = useRef<Set<string>>(new Set())
+
+  useEffect(() => { ecranRef.current = ecran }, [ecran])
 
   useEffect(() => {
     supabase.from('operateurs').select('id,nom,couleur_primaire,couleur_secondaire').eq('id', OPERATEUR_ID).single()
@@ -69,29 +66,34 @@ export default function ChauffeurPage() {
     return () => navigator.geolocation.clearWatch(watchId)
   }, [chauffeur?.id])
 
+  // P1.6 : ecoute aussi bien la creation que les mises a jour d'une course —
+  // le rayon de recherche s'elargit avec le temps (voir expirer_courses_en_
+  // recherche cote serveur), donc une demande d'abord hors de portee peut
+  // redevenir pertinente sans qu'une nouvelle ligne ne soit inseree.
   useEffect(() => {
     if (!chauffeur) return
     const channel = supabase
       .channel('chauffeur-' + chauffeur.id)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'courses', filter: `operateur_id=eq.${OPERATEUR_ID}` }, (payload) => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'courses', filter: `operateur_id=eq.${OPERATEUR_ID}` }, (payload) => {
         const c = payload.new as any
-        if (c.statut === 'en_recherche') {
-          setChauffeur((prev) => {
-            if (prev && prev.statut === 'disponible') {
-              const position = positionRef.current
-              const depart = c.depart_lat != null && c.depart_lng != null ? { lat: c.depart_lat, lng: c.depart_lng } : null
-              const distance = position && depart ? distanceHaversineKm(position, depart) : null
-              // Position connue et course hors rayon : on l'ignore silencieusement,
-              // un autre chauffeur plus proche la verra. Sans position connue,
-              // on affiche quand meme (comportement precedent, pas de regression
-              // pour un chauffeur qui n'a pas active la geolocalisation).
-              if (distance !== null && distance > RAYON_DISPATCH_KM) return prev
-              setDemande({ id: c.id, adresse_depart: c.adresse_depart, adresse_arrivee: c.adresse_arrivee, prix_estime: c.prix_estime, statut: c.statut, distance_km: distance ?? undefined })
-              setEcran('demande')
-            }
-            return prev
-          })
-        }
+        if (c.statut !== 'en_recherche' || ignoreesRef.current.has(c.id) || ecranRef.current === 'demande') return
+        setChauffeur((prev) => {
+          if (prev && prev.statut === 'disponible') {
+            const position = positionRef.current
+            const depart = c.depart_lat != null && c.depart_lng != null ? { lat: c.depart_lat, lng: c.depart_lng } : null
+            const rayon = Number(c.rayon_recherche_km) || 3
+            const distance = position && depart ? distanceHaversineKm(position, depart) : null
+            // Position connue et course hors du rayon actuel : on l'ignore pour
+            // l'instant, un autre chauffeur plus proche la verra — mais on ne la
+            // marque pas comme definitivement refusee, elle pourra redevenir
+            // visible si le rayon s'elargit encore. Sans position connue, on
+            // affiche quand meme (pas de regression pour un chauffeur sans GPS).
+            if (distance !== null && distance > rayon) return prev
+            setDemande({ id: c.id, adresse_depart: c.adresse_depart, adresse_arrivee: c.adresse_arrivee, prix_estime: c.prix_estime, statut: c.statut, distance_km: distance ?? undefined })
+            setEcran('demande')
+          }
+          return prev
+        })
       })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
@@ -128,6 +130,7 @@ export default function ChauffeurPage() {
     const { data, error } = await supabase.rpc('accepter_course', { p_course_id: demande.id, p_chauffeur_id: chauffeur.id, p_telephone: chauffeur.telephone })
     if (error) { setMessage(error.message); return }
     if (!data) {
+      ignoreesRef.current.add(demande.id)
       setMessage('Cette course a déjà été prise par un autre chauffeur.')
       setDemande(null)
       setEcran('accueil')
@@ -140,6 +143,7 @@ export default function ChauffeurPage() {
   }
 
   function refuser() {
+    if (demande) ignoreesRef.current.add(demande.id)
     setDemande(null)
     setEcran('accueil')
   }

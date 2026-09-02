@@ -13,6 +13,11 @@
 -- passager selon le cas), en attendant l'identite reelle OTP (P0.2).
 -- chauffeurs_operateur() ajoutee (lecture flotte scopee par owner_user_id).
 --
+-- Completee le 2026-09-02 (P1.4/P1.5/P1.6) : mettre_a_jour_position(),
+-- et expirer_courses_en_recherche() elargit maintenant rayon_recherche_km
+-- par paliers (3/6/9/12/15 km toutes les 30s) avant d'expirer a 180s
+-- (au lieu d'un rayon fixe et d'un timeout a 90s).
+--
 -- A executer dans le SQL Editor du projet Supabase (hfybtcyhhzgwirtqdqmt),
 -- ou via `psql <connection string> -f regression.sql`. Sortie attendue :
 -- une ligne "OK: ..." par test, puis "TOUS LES TESTS RPC SONT PASSES".
@@ -153,7 +158,7 @@ begin
   end if;
   raise notice 'OK test 8: historique_passager';
 
-  -- Test 9 : timeout dispatch (P0.4)
+  -- Test 9 : timeout dispatch (P0.4/P1.6) : abandon definitif a 180s
   select id into v_course2_id from creer_course(v_operateur_id, '0733333333', null, 'D', 'A', v_zone_id, 33.5883, -7.6114, 33.5885, -7.5719);
   update courses set created_at = now() - interval '5 minutes' where id = v_course2_id;
   perform expirer_courses_en_recherche();
@@ -162,6 +167,15 @@ begin
     raise exception 'FAIL test 9 (expirer_courses_en_recherche): statut attendu sans_chauffeur, obtenu %', v_statut;
   end if;
   raise notice 'OK test 9: timeout dispatch bascule bien en sans_chauffeur';
+
+  -- Test 9b : le rayon de recherche s'elargit par paliers avant d'expirer
+  select id into v_course2_id from creer_course(v_operateur_id, '0733333344', null, 'D', 'A', v_zone_id, 33.5883, -7.6114, 33.5885, -7.5719);
+  update courses set created_at = now() - interval '35 seconds' where id = v_course2_id;
+  perform expirer_courses_en_recherche();
+  if not exists (select 1 from courses where id = v_course2_id and rayon_recherche_km = 6 and statut = 'en_recherche') then
+    raise exception 'FAIL test 9b (elargissement rayon): rayon attendu 6km apres 35s';
+  end if;
+  raise notice 'OK test 9b: le rayon de recherche s''elargit avec le temps (3km -> 6km apres 30s)';
 
   -- Test 10 : connexion_chauffeur retrouve le bon chauffeur par telephone
   if not exists (select 1 from connexion_chauffeur(v_operateur_id, v_chauffeur1_tel) where id = v_chauffeur1_id) then

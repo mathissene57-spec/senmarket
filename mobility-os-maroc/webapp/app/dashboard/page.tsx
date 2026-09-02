@@ -1,13 +1,16 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
+
+const Carte = dynamic(() => import('@/components/Carte'), { ssr: false })
 
 const OPERATEUR_ID = process.env.NEXT_PUBLIC_OPERATEUR_ID!
 
 type Operateur = { id: string; nom: string; couleur_primaire: string; couleur_secondaire: string; owner_user_id: string | null }
-type ChauffeurRow = { id: string; nom: string; telephone: string; vehicule: string | null; plaque: string | null; note_moyenne: number; statut: string }
-type CourseRow = { id: string; statut: string; adresse_depart: string; adresse_arrivee: string; prix_estime: number; prix_final: number | null; created_at: string; chauffeur_id: string | null }
+type ChauffeurRow = { id: string; nom: string; telephone: string; vehicule: string | null; plaque: string | null; note_moyenne: number; statut: string; position_lat: number | null; position_lng: number | null }
+type CourseRow = { id: string; statut: string; adresse_depart: string; adresse_arrivee: string; prix_estime: number; prix_final: number | null; created_at: string; chauffeur_id: string | null; depart_lat: number | null; depart_lng: number | null }
 
 export default function DashboardPage() {
   const supabase = createClient()
@@ -19,7 +22,7 @@ export default function DashboardPage() {
   const [erreurAuth, setErreurAuth] = useState<string | null>(null)
   const [operateur, setOperateur] = useState<Operateur | null>(null)
   const [messageOperateur, setMessageOperateur] = useState<string | null>(null)
-  const [onglet, setOnglet] = useState<'apercu' | 'chauffeurs' | 'courses'>('apercu')
+  const [onglet, setOnglet] = useState<'apercu' | 'chauffeurs' | 'courses' | 'flotte'>('apercu')
   const [chauffeurs, setChauffeurs] = useState<ChauffeurRow[]>([])
   const [courses, setCourses] = useState<CourseRow[]>([])
 
@@ -120,6 +123,12 @@ export default function DashboardPage() {
   const coursesEnCours = courses.filter((c) => ['en_recherche', 'assignee', 'en_cours'].includes(c.statut))
 
   const primary = operateur.couleur_primaire
+  const accent = operateur.couleur_secondaire
+  const chauffeursAvecPosition = chauffeurs.filter((c) => c.position_lat != null && c.position_lng != null && c.statut !== 'indisponible')
+  const pointsFlotte = [
+    ...chauffeursAvecPosition.map((c) => ({ lat: c.position_lat!, lng: c.position_lng!, couleur: c.statut === 'disponible' ? '#1E8E5A' : accent })),
+    ...coursesEnCours.filter((c) => c.depart_lat != null && c.depart_lng != null).map((c) => ({ lat: c.depart_lat!, lng: c.depart_lng!, couleur: primary })),
+  ]
 
   return (
     <div className="dashboard" style={{ ['--primary' as any]: primary }}>
@@ -127,6 +136,7 @@ export default function DashboardPage() {
         <div className="brand"><span className="brand-mark">{operateur.nom[0]}</span><span className="brand-label">{operateur.nom}</span></div>
         <nav style={{ marginTop: 28 }}>
           <button className={`nav-item${onglet === 'apercu' ? ' active' : ''}`} onClick={() => setOnglet('apercu')}>Vue d&apos;ensemble</button>
+          <button className={`nav-item${onglet === 'flotte' ? ' active' : ''}`} onClick={() => setOnglet('flotte')}>Carte de flotte</button>
           <button className={`nav-item${onglet === 'chauffeurs' ? ' active' : ''}`} onClick={() => setOnglet('chauffeurs')}>Chauffeurs</button>
           <button className={`nav-item${onglet === 'courses' ? ' active' : ''}`} onClick={() => setOnglet('courses')}>Courses</button>
         </nav>
@@ -155,6 +165,27 @@ export default function DashboardPage() {
                 ))}
               </tbody>
             </table>
+          </>
+        )}
+
+        {onglet === 'flotte' && (
+          <>
+            <h1>Carte de flotte</h1>
+            {pointsFlotte.length === 0 ? (
+              <p className="muted">Aucune position connue pour l&apos;instant — les chauffeurs doivent être connectés à l&apos;app et avoir accepté la géolocalisation.</p>
+            ) : (
+              <div className="map-placeholder" style={{ height: 480 }}>
+                <Carte points={pointsFlotte} zoom={12} />
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 20, marginTop: 12 }}>
+              <span className="muted"><span style={{ color: '#1E8E5A' }}>●</span> Chauffeur disponible ({chauffeursAvecPosition.filter((c) => c.statut === 'disponible').length})</span>
+              <span className="muted"><span style={{ color: accent }}>●</span> Chauffeur en course ({chauffeursAvecPosition.filter((c) => c.statut === 'en_course').length})</span>
+              <span className="muted"><span style={{ color: primary }}>●</span> Départ course en attente ({coursesEnCours.filter((c) => c.depart_lat != null).length})</span>
+            </div>
+            <p className="muted" style={{ marginTop: 8 }}>
+              {chauffeurs.length - chauffeursAvecPosition.length > 0 && `${chauffeurs.length - chauffeursAvecPosition.length} chauffeur(s) non affiché(s) (indisponible ou sans position GPS active).`}
+            </p>
           </>
         )}
 

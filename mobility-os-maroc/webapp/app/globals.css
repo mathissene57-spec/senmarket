@@ -64,7 +64,9 @@ button { font-family: inherit; }
     repeating-linear-gradient(45deg, #E3E8F0 0 12px, #DCE3ED 12px 24px);
   position: relative;
   margin-bottom: 16px;
+  overflow: hidden;
 }
+.map-placeholder .leaflet-container { background: transparent; font-family: inherit; }
 
 .brand { display: flex; align-items: center; gap: 8px; }
 .brand-mark {

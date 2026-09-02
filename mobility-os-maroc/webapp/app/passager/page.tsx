@@ -1,7 +1,15 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
+
+const Carte = dynamic(() => import('@/components/Carte'), { ssr: false })
+
+// Points illustratifs (centre de Casablanca) — pas encore relies au geocodage
+// reel des adresses tapees par le passager (hors-MVP, voir 01-concept-verrouille.md).
+const POINT_DEPART = { lat: 33.5883, lng: -7.6114 }
+const POINT_ARRIVEE = { lat: 33.5885, lng: -7.5719 }
 
 const OPERATEUR_ID = process.env.NEXT_PUBLIC_OPERATEUR_ID!
 
@@ -139,7 +147,9 @@ export default function PassagerPage() {
               <span className="badge ok">En ligne</span>
             </div>
             <div className="screen-body">
-              <div className="map-placeholder" />
+              <div className="map-placeholder">
+                <Carte points={[{ ...POINT_DEPART, couleur: primary }, { ...POINT_ARRIVEE, couleur: accent }]} zoom={13} />
+              </div>
               <label className="field-label">Point de départ</label>
               <input type="text" value={depart} onChange={(e) => setDepart(e.target.value)} />
               <label className="field-label">Destination</label>
@@ -184,7 +194,9 @@ export default function PassagerPage() {
           <>
             <div className="screen-header"><strong>{course.statut === 'assignee' ? 'Le chauffeur arrive' : 'Course en cours'}</strong></div>
             <div className="screen-body">
-              <div className="map-placeholder" />
+              <div className="map-placeholder">
+                <Carte points={[{ ...POINT_DEPART, couleur: primary }, { ...POINT_ARRIVEE, couleur: accent }]} zoom={13} />
+              </div>
               {chauffeur && (
                 <div className="card card-row">
                   <div><strong>{chauffeur.nom}</strong><div className="muted">{chauffeur.vehicule} · {chauffeur.plaque}</div></div>

@@ -25,6 +25,12 @@ export default function DashboardPage() {
   const [onglet, setOnglet] = useState<'apercu' | 'chauffeurs' | 'courses' | 'flotte'>('apercu')
   const [chauffeurs, setChauffeurs] = useState<ChauffeurRow[]>([])
   const [courses, setCourses] = useState<CourseRow[]>([])
+  const [nouveauNom, setNouveauNom] = useState('')
+  const [nouveauTelephone, setNouveauTelephone] = useState('')
+  const [nouveauVehicule, setNouveauVehicule] = useState('')
+  const [nouvellePlaque, setNouvellePlaque] = useState('')
+  const [ajoutEnCours, setAjoutEnCours] = useState(false)
+  const [ajoutErreur, setAjoutErreur] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -72,6 +78,25 @@ export default function DashboardPage() {
     setChauffeurs(ch || [])
     const { data: co } = await supabase.rpc('courses_operateur', { p_operateur_id: operateur.id })
     setCourses(co || [])
+  }
+
+  async function ajouterChauffeur() {
+    if (!operateur) return
+    setAjoutErreur(null)
+    if (!nouveauNom.trim() || !nouveauTelephone.trim()) { setAjoutErreur('Nom et téléphone sont requis.'); return }
+    setAjoutEnCours(true)
+    const { error } = await supabase.from('chauffeurs').insert({
+      operateur_id: operateur.id,
+      nom: nouveauNom.trim(),
+      telephone: nouveauTelephone.trim(),
+      vehicule: nouveauVehicule.trim() || null,
+      plaque: nouvellePlaque.trim() || null,
+      statut: 'disponible',
+    })
+    setAjoutEnCours(false)
+    if (error) { setAjoutErreur(error.message); return }
+    setNouveauNom(''); setNouveauTelephone(''); setNouveauVehicule(''); setNouvellePlaque('')
+    chargerDonnees()
   }
 
   async function seConnecter() {
@@ -209,6 +234,22 @@ export default function DashboardPage() {
                 ))}
               </tbody>
             </table>
+
+            <h3 style={{ marginTop: 32 }}>Ajouter un chauffeur</h3>
+            <div className="card" style={{ padding: 20, maxWidth: 420 }}>
+              <label className="field-label">Nom</label>
+              <input type="text" value={nouveauNom} onChange={(e) => setNouveauNom(e.target.value)} />
+              <label className="field-label">Téléphone</label>
+              <input type="tel" value={nouveauTelephone} onChange={(e) => setNouveauTelephone(e.target.value)} placeholder="06..." />
+              <label className="field-label">Véhicule</label>
+              <input type="text" value={nouveauVehicule} onChange={(e) => setNouveauVehicule(e.target.value)} placeholder="Ex : Dacia Logan" />
+              <label className="field-label">Plaque</label>
+              <input type="text" value={nouvellePlaque} onChange={(e) => setNouvellePlaque(e.target.value)} />
+              {ajoutErreur && <p className="error-text">{ajoutErreur}</p>}
+              <button className="btn accent" onClick={ajouterChauffeur} disabled={ajoutEnCours} style={{ marginTop: 12 }}>
+                {ajoutEnCours ? 'Ajout…' : 'Ajouter le chauffeur'}
+              </button>
+            </div>
           </>
         )}
 

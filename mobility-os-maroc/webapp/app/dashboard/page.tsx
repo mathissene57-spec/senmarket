@@ -94,7 +94,14 @@ export default function DashboardPage() {
       statut: 'disponible',
     })
     setAjoutEnCours(false)
-    if (error) { setAjoutErreur(error.message); return }
+    if (error) {
+      if (error.code === '23505') {
+        setAjoutErreur('Ce numéro de téléphone est déjà utilisé par un autre chauffeur de votre flotte.')
+      } else {
+        setAjoutErreur(error.message)
+      }
+      return
+    }
     setNouveauNom(''); setNouveauTelephone(''); setNouveauVehicule(''); setNouvellePlaque('')
     chargerDonnees()
   }

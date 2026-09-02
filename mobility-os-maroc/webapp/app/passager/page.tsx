@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
+import { distanceHaversineKm } from '@/lib/geo'
 
 const Carte = dynamic(() => import('@/components/Carte'), { ssr: false })
 
@@ -27,17 +28,6 @@ async function geocoder(adresse: string): Promise<{ lat: number; lng: number } |
   } catch {
     return null
   }
-}
-
-// Meme formule (haversine) que celle utilisee server-side dans creer_course —
-// sert uniquement a l'affichage de l'estimation avant envoi.
-function distanceHaversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
-  const R = 6371
-  const toRad = (d: number) => (d * Math.PI) / 180
-  const dLat = toRad(b.lat - a.lat)
-  const dLng = toRad(b.lng - a.lng)
-  const s = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2
-  return Math.max(6371 * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s)), 0.3)
 }
 
 const OPERATEUR_ID = process.env.NEXT_PUBLIC_OPERATEUR_ID!

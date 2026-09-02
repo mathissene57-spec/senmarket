@@ -1,13 +1,24 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { distanceHaversineKm } from '@/lib/geo'
 
 const OPERATEUR_ID = process.env.NEXT_PUBLIC_OPERATEUR_ID!
 
+// Rayon de dispatch (P1.5, premiere version) : un chauffeur ne voit une
+// nouvelle demande que si elle est a moins de RAYON_DISPATCH_KM de sa
+// derniere position connue. Filtrage cote client (pas une garantie RLS) —
+// l'acceptation reste protegee par le verrou atomique de accepter_course
+// quel que soit le nombre de chauffeurs qui voient la demande. Si la
+// position du chauffeur n'est pas encore connue (geolocalisation refusee
+// ou indisponible), on retombe sur le comportement precedent (tout montrer)
+// plutot que de bloquer silencieusement les demandes.
+const RAYON_DISPATCH_KM = 6
+
 type Operateur = { id: string; nom: string; couleur_primaire: string; couleur_secondaire: string }
 type ChauffeurRow = { id: string; nom: string; telephone: string; statut: string }
-type CourseNotif = { id: string; adresse_depart: string; adresse_arrivee: string; prix_estime: number; statut: string }
+type CourseNotif = { id: string; adresse_depart: string; adresse_arrivee: string; prix_estime: number; statut: string; distance_km?: number }
 type CourseTerminee = { id: string; adresse_depart: string; adresse_arrivee: string; prix_final: number | null; created_at: string }
 
 export default function ChauffeurPage() {
@@ -23,11 +34,40 @@ export default function ChauffeurPage() {
   const [prixTermine, setPrixTermine] = useState<number | null>(null)
   const [historique, setHistorique] = useState<CourseTerminee[]>([])
   const [message, setMessage] = useState<string | null>(null)
+  const [positionConnue, setPositionConnue] = useState(false)
+  const positionRef = useRef<{ lat: number; lng: number } | null>(null)
 
   useEffect(() => {
     supabase.from('operateurs').select('id,nom,couleur_primaire,couleur_secondaire').eq('id', OPERATEUR_ID).single()
       .then(({ data }) => setOperateur(data))
   }, [])
+
+  // P1.4 : suit la position du chauffeur pendant qu'il est connecte, et la
+  // transmet au serveur au maximum toutes les 15s (pas a chaque evenement
+  // GPS). Si la geolocalisation est refusee ou indisponible, on continue
+  // sans position — le filtrage par proximite ci-dessous retombe alors sur
+  // "tout montrer" plutot que de bloquer silencieusement les demandes.
+  useEffect(() => {
+    if (!chauffeur || typeof navigator === 'undefined' || !navigator.geolocation) return
+    let dernierEnvoi = 0
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const point = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+        positionRef.current = point
+        setPositionConnue(true)
+        const maintenant = Date.now()
+        if (maintenant - dernierEnvoi > 15000) {
+          dernierEnvoi = maintenant
+          supabase.rpc('mettre_a_jour_position', {
+            p_chauffeur_id: chauffeur.id, p_telephone: chauffeur.telephone, p_lat: point.lat, p_lng: point.lng,
+          })
+        }
+      },
+      () => { /* refuse ou indisponible : on continue sans position */ },
+      { enableHighAccuracy: false, maximumAge: 10000, timeout: 10000 }
+    )
+    return () => navigator.geolocation.clearWatch(watchId)
+  }, [chauffeur?.id])
 
   useEffect(() => {
     if (!chauffeur) return
@@ -38,7 +78,15 @@ export default function ChauffeurPage() {
         if (c.statut === 'en_recherche') {
           setChauffeur((prev) => {
             if (prev && prev.statut === 'disponible') {
-              setDemande({ id: c.id, adresse_depart: c.adresse_depart, adresse_arrivee: c.adresse_arrivee, prix_estime: c.prix_estime, statut: c.statut })
+              const position = positionRef.current
+              const depart = c.depart_lat != null && c.depart_lng != null ? { lat: c.depart_lat, lng: c.depart_lng } : null
+              const distance = position && depart ? distanceHaversineKm(position, depart) : null
+              // Position connue et course hors rayon : on l'ignore silencieusement,
+              // un autre chauffeur plus proche la verra. Sans position connue,
+              // on affiche quand meme (comportement precedent, pas de regression
+              // pour un chauffeur qui n'a pas active la geolocalisation).
+              if (distance !== null && distance > RAYON_DISPATCH_KM) return prev
+              setDemande({ id: c.id, adresse_depart: c.adresse_depart, adresse_arrivee: c.adresse_arrivee, prix_estime: c.prix_estime, statut: c.statut, distance_km: distance ?? undefined })
               setEcran('demande')
             }
             return prev
@@ -147,7 +195,7 @@ export default function ChauffeurPage() {
             <div className="screen-header">
               <span className="brand"><span className="brand-mark">{operateur?.nom?.[0] || 'M'}</span><span className="brand-label">{operateur?.nom}</span></span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span className="muted">{chauffeur.statut === 'disponible' ? 'Disponible' : chauffeur.statut === 'en_course' ? 'En course' : 'Indisponible'}</span>
+                <span className="muted">{chauffeur.statut === 'disponible' ? 'Disponible' : chauffeur.statut === 'en_course' ? 'En course' : 'Indisponible'}{positionConnue ? ' · 📍' : ''}</span>
                 <button className={`toggle${chauffeur.statut === 'disponible' ? ' on' : ''}`} onClick={toggleDispo} disabled={chauffeur.statut === 'en_course'} />
               </div>
             </div>
@@ -172,6 +220,7 @@ export default function ChauffeurPage() {
                 <div className="card-row"><span className="muted">Arrivée</span><span>{demande.adresse_arrivee}</span></div>
               </div>
               <div className="card card-row"><span>Vous gagnez</span><span className="price">{demande.prix_estime} DH</span></div>
+              {demande.distance_km != null && <p className="muted">Départ à {demande.distance_km.toFixed(1)} km de vous</p>}
             </div>
             <div className="screen-footer">
               <div className="btn-row">

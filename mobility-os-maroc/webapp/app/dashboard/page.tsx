@@ -67,8 +67,7 @@ export default function DashboardPage() {
     if (!operateur) return
     const { data: ch } = await supabase.from('chauffeurs').select('id,nom,telephone,vehicule,plaque,note_moyenne,statut').eq('operateur_id', operateur.id)
     setChauffeurs(ch || [])
-    const { data: co } = await supabase.from('courses').select('id,statut,adresse_depart,adresse_arrivee,prix_estime,prix_final,created_at,chauffeur_id')
-      .eq('operateur_id', operateur.id).order('created_at', { ascending: false })
+    const { data: co } = await supabase.rpc('courses_operateur', { p_operateur_id: operateur.id })
     setCourses(co || [])
   }
 

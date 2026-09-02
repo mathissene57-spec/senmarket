@@ -52,20 +52,27 @@ export default function ChauffeurPage() {
   async function seConnecter() {
     setErreur(null)
     setChargement(true)
-    const { data, error } = await supabase.from('chauffeurs').select('id,nom,telephone,statut')
-      .eq('operateur_id', OPERATEUR_ID).eq('telephone', telephone.replace(/\s/g, '')).maybeSingle()
+    const { data, error } = await supabase.rpc('connexion_chauffeur', {
+      p_operateur_id: OPERATEUR_ID,
+      p_telephone: telephone.replace(/\s/g, ''),
+    })
     setChargement(false)
-    if (error || !data) { setErreur("Chauffeur non reconnu. Contactez votre opérateur pour être ajouté à la flotte."); return }
-    setChauffeur(data)
+    const trouve = data && data.length > 0 ? data[0] : null
+    if (error || !trouve) { setErreur("Chauffeur non reconnu. Contactez votre opérateur pour être ajouté à la flotte."); return }
+    setChauffeur(trouve)
     setEcran('accueil')
-    chargerHistorique(data.id)
+    chargerHistorique(trouve.id, trouve.telephone)
   }
 
   async function toggleDispo() {
     if (!chauffeur) return
     const nouveauStatut = chauffeur.statut === 'disponible' ? 'indisponible' : 'disponible'
-    const { error } = await supabase.from('chauffeurs').update({ statut: nouveauStatut }).eq('id', chauffeur.id)
-    if (!error) setChauffeur({ ...chauffeur, statut: nouveauStatut })
+    const { data, error } = await supabase.rpc('definir_disponibilite_chauffeur', {
+      p_chauffeur_id: chauffeur.id,
+      p_telephone: chauffeur.telephone,
+      p_statut: nouveauStatut,
+    })
+    if (!error && data) setChauffeur({ ...chauffeur, statut: nouveauStatut })
   }
 
   async function accepter() {
@@ -103,9 +110,8 @@ export default function ChauffeurPage() {
     setEcran('fin')
   }
 
-  async function chargerHistorique(chauffeurId: string) {
-    const { data } = await supabase.from('courses').select('id,adresse_depart,adresse_arrivee,prix_final,created_at')
-      .eq('chauffeur_id', chauffeurId).eq('statut', 'terminee').order('created_at', { ascending: false })
+  async function chargerHistorique(chauffeurId: string, telephoneChauffeur: string) {
+    const { data } = await supabase.rpc('historique_chauffeur', { p_chauffeur_id: chauffeurId, p_telephone: telephoneChauffeur })
     setHistorique(data || [])
   }
 
@@ -209,7 +215,7 @@ export default function ChauffeurPage() {
               <div className="price">{prixTermine} DH</div>
               <p className="muted" style={{ marginTop: 16 }}>Ajouté à vos gains du jour</p>
             </div>
-            <div className="screen-footer"><button className="btn" onClick={() => { setCourseActive(null); chauffeur && chargerHistorique(chauffeur.id); setEcran('accueil') }}>Retour à l&apos;accueil</button></div>
+            <div className="screen-footer"><button className="btn" onClick={() => { setCourseActive(null); chauffeur && chargerHistorique(chauffeur.id, chauffeur.telephone); setEcran('accueil') }}>Retour à l&apos;accueil</button></div>
           </>
         )}
 

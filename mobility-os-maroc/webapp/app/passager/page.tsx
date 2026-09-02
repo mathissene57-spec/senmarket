@@ -29,6 +29,17 @@ async function geocoder(adresse: string): Promise<{ lat: number; lng: number } |
   }
 }
 
+// Meme formule (haversine) que celle utilisee server-side dans creer_course —
+// sert uniquement a l'affichage de l'estimation avant envoi.
+function distanceHaversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const R = 6371
+  const toRad = (d: number) => (d * Math.PI) / 180
+  const dLat = toRad(b.lat - a.lat)
+  const dLng = toRad(b.lng - a.lng)
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2
+  return Math.max(6371 * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s)), 0.3)
+}
+
 const OPERATEUR_ID = process.env.NEXT_PUBLIC_OPERATEUR_ID!
 
 type Operateur = { id: string; nom: string; couleur_primaire: string; couleur_secondaire: string }
@@ -54,7 +65,6 @@ export default function PassagerPage() {
   const [nom, setNom] = useState('')
   const [depart, setDepart] = useState('Position actuelle — Boulevard Zerktouni')
   const [arrivee, setArrivee] = useState('Gare Casa-Voyageurs')
-  const [distanceKm, setDistanceKm] = useState(4.2)
   const [course, setCourse] = useState<Course | null>(null)
   const [chauffeur, setChauffeur] = useState<Chauffeur | null>(null)
   const [note, setNote] = useState(0)
@@ -118,9 +128,15 @@ export default function PassagerPage() {
   }, [course?.id])
 
   const zone = zones.find((z) => z.id === zoneId) || null
-  const prixEstime = zone ? Math.round((Number(zone.tarif_base) + Number(zone.tarif_km) * distanceKm) * 100) / 100 : 0
+  // Estimation affichee avant envoi, a partir des points deja geocodes —
+  // uniquement indicative : le prix qui compte vraiment est celui que le
+  // serveur recalcule dans creer_course a partir des memes coordonnees,
+  // jamais celui envoye par le navigateur (voir audit du 2026-09-02, §9).
+  const distanceEstimeeKm = distanceHaversineKm(pointDepart, pointArrivee)
+  const prixEstime = zone ? Math.round((Number(zone.tarif_base) + Number(zone.tarif_km) * distanceEstimeeKm) * 100) / 100 : 0
 
   async function commander() {
+    if (!zoneId) return
     setErreur(null)
     setChargement(true)
     const { data, error } = await supabase.rpc('creer_course', {
@@ -129,11 +145,16 @@ export default function PassagerPage() {
       p_nom: nom,
       p_adresse_depart: depart,
       p_adresse_arrivee: arrivee,
-      p_prix_estime: prixEstime,
+      p_zone_id: zoneId,
+      p_depart_lat: pointDepart.lat,
+      p_depart_lng: pointDepart.lng,
+      p_arrivee_lat: pointArrivee.lat,
+      p_arrivee_lng: pointArrivee.lng,
     })
     setChargement(false)
-    if (error) { setErreur(error.message); return }
-    setCourse({ id: data as string, statut: 'en_recherche', adresse_depart: depart, adresse_arrivee: arrivee, prix_estime: prixEstime, prix_final: null, chauffeur_id: null })
+    if (error || !data || data.length === 0) { setErreur(error?.message || "Impossible de créer la course."); return }
+    const cree = data[0]
+    setCourse({ id: cree.id, statut: 'en_recherche', adresse_depart: depart, adresse_arrivee: arrivee, prix_estime: cree.prix_estime, prix_final: null, chauffeur_id: null })
     setEcran('recherche')
   }
 
@@ -145,7 +166,7 @@ export default function PassagerPage() {
 
   async function envoyerNote() {
     if (!course) return
-    if (note > 0) await supabase.rpc('noter_course', { p_course_id: course.id, p_note: note })
+    if (note > 0) await supabase.rpc('noter_course', { p_course_id: course.id, p_telephone: telephone, p_note: note })
     await chargerHistorique()
     setEcran('historique')
   }
@@ -202,8 +223,6 @@ export default function PassagerPage() {
                   </select>
                 </>
               )}
-              <label className="field-label">Distance estimée (km)</label>
-              <input type="number" step="0.1" min="0.5" value={distanceKm} onChange={(e) => setDistanceKm(parseFloat(e.target.value) || 0)} />
               {zone && (
                 <div className="card card-row"><span>Prix estimé</span><span className="price">{prixEstime} DH</span></div>
               )}

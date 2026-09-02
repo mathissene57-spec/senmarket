@@ -266,4 +266,51 @@ begin
 end $$;
 reset role;
 
+-- Tests P2.5 (panneau admin plateforme) : anon bloque au niveau du GRANT
+-- (piege des default privileges de ce projet, voir migration
+-- fix_grants_anon_hers_par_defaut), un authenticated non-admin rejete au
+-- niveau applicatif (RAISE EXCEPTION), et l'admin reel qui voit les donnees.
+set role anon;
+do $$
+begin
+  begin
+    perform public.admin_lister_operateurs();
+    raise exception 'FAIL (admin): admin_lister_operateurs() aurait du etre bloque pour anon (GRANT)';
+  exception when insufficient_privilege then
+    raise notice 'OK: admin_lister_operateurs() bloque pour anon';
+  end;
+  begin
+    perform public.admin_stats_globales();
+    raise exception 'FAIL (admin): admin_stats_globales() aurait du etre bloque pour anon (GRANT)';
+  exception when insufficient_privilege then
+    raise notice 'OK: admin_stats_globales() bloque pour anon';
+  end;
+end $$;
+reset role;
+
+set role authenticated;
+do $$
+begin
+  -- Non-admin authentifie (lamzi922@gmail.com) : rejete au niveau applicatif
+  perform set_config('request.jwt.claims', json_build_object('sub', '61f268e9-c7af-4b43-b871-9413270c418e', 'role', 'authenticated')::text, true);
+  begin
+    perform public.admin_lister_operateurs();
+    raise exception 'FAIL (admin): un authenticated non-admin aurait du etre rejete';
+  exception when others then
+    if sqlerrm like 'Accès réservé%' then raise notice 'OK: admin_lister_operateurs() rejette un authenticated non-admin';
+    else raise; end if;
+  end;
+
+  -- Admin reel (mathissene57@gmail.com, seed de la migration) : acces autorise
+  perform set_config('request.jwt.claims', json_build_object('sub', '4fcafad6-ad79-4277-bfa6-4bcb1be5783e', 'role', 'authenticated')::text, true);
+  if not exists (select 1 from public.admin_lister_operateurs()) then
+    raise exception 'FAIL (admin): admin_lister_operateurs() aurait du renvoyer au moins un operateur pour l''admin reel';
+  end if;
+  if not exists (select 1 from public.admin_stats_globales()) then
+    raise exception 'FAIL (admin): admin_stats_globales() aurait du renvoyer une ligne pour l''admin reel';
+  end if;
+  raise notice 'OK: admin_lister_operateurs()/admin_stats_globales() fonctionnent pour l''admin reel';
+end $$;
+reset role;
+
 rollback;

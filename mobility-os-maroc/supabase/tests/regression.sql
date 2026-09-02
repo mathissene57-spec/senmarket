@@ -714,4 +714,57 @@ begin
 end $$;
 reset role;
 
+-- P1 (suite, 2026-09-02) : proposer_course()/refuser_course() -- le seul
+-- morceau du fil d'une course qui n'existait nulle part cote serveur (le
+-- refus etait 100% local a l'app chauffeur). Purement journalisant : aucune
+-- ecriture sur courses/chauffeurs, aucun impact sur le dispatch. Isolation
+-- cross-operateur verifiee comme pour accepter_course().
+do $$
+declare
+  v_op_a uuid; v_op_b uuid;
+  v_zone_a uuid;
+  v_chauffeur_a uuid; v_chauffeur_b uuid;
+  v_tel_a text := '0792200001';
+  v_tel_b text := '0792200002';
+  v_course_a uuid;
+  v_code text;
+  v_seq text;
+begin
+  v_op_a := provisionner_operateur('Test Propose A', 'test-propose-a-' || replace(gen_random_uuid()::text, '-', ''), 'TestVille',
+    '#000000', '#ffffff', '[{"nom":"Zone","tarif_base":10,"tarif_km":2}]'::jsonb,
+    format('[{"nom":"Chauffeur A","telephone":"%s"}]', v_tel_a)::jsonb);
+  v_op_b := provisionner_operateur('Test Propose B', 'test-propose-b-' || replace(gen_random_uuid()::text, '-', ''), 'TestVille',
+    '#000000', '#ffffff', '[{"nom":"Zone","tarif_base":10,"tarif_km":2}]'::jsonb,
+    format('[{"nom":"Chauffeur B","telephone":"%s"}]', v_tel_b)::jsonb);
+  select id into v_zone_a from zones_operateur where operateur_id = v_op_a;
+  select id into v_chauffeur_a from chauffeurs where operateur_id = v_op_a;
+  select id into v_chauffeur_b from chauffeurs where operateur_id = v_op_b;
+
+  v_code := demander_otp(v_tel_a); perform verifier_otp(v_tel_a, v_code);
+  v_code := demander_otp(v_tel_b); perform verifier_otp(v_tel_b, v_code);
+  v_code := demander_otp('0792200011'); perform verifier_otp('0792200011', v_code);
+
+  select id into v_course_a from creer_course(v_op_a, '0792200011', null, 'D', 'A', v_zone_a, 33.5883, -7.6114, 33.5885, -7.5719);
+
+  perform proposer_course(v_course_a, v_chauffeur_a, v_tel_a);
+  perform refuser_course(v_course_a, v_chauffeur_a, v_tel_a);
+
+  begin
+    perform proposer_course(v_course_a, v_chauffeur_b, v_tel_b);
+    raise exception 'FAIL: chauffeur B (operateur different) a pu logger une proposition sur la course de A';
+  exception when others then
+    if sqlerrm not like '%introuvable ou n''appartient pas%' then raise; end if;
+  end;
+
+  select string_agg(type || ':' || acteur, ' -> ' order by created_at) into v_seq
+  from course_events where course_id = v_course_a;
+
+  if v_seq is distinct from
+    'creee:passager:0792200011 -> proposee:chauffeur:' || v_tel_a || ' -> refusee:chauffeur:' || v_tel_a
+  then
+    raise exception 'FAIL (propose/refuse): sequence inattendue: %', v_seq;
+  end if;
+  raise notice 'OK: proposer_course()/refuser_course() journalisent correctement, isolation cross-operateur respectee';
+end $$;
+
 rollback;

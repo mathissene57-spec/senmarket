@@ -118,6 +118,9 @@ export default function ChauffeurPage() {
             if (distance !== null && distance > rayon) return prev
             setDemande({ id: c.id, adresse_depart: c.adresse_depart, adresse_arrivee: c.adresse_arrivee, prix_estime: c.prix_estime, statut: c.statut, distance_km: distance ?? undefined })
             setEcran('demande')
+            // P1 (course_events) : journalise la proposition — n'affecte jamais
+            // le dispatch lui-meme, purement pour l'audit trail.
+            supabase.rpc('proposer_course', { p_course_id: c.id, p_chauffeur_id: prev.id, p_telephone: prev.telephone })
           }
           return prev
         })
@@ -195,7 +198,12 @@ export default function ChauffeurPage() {
   }
 
   function refuser() {
-    if (demande) ignoreesRef.current.add(demande.id)
+    if (demande) {
+      ignoreesRef.current.add(demande.id)
+      // P1 (course_events) : journalise le refus — n'affecte jamais le
+      // dispatch lui-meme, purement pour l'audit trail.
+      if (chauffeur) supabase.rpc('refuser_course', { p_course_id: demande.id, p_chauffeur_id: chauffeur.id, p_telephone: chauffeur.telephone })
+    }
     setDemande(null)
     setEcran('accueil')
   }

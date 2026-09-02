@@ -45,6 +45,27 @@ export default function ChauffeurPage() {
       .then(({ data }) => setOperateur(data))
   }, [OPERATEUR_ID])
 
+  // P0.2 (confort) : le telephone verifie reste valide 24h cote serveur,
+  // mais l'ecran revenait a "connexion" a chaque rechargement faute d'etat
+  // persiste. On retente une connexion silencieuse avec le dernier telephone
+  // connu : si le serveur le considere toujours verifie et reconnu, on saute
+  // directement a l'accueil ; sinon on reste sur l'ecran connexion (deja
+  // pre-rempli), sans afficher d'erreur pour cette tentative automatique.
+  useEffect(() => {
+    if (!OPERATEUR_ID) return
+    const sauvegarde = typeof window !== 'undefined' ? localStorage.getItem('mos_chauffeur_telephone') : null
+    if (!sauvegarde) return
+    setTelephone(sauvegarde)
+    supabase.rpc('connexion_chauffeur', { p_operateur_id: OPERATEUR_ID, p_telephone: sauvegarde }).then(({ data, error }) => {
+      const trouve = data && data.length > 0 ? data[0] : null
+      if (!error && trouve) {
+        setChauffeur(trouve)
+        setEcran('accueil')
+        chargerHistorique(trouve.id, trouve.telephone)
+      }
+    })
+  }, [OPERATEUR_ID])
+
   // P1.4 : suit la position du chauffeur pendant qu'il est connecte, et la
   // transmet au serveur au maximum toutes les 15s (pas a chaque evenement
   // GPS). Si la geolocalisation est refusee ou indisponible, on continue
@@ -116,6 +137,7 @@ export default function ChauffeurPage() {
     setChargement(false)
     const trouve = data && data.length > 0 ? data[0] : null
     if (error || !trouve) { setErreur("Chauffeur non reconnu. Contactez votre opérateur pour être ajouté à la flotte."); return }
+    if (typeof window !== 'undefined') localStorage.setItem('mos_chauffeur_telephone', telephone.replace(/\s/g, ''))
     setChauffeur(trouve)
     setEcran('accueil')
     chargerHistorique(trouve.id, trouve.telephone)

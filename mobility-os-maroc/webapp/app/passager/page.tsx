@@ -71,6 +71,20 @@ export default function PassagerPage() {
   const [otpErreur, setOtpErreur] = useState<string | null>(null)
   const courseRef = useRef<Course | null>(null)
 
+  // P0.2 (confort) : le telephone verifie reste valide 24h cote serveur,
+  // mais l'ecran revenait a "connexion" a chaque rechargement faute d'etat
+  // persiste. On retente une sonde silencieuse (RPC deja existante, lecture
+  // seule) avec le dernier telephone connu : si le serveur le considere
+  // toujours verifie, on saute directement a l'accueil.
+  useEffect(() => {
+    const sauvegarde = typeof window !== 'undefined' ? localStorage.getItem('mos_passager_telephone') : null
+    if (!sauvegarde) return
+    setTelephone(sauvegarde)
+    supabase.rpc('historique_passager', { p_telephone: sauvegarde }).then(({ error }) => {
+      if (!error) setEcran('accueil')
+    })
+  }, [])
+
   useEffect(() => {
     if (!OPERATEUR_ID) return
     supabase.from('operateurs').select('id,nom,couleur_primaire,couleur_secondaire').eq('id', OPERATEUR_ID).single()
@@ -192,6 +206,7 @@ export default function PassagerPage() {
     setOtpEnCours(false)
     if (error) { setOtpErreur(error.message); return }
     if (!data) { setOtpErreur('Code incorrect.'); return }
+    if (typeof window !== 'undefined') localStorage.setItem('mos_passager_telephone', telephone)
     setEcran('accueil')
   }
 

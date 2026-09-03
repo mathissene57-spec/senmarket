@@ -19,6 +19,18 @@ function versWhatsapp(tel: string): string {
   return chiffres.startsWith('0') ? '212' + chiffres.slice(1) : chiffres
 }
 
+// Voir app/passager/page.tsx pour l'explication -- meme risque de texte
+// blanc invisible sur un bouton dont la couleur est choisie par l'operateur.
+function couleurTexteContrastee(hex: string): string {
+  const h = hex.replace('#', '')
+  if (h.length !== 6) return '#FFFFFF'
+  const r = parseInt(h.substring(0, 2), 16)
+  const g = parseInt(h.substring(2, 4), 16)
+  const b = parseInt(h.substring(4, 6), 16)
+  const luminance = (r * 299 + g * 587 + b * 114) / 1000
+  return luminance > 150 ? '#101B3D' : '#FFFFFF'
+}
+
 export default function ChauffeurPage() {
   const supabase = createClient()
   const { operateurId: OPERATEUR_ID, chargement: chargementOperateur, erreur: erreurResolution } = useOperateurId()
@@ -269,7 +281,12 @@ export default function ChauffeurPage() {
 
   const primary = operateur?.couleur_primaire || '#101B3D'
   const accent = operateur?.couleur_secondaire || '#FF7A28'
-  const vars = { ['--primary' as any]: primary, ['--accent' as any]: accent }
+  const vars = {
+    ['--primary' as any]: primary,
+    ['--accent' as any]: accent,
+    ['--primary-text' as any]: couleurTexteContrastee(primary),
+    ['--accent-text' as any]: couleurTexteContrastee(accent),
+  }
 
   if (chargementOperateur) return null
   if (erreurResolution || !OPERATEUR_ID) {

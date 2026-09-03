@@ -53,6 +53,22 @@ function versWhatsapp(tel: string): string {
   return chiffres.startsWith('0') ? '212' + chiffres.slice(1) : chiffres
 }
 
+// Un operateur choisit librement ses couleurs primaire/secondaire (onboarding,
+// puis Parametres du dashboard) -- le texte blanc fixe des boutons devenait
+// invisible des qu'un operateur choisissait une couleur claire (ex: blanc),
+// constate en reel sur l'operateur pilote TransAtlas (couleur_secondaire =
+// #ffffff, bouton "Commander" illisible). Bascule le texte en fonce/clair
+// selon la luminance percue de la couleur de fond.
+function couleurTexteContrastee(hex: string): string {
+  const h = hex.replace('#', '')
+  if (h.length !== 6) return '#FFFFFF'
+  const r = parseInt(h.substring(0, 2), 16)
+  const g = parseInt(h.substring(2, 4), 16)
+  const b = parseInt(h.substring(4, 6), 16)
+  const luminance = (r * 299 + g * 587 + b * 114) / 1000
+  return luminance > 150 ? '#101B3D' : '#FFFFFF'
+}
+
 export default function PassagerPage() {
   const supabase = createClient()
   const { operateurId: OPERATEUR_ID, chargement: chargementOperateur, erreur: erreurResolution } = useOperateurId()
@@ -279,7 +295,12 @@ export default function PassagerPage() {
 
   const primary = operateur?.couleur_primaire || '#101B3D'
   const accent = operateur?.couleur_secondaire || '#FF7A28'
-  const vars = { ['--primary' as any]: primary, ['--accent' as any]: accent }
+  const vars = {
+    ['--primary' as any]: primary,
+    ['--accent' as any]: accent,
+    ['--primary-text' as any]: couleurTexteContrastee(primary),
+    ['--accent-text' as any]: couleurTexteContrastee(accent),
+  }
 
   if (chargementOperateur) return null
   if (erreurResolution || !OPERATEUR_ID) {

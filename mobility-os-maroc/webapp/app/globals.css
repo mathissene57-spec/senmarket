@@ -183,6 +183,8 @@ label.field-label { display: block; color: var(--muted); font-size: 13px; margin
 .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 28px; }
 .kpi-card { background: var(--surface); border: 1px solid #EEE; border-radius: var(--radius); padding: 18px; }
 .kpi-card .value { font-size: 26px; font-weight: 800; color: var(--primary); }
+.stat-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; }
+.stat-row .badge { font-size: 13px; padding: 6px 12px; }
 table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: var(--radius); overflow: hidden; }
 th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid #EEE; font-size: 14px; }
 th { background: #FAFAFA; color: var(--muted); font-weight: 600; }

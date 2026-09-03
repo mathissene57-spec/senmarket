@@ -217,6 +217,31 @@ export default function DashboardPage() {
   const chauffeursActifs = chauffeurs.filter((c) => c.statut !== 'indisponible').length
   const coursesEnCours = courses.filter((c) => ['en_recherche', 'assignee', 'en_cours'].includes(c.statut))
 
+  // Control center (Phase 2B chantier 4) : les etats vivants (en_recherche/
+  // assignee/en_cours/bloquee) portent sur TOUTES les courses, jamais filtres
+  // par jour (une course encore active depuis hier reste une course active) ;
+  // les issues finales (terminee/annulee/sans_chauffeur) sont scopees a
+  // aujourd'hui, comme les KPI deja existants juste au-dessus.
+  const nbEnRecherche = courses.filter((c) => c.statut === 'en_recherche').length
+  const nbAssignees = courses.filter((c) => c.statut === 'assignee').length
+  const nbEnCoursStatut = courses.filter((c) => c.statut === 'en_cours').length
+  const nbBloquees = courses.filter((c) => c.bloquee).length
+  const nbTermineesJour = coursesAujourdhui.filter((c) => c.statut === 'terminee').length
+  const nbAnnuleesJour = coursesAujourdhui.filter((c) => c.statut === 'annulee').length
+  const nbSansChauffeurJour = coursesAujourdhui.filter((c) => c.statut === 'sans_chauffeur').length
+
+  const nbDisponibles = chauffeurs.filter((c) => c.statut === 'disponible').length
+  const nbEnCourseChauffeurs = chauffeurs.filter((c) => c.statut === 'en_course').length
+  const nbIndisponibles = chauffeurs.filter((c) => c.statut === 'indisponible').length
+  const nbPositionAJour = chauffeurs.filter((c) => c.position_recente).length
+  const nbPositionObsolete = chauffeurs.filter((c) => c.position_lat != null && !c.position_recente).length
+
+  function nomChauffeur(id: string | null): string {
+    if (!id) return '—'
+    const c = chauffeurs.find((ch) => ch.id === id)
+    return c ? c.nom : '—'
+  }
+
   const primary = operateur.couleur_primaire
   const accent = operateur.couleur_secondaire
   const chauffeursAvecPosition = chauffeurs.filter((c) => c.position_lat != null && c.position_lng != null && c.statut !== 'indisponible')
@@ -251,14 +276,36 @@ export default function DashboardPage() {
               <div className="kpi-card"><div className="muted">Chiffre d&apos;affaires (jour)</div><div className="value">{caJour} DH</div></div>
               <div className="kpi-card"><div className="muted">Chauffeurs actifs</div><div className="value">{chauffeursActifs} / {chauffeurs.length}</div></div>
             </div>
+
+            <h3>État des courses</h3>
+            <div className="stat-row">
+              <span className="badge off">En recherche · {nbEnRecherche}</span>
+              <span className="badge warn">Assignées · {nbAssignees}</span>
+              <span className="badge warn">En cours · {nbEnCoursStatut}</span>
+              <span className="badge danger">Bloquées · {nbBloquees}</span>
+              <span className="badge ok">Terminées (jour) · {nbTermineesJour}</span>
+              <span className="badge off">Annulées (jour) · {nbAnnuleesJour}</span>
+              <span className="badge danger">Sans chauffeur (jour) · {nbSansChauffeurJour}</span>
+            </div>
+
+            <h3>Disponibilité des chauffeurs</h3>
+            <div className="stat-row">
+              <span className="badge ok">Disponibles · {nbDisponibles}</span>
+              <span className="badge warn">En course · {nbEnCourseChauffeurs}</span>
+              <span className="badge off">Indisponibles · {nbIndisponibles}</span>
+              <span className="badge ok">Position à jour · {nbPositionAJour}</span>
+              <span className="badge warn">Position obsolète · {nbPositionObsolete}</span>
+            </div>
+
             <h3>Courses en cours</h3>
             <table>
               <tbody>
-                <tr><th>Trajet</th><th>Statut</th><th>Prix</th><th></th></tr>
-                {coursesEnCours.length === 0 && <tr><td colSpan={4} className="muted">Aucune course en cours.</td></tr>}
+                <tr><th>Trajet</th><th>Chauffeur</th><th>Statut</th><th>Prix</th><th></th></tr>
+                {coursesEnCours.length === 0 && <tr><td colSpan={5} className="muted">Aucune course en cours.</td></tr>}
                 {coursesEnCours.map((c) => (
                   <tr key={c.id}>
                     <td>{c.adresse_depart} → {c.adresse_arrivee} {c.bloquee && <span className="badge danger" title="Assignée depuis plus de 20 min sans progression">⚠️ bloquée</span>}</td>
+                    <td>{nomChauffeur(c.chauffeur_id)}</td>
                     <td><span className={`badge ${c.statut === 'en_recherche' ? 'off' : 'warn'}`}>{c.statut}</span></td>
                     <td>{c.prix_estime} DH</td>
                     <td>
@@ -345,11 +392,12 @@ export default function DashboardPage() {
             <h1>Courses</h1>
             <table>
               <tbody>
-                <tr><th>Date</th><th>Trajet</th><th>Statut</th><th>Prix</th><th></th></tr>
+                <tr><th>Date</th><th>Trajet</th><th>Chauffeur</th><th>Statut</th><th>Prix</th><th></th></tr>
                 {courses.map((c) => (
                   <tr key={c.id}>
                     <td>{new Date(c.created_at).toLocaleString('fr-FR')}</td>
                     <td>{c.adresse_depart} → {c.adresse_arrivee} {c.bloquee && <span className="badge danger" title="Assignée depuis plus de 20 min sans progression">⚠️ bloquée</span>}</td>
+                    <td>{nomChauffeur(c.chauffeur_id)}</td>
                     <td><span className={`badge ${c.statut === 'terminee' ? 'ok' : c.statut === 'annulee' || c.statut === 'sans_chauffeur' ? 'danger' : 'warn'}`}>{c.statut}</span></td>
                     <td>{c.prix_final ?? c.prix_estime} DH</td>
                     <td>

@@ -10,6 +10,36 @@ const Carte = dynamic(() => import('@/components/Carte'), { ssr: false })
 type Operateur = { id: string; nom: string; couleur_primaire: string; couleur_secondaire: string; owner_user_id: string | null }
 type ChauffeurRow = { id: string; nom: string; telephone: string; vehicule: string | null; plaque: string | null; note_moyenne: number; statut: string; position_lat: number | null; position_lng: number | null; position_recente: boolean }
 type CourseRow = { id: string; statut: string; adresse_depart: string; adresse_arrivee: string; prix_estime: number; prix_final: number | null; created_at: string; chauffeur_id: string | null; depart_lat: number | null; depart_lng: number | null; bloquee: boolean }
+type CourseEvent = { id: string; type: string; chauffeur_id: string | null; acteur: string | null; details: Record<string, any> | null; created_at: string }
+
+const LIBELLES_EVENEMENT: Record<string, string> = {
+  creee: 'Course créée',
+  proposee: 'Proposée à un chauffeur',
+  refusee: 'Refusée par le chauffeur',
+  assignee: 'Chauffeur assigné',
+  en_cours: 'Course démarrée',
+  terminee: 'Course terminée',
+  annulee: 'Annulée',
+  sans_chauffeur: 'Expirée sans chauffeur',
+  notee: 'Notée',
+}
+
+function libelleEvenement(ev: CourseEvent): string {
+  const base = LIBELLES_EVENEMENT[ev.type] || ev.type
+  if (ev.type === 'notee' && ev.details?.note != null) return `${base} (${ev.details.note}★)`
+  if (ev.type === 'creee' && ev.details?.prix_estime != null) return `${base} (estimé ${ev.details.prix_estime} DH)`
+  return base
+}
+
+function acteurAffiche(acteur: string | null): { label: string; systeme: boolean } {
+  if (!acteur) return { label: 'Inconnu', systeme: false }
+  const [role, valeur] = acteur.split(':')
+  if (role === 'systeme') return { label: 'Système (automatique)', systeme: true }
+  if (role === 'chauffeur') return { label: `Chauffeur · ${valeur}`, systeme: false }
+  if (role === 'passager') return { label: `Passager · ${valeur}`, systeme: false }
+  if (role === 'operateur') return { label: 'Clôturée manuellement (vous)', systeme: false }
+  return { label: acteur, systeme: false }
+}
 
 export default function DashboardPage() {
   const supabase = createClient()
@@ -32,6 +62,9 @@ export default function DashboardPage() {
   const [ajoutEnCours, setAjoutEnCours] = useState(false)
   const [ajoutErreur, setAjoutErreur] = useState<string | null>(null)
   const [clotureEnCoursId, setClotureEnCoursId] = useState<string | null>(null)
+  const [timelineCourse, setTimelineCourse] = useState<CourseRow | null>(null)
+  const [timelineEvenements, setTimelineEvenements] = useState<CourseEvent[]>([])
+  const [timelineChargement, setTimelineChargement] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -90,6 +123,21 @@ export default function DashboardPage() {
     await supabase.rpc('operateur_cloturer_course', { p_course_id: courseId, p_nouveau_statut: nouveauStatut })
     setClotureEnCoursId(null)
     chargerDonnees()
+  }
+
+  // Course Timeline (Phase 2A/2B) : reconstruit le fil complet d'une course
+  // (creation, propositions/refus, transitions, notation) via evenements_course(),
+  // deja livree en P1 mais jamais affichee cote UI jusqu'ici.
+  async function ouvrirTimeline(course: CourseRow) {
+    setTimelineCourse(course)
+    setTimelineChargement(true)
+    const { data } = await supabase.rpc('evenements_course', { p_course_id: course.id })
+    setTimelineEvenements(data || [])
+    setTimelineChargement(false)
+  }
+  function fermerTimeline() {
+    setTimelineCourse(null)
+    setTimelineEvenements([])
   }
 
   async function ajouterChauffeur() {
@@ -305,16 +353,21 @@ export default function DashboardPage() {
                     <td><span className={`badge ${c.statut === 'terminee' ? 'ok' : c.statut === 'annulee' || c.statut === 'sans_chauffeur' ? 'danger' : 'warn'}`}>{c.statut}</span></td>
                     <td>{c.prix_final ?? c.prix_estime} DH</td>
                     <td>
-                      {['en_recherche', 'assignee', 'en_cours'].includes(c.statut) && (
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <button className="btn outline" style={{ width: 'auto', padding: '6px 10px', fontSize: 13 }} disabled={clotureEnCoursId === c.id} onClick={() => cloturerCourse(c.id, 'terminee')}>
-                            Terminer
-                          </button>
-                          <button className="btn outline" style={{ width: 'auto', padding: '6px 10px', fontSize: 13 }} disabled={clotureEnCoursId === c.id} onClick={() => cloturerCourse(c.id, 'annulee')}>
-                            Annuler
-                          </button>
-                        </div>
-                      )}
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button className="btn outline" style={{ width: 'auto', padding: '6px 10px', fontSize: 13 }} onClick={() => ouvrirTimeline(c)}>
+                          🕐 Historique
+                        </button>
+                        {['en_recherche', 'assignee', 'en_cours'].includes(c.statut) && (
+                          <>
+                            <button className="btn outline" style={{ width: 'auto', padding: '6px 10px', fontSize: 13 }} disabled={clotureEnCoursId === c.id} onClick={() => cloturerCourse(c.id, 'terminee')}>
+                              Terminer
+                            </button>
+                            <button className="btn outline" style={{ width: 'auto', padding: '6px 10px', fontSize: 13 }} disabled={clotureEnCoursId === c.id} onClick={() => cloturerCourse(c.id, 'annulee')}>
+                              Annuler
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -323,6 +376,34 @@ export default function DashboardPage() {
           </>
         )}
       </div>
+
+      {timelineCourse && (
+        <div className="modal-overlay" onClick={fermerTimeline}>
+          <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={fermerTimeline} aria-label="Fermer">×</button>
+            <h3>Historique de la course</h3>
+            <p className="muted">{timelineCourse.adresse_depart} → {timelineCourse.adresse_arrivee}</p>
+            {timelineChargement && <p className="muted">Chargement…</p>}
+            {!timelineChargement && timelineEvenements.length === 0 && (
+              <p className="muted">Aucun événement enregistré pour cette course.</p>
+            )}
+            {!timelineChargement && timelineEvenements.length > 0 && (
+              <ul className="timeline">
+                {timelineEvenements.map((ev) => {
+                  const acteur = acteurAffiche(ev.acteur)
+                  return (
+                    <li key={ev.id} className={`timeline-item${acteur.systeme ? ' systeme' : ''}`}>
+                      <div className="timeline-time">{new Date(ev.created_at).toLocaleString('fr-FR')}</div>
+                      <div className="timeline-label">{libelleEvenement(ev)}</div>
+                      <div className="timeline-acteur">{acteur.label}</div>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -45,6 +45,7 @@ type Course = {
 type Chauffeur = { id: string; nom: string; vehicule: string | null; plaque: string | null; note_moyenne: number; nb_courses: number }
 type Contact = { nom: string; telephone: string }
 type Avis = { note: number; commentaire: string | null; created_at: string }
+type Message = { id: string; expediteur: 'passager' | 'chauffeur'; contenu: string; created_at: string }
 
 // Confiance passager (demande produit) : au-dela de la simple moyenne, un
 // badge textuel resume d'un coup d'oeil le niveau de confiance -- absent
@@ -56,14 +57,6 @@ function badgeConfiance(chauffeur: Chauffeur): { label: string; classe: string }
   if (chauffeur.note_moyenne >= 4) return { label: '✓ Chauffeur fiable', classe: 'ok' }
   if (chauffeur.note_moyenne < 3) return { label: 'Note en baisse', classe: 'warn' }
   return null
-}
-
-// Convertit un numero local marocain (ex: "0655112233") au format
-// international attendu par wa.me (ex: "212655112233") -- wa.me exige les
-// chiffres seuls, sans "+" ni "0" initial.
-function versWhatsapp(tel: string): string {
-  const chiffres = tel.replace(/\D/g, '')
-  return chiffres.startsWith('0') ? '212' + chiffres.slice(1) : chiffres
 }
 
 // Un operateur choisit librement ses couleurs primaire/secondaire (onboarding,
@@ -88,7 +81,7 @@ export default function PassagerPage() {
   const [operateur, setOperateur] = useState<Operateur | null>(null)
   const [zones, setZones] = useState<Zone[]>([])
   const [zoneId, setZoneId] = useState<string>('')
-  const [ecran, setEcran] = useState<'connexion' | 'accueil' | 'recherche' | 'course' | 'fin' | 'historique' | 'sans_chauffeur' | 'avis'>('connexion')
+  const [ecran, setEcran] = useState<'connexion' | 'accueil' | 'recherche' | 'course' | 'fin' | 'historique' | 'sans_chauffeur' | 'avis' | 'messages'>('connexion')
   const [telephone, setTelephone] = useState('06 61 22 33 44')
   const [nom, setNom] = useState('')
   const [depart, setDepart] = useState('Position actuelle — Boulevard Zerktouni')
@@ -101,6 +94,10 @@ export default function PassagerPage() {
   const [avisListe, setAvisListe] = useState<Avis[]>([])
   const [avisChargement, setAvisChargement] = useState(false)
   const [ecranPrecedent, setEcranPrecedent] = useState<'course' | 'fin'>('course')
+  const [messages, setMessages] = useState<Message[]>([])
+  const [messagesVues, setMessagesVues] = useState(0)
+  const [messageTexte, setMessageTexte] = useState('')
+  const [envoiMessageEnCours, setEnvoiMessageEnCours] = useState(false)
   const [historique, setHistorique] = useState<Course[]>([])
   const [erreur, setErreur] = useState<string | null>(null)
   const [chargement, setChargement] = useState(false)
@@ -234,6 +231,43 @@ export default function PassagerPage() {
     }
   }, [course?.id])
 
+  // Messagerie interne (demande produit : ne pas dependre du numero
+  // WhatsApp du passager/chauffeur, qui ne correspond pas forcement au
+  // numero utilise pour s'inscrire). Aucun acces direct a la table cote
+  // Supabase (RLS deny-all) -- tout passe par ces deux RPC, donc pas de
+  // canal Realtime possible ici : sondage periodique, meme pattern que
+  // le suivi de statut de la course ci-dessus.
+  function chargerMessages(courseId: string) {
+    supabase.rpc('messages_course', { p_course_id: courseId, p_telephone: telephone })
+      .then(({ data }) => { if (data) setMessages(data) })
+  }
+
+  useEffect(() => {
+    if (!course || (ecran !== 'course' && ecran !== 'messages')) return
+    chargerMessages(course.id)
+    const intervalle = setInterval(() => chargerMessages(course.id), 4000)
+    return () => clearInterval(intervalle)
+  }, [course?.id, ecran])
+
+  // La messagerie n'a pas son propre visibilitychange -- elle ne tourne
+  // que pendant que l'ecran course/messages est deja affiche, et le
+  // rattrapage de course ci-dessus (qui appelle reverifierCourse) suffit
+  // a reactiver ce useEffect en le laissant simplement continuer son cours
+  // des que l'onglet redevient visible.
+  useEffect(() => {
+    if (ecran === 'messages') setMessagesVues(messages.length)
+  }, [messages, ecran])
+
+  async function envoyerMessage() {
+    if (!course || !messageTexte.trim() || envoiMessageEnCours) return
+    const texte = messageTexte.trim()
+    setMessageTexte('')
+    setEnvoiMessageEnCours(true)
+    await supabase.rpc('envoyer_message_course', { p_course_id: course.id, p_telephone: telephone, p_contenu: texte })
+    chargerMessages(course.id)
+    setEnvoiMessageEnCours(false)
+  }
+
   const zone = zones.find((z) => z.id === zoneId) || null
   // Estimation affichee avant envoi, a partir des points deja geocodes —
   // uniquement indicative : le prix qui compte vraiment est celui que le
@@ -263,6 +297,8 @@ export default function PassagerPage() {
     const cree = data[0]
     setChauffeur(null)
     setContactChauffeur(null)
+    setMessages([])
+    setMessagesVues(0)
     setCourse({ id: cree.id, statut: 'en_recherche', adresse_depart: depart, adresse_arrivee: arrivee, prix_estime: cree.prix_estime, prix_final: null, chauffeur_id: null })
     setEcran('recherche')
   }
@@ -471,16 +507,21 @@ export default function PassagerPage() {
                   </div>
                 </div>
               )}
-              {contactChauffeur && (
-                <div className="btn-row" style={{ marginBottom: 12 }}>
+              <div className="btn-row" style={{ marginBottom: 12 }}>
+                <button className="btn accent" style={{ position: 'relative' }} onClick={() => setEcran('messages')}>
+                  💬 Message
+                  {messages.length > messagesVues && (
+                    <span style={{ position: 'absolute', top: -6, right: -6, background: 'var(--danger)', color: '#fff', borderRadius: 999, width: 18, height: 18, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {messages.length - messagesVues}
+                    </span>
+                  )}
+                </button>
+                {contactChauffeur && (
                   <a className="btn outline" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }} href={`tel:${contactChauffeur.telephone}`}>
                     📞 Appeler
                   </a>
-                  <a className="btn accent" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }} href={`https://wa.me/${versWhatsapp(contactChauffeur.telephone)}`} target="_blank" rel="noopener">
-                    WhatsApp
-                  </a>
-                </div>
-              )}
+                )}
+              </div>
               <div className="card"><div className="muted">Trajet</div><strong>{course.adresse_depart} → {course.adresse_arrivee}</strong></div>
             </div>
           </>
@@ -557,6 +598,51 @@ export default function PassagerPage() {
                   <div className="muted" style={{ fontSize: 12 }}>{new Date(a.created_at).toLocaleDateString('fr-FR')}</div>
                 </div>
               ))}
+            </div>
+          </>
+        )}
+
+        {ecran === 'messages' && course && (
+          <>
+            <div className="screen-header">
+              <strong>{chauffeur?.nom || 'Chauffeur'}</strong>
+              <button className="btn ghost" onClick={() => setEcran('course')}>Retour</button>
+            </div>
+            <div className="screen-body" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {messages.length === 0 && <p className="muted center">Aucun message pour l&apos;instant. Écrivez à votre chauffeur ci-dessous.</p>}
+              {messages.map((m) => (
+                <div
+                  key={m.id}
+                  style={{
+                    alignSelf: m.expediteur === 'passager' ? 'flex-end' : 'flex-start',
+                    maxWidth: '80%',
+                    background: m.expediteur === 'passager' ? 'var(--primary)' : '#F0F0F0',
+                    color: m.expediteur === 'passager' ? 'var(--primary-text, #fff)' : 'var(--text)',
+                    borderRadius: 14,
+                    padding: '8px 12px',
+                  }}
+                >
+                  <div style={{ fontSize: 14 }}>{m.contenu}</div>
+                  <div style={{ fontSize: 10, opacity: 0.7, marginTop: 2 }}>
+                    {new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="screen-footer">
+              <div className="btn-row">
+                <input
+                  type="text"
+                  value={messageTexte}
+                  onChange={(e) => setMessageTexte(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') envoyerMessage() }}
+                  placeholder="Votre message…"
+                  style={{ marginBottom: 0, flex: 1 }}
+                />
+                <button className="btn accent" style={{ width: 'auto', padding: '0 20px' }} onClick={envoyerMessage} disabled={!messageTexte.trim() || envoiMessageEnCours}>
+                  Envoyer
+                </button>
+              </div>
             </div>
           </>
         )}

@@ -10,14 +10,7 @@ type ChauffeurRow = { id: string; nom: string; telephone: string; statut: string
 type CourseNotif = { id: string; adresse_depart: string; adresse_arrivee: string; prix_estime: number; statut: string; distance_km?: number }
 type CourseTerminee = { id: string; adresse_depart: string; adresse_arrivee: string; prix_final: number | null; created_at: string }
 type Contact = { nom: string; telephone: string }
-
-// Convertit un numero local marocain (ex: "0655112233") au format
-// international attendu par wa.me (ex: "212655112233") -- wa.me exige les
-// chiffres seuls, sans "+" ni "0" initial.
-function versWhatsapp(tel: string): string {
-  const chiffres = tel.replace(/\D/g, '')
-  return chiffres.startsWith('0') ? '212' + chiffres.slice(1) : chiffres
-}
+type Message = { id: string; expediteur: 'passager' | 'chauffeur'; contenu: string; created_at: string }
 
 // Voir app/passager/page.tsx pour l'explication -- meme risque de texte
 // blanc invisible sur un bouton dont la couleur est choisie par l'operateur.
@@ -35,7 +28,7 @@ export default function ChauffeurPage() {
   const supabase = createClient()
   const { operateurId: OPERATEUR_ID, chargement: chargementOperateur, erreur: erreurResolution } = useOperateurId()
   const [operateur, setOperateur] = useState<Operateur | null>(null)
-  const [ecran, setEcran] = useState<'connexion' | 'accueil' | 'demande' | 'navigation' | 'encours' | 'fin' | 'historique'>('connexion')
+  const [ecran, setEcran] = useState<'connexion' | 'accueil' | 'demande' | 'navigation' | 'encours' | 'fin' | 'historique' | 'messages'>('connexion')
   const [telephone, setTelephone] = useState('')
   const [chauffeur, setChauffeur] = useState<ChauffeurRow | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
@@ -52,6 +45,11 @@ export default function ChauffeurPage() {
   const [otpCodeDebug, setOtpCodeDebug] = useState<string | null>(null)
   const [otpEnCours, setOtpEnCours] = useState(false)
   const [otpErreur, setOtpErreur] = useState<string | null>(null)
+  const [ecranAvantMessages, setEcranAvantMessages] = useState<'navigation' | 'encours'>('navigation')
+  const [messages, setMessages] = useState<Message[]>([])
+  const [messagesVues, setMessagesVues] = useState(0)
+  const [messageTexte, setMessageTexte] = useState('')
+  const [envoiMessageEnCours, setEnvoiMessageEnCours] = useState(false)
   const positionRef = useRef<{ lat: number; lng: number } | null>(null)
   const ecranRef = useRef(ecran)
   // P1.6 : courses deja refusees ou en cours d'evaluation par CE chauffeur —
@@ -202,6 +200,33 @@ export default function ChauffeurPage() {
     if (!error && data) setChauffeur({ ...chauffeur, statut: nouveauStatut })
   }
 
+  function chargerMessages(courseId: string) {
+    if (!chauffeur) return
+    supabase.rpc('messages_course', { p_course_id: courseId, p_telephone: chauffeur.telephone })
+      .then(({ data }) => { if (data) setMessages(data) })
+  }
+
+  useEffect(() => {
+    if (!courseActive || (ecran !== 'navigation' && ecran !== 'encours' && ecran !== 'messages')) return
+    chargerMessages(courseActive.id)
+    const intervalle = setInterval(() => chargerMessages(courseActive.id), 4000)
+    return () => clearInterval(intervalle)
+  }, [courseActive?.id, ecran])
+
+  useEffect(() => {
+    if (ecran === 'messages') setMessagesVues(messages.length)
+  }, [messages, ecran])
+
+  async function envoyerMessage() {
+    if (!courseActive || !chauffeur || !messageTexte.trim() || envoiMessageEnCours) return
+    const texte = messageTexte.trim()
+    setMessageTexte('')
+    setEnvoiMessageEnCours(true)
+    await supabase.rpc('envoyer_message_course', { p_course_id: courseActive.id, p_telephone: chauffeur.telephone, p_contenu: texte })
+    chargerMessages(courseActive.id)
+    setEnvoiMessageEnCours(false)
+  }
+
   async function accepter() {
     if (!demande || !chauffeur) return
     const { data, error } = await supabase.rpc('accepter_course', { p_course_id: demande.id, p_chauffeur_id: chauffeur.id, p_telephone: chauffeur.telephone })
@@ -217,6 +242,8 @@ export default function ChauffeurPage() {
     setCourseActive(demande)
     setDemande(null)
     setContactPassager(null)
+    setMessages([])
+    setMessagesVues(0)
     // Le numero du passager n'est jamais lisible directement -- RPC qui
     // verifie que CE telephone est bien le chauffeur assigne a CETTE course
     // avant de renvoyer le contact de l'autre partie (meme pattern cote passager).
@@ -248,6 +275,8 @@ export default function ChauffeurPage() {
     setPrixTermine(courseActive.prix_estime)
     setChauffeur({ ...chauffeur, statut: 'disponible' })
     setContactPassager(null)
+    setMessages([])
+    setMessagesVues(0)
     setEcran('fin')
   }
 
@@ -403,9 +432,14 @@ export default function ChauffeurPage() {
                   <a className="btn outline" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }} href={`tel:${contactPassager.telephone}`}>
                     📞 Appeler {contactPassager.nom || 'le passager'}
                   </a>
-                  <a className="btn accent" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }} href={`https://wa.me/${versWhatsapp(contactPassager.telephone)}`} target="_blank" rel="noopener">
-                    WhatsApp
-                  </a>
+                  <button className="btn accent" style={{ position: 'relative' }} onClick={() => { setEcranAvantMessages('navigation'); setEcran('messages') }}>
+                    💬 Message
+                    {messages.length > messagesVues && (
+                      <span style={{ position: 'absolute', top: -6, right: -6, background: 'var(--danger)', color: '#fff', borderRadius: 999, width: 18, height: 18, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {messages.length - messagesVues}
+                      </span>
+                    )}
+                  </button>
                 </div>
               )}
               <a className="btn outline" href="https://www.google.com/maps" target="_blank" rel="noopener" style={{ display: 'block', textAlign: 'center', textDecoration: 'none', marginTop: 10 }}>
@@ -427,9 +461,14 @@ export default function ChauffeurPage() {
                   <a className="btn outline" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }} href={`tel:${contactPassager.telephone}`}>
                     📞 Appeler {contactPassager.nom || 'le passager'}
                   </a>
-                  <a className="btn accent" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }} href={`https://wa.me/${versWhatsapp(contactPassager.telephone)}`} target="_blank" rel="noopener">
-                    WhatsApp
-                  </a>
+                  <button className="btn accent" style={{ position: 'relative' }} onClick={() => { setEcranAvantMessages('encours'); setEcran('messages') }}>
+                    💬 Message
+                    {messages.length > messagesVues && (
+                      <span style={{ position: 'absolute', top: -6, right: -6, background: 'var(--danger)', color: '#fff', borderRadius: 999, width: 18, height: 18, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {messages.length - messagesVues}
+                      </span>
+                    )}
+                  </button>
                 </div>
               )}
             </div>
@@ -446,6 +485,42 @@ export default function ChauffeurPage() {
               <p className="muted" style={{ marginTop: 16 }}>Ajouté à vos gains du jour</p>
             </div>
             <div className="screen-footer"><button className="btn" onClick={() => { setCourseActive(null); chauffeur && chargerHistorique(chauffeur.id, chauffeur.telephone); setEcran('accueil') }}>Retour à l&apos;accueil</button></div>
+          </>
+        )}
+
+        {ecran === 'messages' && courseActive && (
+          <>
+            <div className="screen-header">
+              <strong>{contactPassager?.nom || 'Passager'}</strong>
+              <button className="btn ghost" onClick={() => setEcran(ecranAvantMessages)}>Retour</button>
+            </div>
+            <div className="screen-body" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {messages.length === 0 && <p className="muted center">Aucun message pour l&apos;instant. Écrivez à votre passager ci-dessous.</p>}
+              {messages.map((m) => (
+                <div key={m.id} style={{
+                  alignSelf: m.expediteur === 'chauffeur' ? 'flex-end' : 'flex-start',
+                  maxWidth: '80%',
+                  background: m.expediteur === 'chauffeur' ? 'var(--primary)' : '#F0F0F0',
+                  color: m.expediteur === 'chauffeur' ? 'var(--primary-text, #fff)' : 'var(--text)',
+                  borderRadius: 14, padding: '8px 12px',
+                }}>
+                  <div style={{ fontSize: 14 }}>{m.contenu}</div>
+                  <div style={{ fontSize: 10, opacity: 0.7, marginTop: 2 }}>
+                    {new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="screen-footer">
+              <div className="btn-row">
+                <input type="text" value={messageTexte} onChange={(e) => setMessageTexte(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') envoyerMessage() }}
+                  placeholder="Votre message…" style={{ marginBottom: 0, flex: 1 }} />
+                <button className="btn accent" style={{ width: 'auto', padding: '0 20px' }} onClick={envoyerMessage} disabled={!messageTexte.trim() || envoiMessageEnCours}>
+                  Envoyer
+                </button>
+              </div>
+            </div>
           </>
         )}
 

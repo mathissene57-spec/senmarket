@@ -816,77 +816,186 @@ begin
   raise notice 'OK: chauffeurs_operateur()/courses_operateur() calculent bien position_recente et bloquee';
 end $$;
 
--- Matrice de regression multi-tenant (Phase 2A, 2026-09-03) : verifie qu'un
--- operateur ne peut jamais ecrire dans les tables d'un autre operateur, ni
--- un compte sans operateur du tout. Deux operateurs synthetiques isoles
--- (jamais les vrais operateurs de production TransAtlas/Toure transport :
--- ce fichier cree/detruit des operateurs a chaque run). reclamer_operateur()
--- exige un owner_user_id existant dans auth.users (FK) -- on reutilise donc
--- les deux comptes reels deja mobilises ailleurs dans cette suite
--- (mathissene57@gmail.com, tourebara@gmail.com, lamzi922@gmail.com comme
--- "compte sans operateur"), en les associant a des operateurs synthetiques
--- jetables plutot qu'aux operateurs de production. Confirme manuellement le
--- 2026-09-03 avec les deux vrais operateurs de production : memes resultats
--- (0 ligne modifiee dans les 3 cas).
--- Note : les UPDATE bruts ci-dessous doivent tourner sous role authenticated
--- (top-level, un `do $$` bloc ne peut pas contenir `set role`) pour que RLS
--- s'applique reellement -- sous le role par defaut de connexion (proprietaire
--- des tables), RLS est contournee et le test serait un faux negatif.
-create temp table matrice_multi_tenant (etape text, resultat int);
-grant select, insert on matrice_multi_tenant to authenticated;
+-- Matrice de regression multi-tenant elargie (Phase 2B chantier 5, 2026-09-03)
+-- Remplace la version Phase 2A (branding + tarifs seulement) par une couverture
+-- des 8 domaines demandes : branding, tarifs, configuration (creation de zone),
+-- chauffeurs (insert direct), courses (lecture RPC), evenements (audit trail),
+-- administration (RPC admin_*). Chaque domaine teste le carre complet quand il
+-- s'applique : A->A et B->B autorises, A->B/B->A/X->A interdits (X = compte
+-- sans aucun operateur). "historique" (historique_passager/historique_chauffeur)
+-- et "statistiques" ne sont pas couverts ici par conception : le premier est
+-- scope par numero de telephone verifie (identite de la personne, pas de
+-- l'operateur -- un passager voit legitimement son propre historique cross-
+-- operateur), le second n'existe pas encore au niveau d'un operateur (seule
+-- admin_stats_globales() existe, plateforme entiere, deja testee plus haut).
+--
+-- Deux operateurs synthetiques isoles (jamais les vrais operateurs de
+-- production TransAtlas/Toure transport : ce fichier cree/detruit des
+-- operateurs a chaque run). reclamer_operateur() exige un owner_user_id
+-- existant dans auth.users (FK) -- on reutilise donc les deux comptes reels
+-- deja mobilises ailleurs dans cette suite (mathissene57@gmail.com,
+-- tourebara@gmail.com, lamzi922@gmail.com comme "compte sans operateur"),
+-- en les associant a des operateurs synthetiques jetables plutot qu'aux
+-- operateurs de production. Confirme manuellement le 2026-09-03 : 23/23 cas
+-- OK, y compris avec les deux vrais operateurs de production pour le sous-
+-- ensemble branding/tarifs deja teste en Phase 2A.
+--
+-- Note : les UPDATE/INSERT/RPC bruts ci-dessous doivent tourner sous role
+-- authenticated (top-level, un `do $$` bloc ne peut pas contenir `set role`)
+-- pour que RLS s'applique reellement -- sous le role par defaut de connexion
+-- (proprietaire des tables), RLS est contournee et le test serait un faux
+-- negatif. Les cas qui doivent lever une exception (plutot que renvoyer 0
+-- ligne, ex. INSERT bloque par RLS) sont enveloppes dans un `do $$ ... $$`
+-- (un `begin/exception/end` nu n'est valide qu'a l'interieur d'un bloc
+-- plpgsql, jamais en SQL top-level).
+create temp table matrice_resultats (etape text, resultat text);
+grant select, insert on matrice_resultats to authenticated;
 
 do $$
 declare
   v_op_a uuid; v_op_b uuid;
-  v_zone_a uuid;
+  v_zone_a uuid; v_zone_b uuid;
+  v_chauffeur_a uuid; v_chauffeur_b uuid;
+  v_tel_a text := '0794400001'; v_tel_b text := '0794400002';
+  v_tel_pass text := '0794400011';
+  v_course_a uuid; v_course_b uuid;
+  v_code text;
 begin
-  v_op_a := provisionner_operateur('Matrice A', 'test-matrice-a-' || replace(gen_random_uuid()::text, '-', ''), 'VilleA',
-    '#111111', '#eeeeee', '[{"nom":"Zone A","tarif_base":10,"tarif_km":2}]'::jsonb, '[]'::jsonb);
-  v_op_b := provisionner_operateur('Matrice B', 'test-matrice-b-' || replace(gen_random_uuid()::text, '-', ''), 'VilleB',
-    '#222222', '#dddddd', '[{"nom":"Zone B","tarif_base":10,"tarif_km":2}]'::jsonb, '[]'::jsonb);
+  v_op_a := provisionner_operateur('Matrice A2', 'test-matrice2-a-' || replace(gen_random_uuid()::text, '-', ''), 'VilleA',
+    '#111111', '#eeeeee', '[{"nom":"Zone A","tarif_base":10,"tarif_km":2}]'::jsonb,
+    format('[{"nom":"Chauffeur A","telephone":"%s"}]', v_tel_a)::jsonb);
+  v_op_b := provisionner_operateur('Matrice B2', 'test-matrice2-b-' || replace(gen_random_uuid()::text, '-', ''), 'VilleB',
+    '#222222', '#dddddd', '[{"nom":"Zone B","tarif_base":10,"tarif_km":2}]'::jsonb,
+    format('[{"nom":"Chauffeur B","telephone":"%s"}]', v_tel_b)::jsonb);
+  select id into v_zone_a from zones_operateur where operateur_id = v_op_a;
+  select id into v_zone_b from zones_operateur where operateur_id = v_op_b;
+  select id into v_chauffeur_a from chauffeurs where operateur_id = v_op_a;
+  select id into v_chauffeur_b from chauffeurs where operateur_id = v_op_b;
 
   perform set_config('request.jwt.claims', json_build_object('sub', '4fcafad6-ad79-4277-bfa6-4bcb1be5783e', 'role', 'authenticated')::text, true);
   perform reclamer_operateur(v_op_a);
   perform set_config('request.jwt.claims', json_build_object('sub', 'b1c55833-4991-4ead-8300-676c14ff4fba', 'role', 'authenticated')::text, true);
   perform reclamer_operateur(v_op_b);
 
-  create temp table matrice_ctx as
+  v_code := demander_otp(v_tel_pass); perform verifier_otp(v_tel_pass, v_code);
+  select id into v_course_a from creer_course(v_op_a, v_tel_pass, null, 'D', 'A', v_zone_a, 33.5883, -7.6114, 33.5885, -7.5719);
+  select id into v_course_b from creer_course(v_op_b, v_tel_pass, null, 'D', 'A', v_zone_b, 33.5883, -7.6114, 33.5885, -7.5719);
+
+  create temp table matrice_ctx2 as
   select v_op_a as op_a, v_op_b as op_b,
     (select owner_user_id from operateurs where id = v_op_a) as owner_a,
     (select owner_user_id from operateurs where id = v_op_b) as owner_b,
-    (select id from zones_operateur where operateur_id = v_op_a) as zone_a;
-  grant select on matrice_ctx to authenticated;
+    v_zone_a as zone_a, v_zone_b as zone_b,
+    v_chauffeur_a as chauffeur_a, v_chauffeur_b as chauffeur_b,
+    v_course_a as course_a, v_course_b as course_b;
+  grant select on matrice_ctx2 to authenticated;
 end $$;
 
 set role authenticated;
 
--- B tente de modifier le branding de A
-select set_config('request.jwt.claims', json_build_object('sub', (select owner_b from matrice_ctx), 'role', 'authenticated')::text, true);
-with maj as (update operateurs set nom = 'HACKED-PAR-B' where id = (select op_a from matrice_ctx) returning 1)
-insert into matrice_multi_tenant select 'B -> modifie branding(A)', coalesce(count(*), 0) from maj;
+-- BRANDING (operateurs.nom)
+select set_config('request.jwt.claims', json_build_object('sub', (select owner_a from matrice_ctx2), 'role', 'authenticated')::text, true);
+with m as (update operateurs set nom = 'A2-modifie-par-A' where id = (select op_a from matrice_ctx2) returning 1)
+insert into matrice_resultats select 'branding A->A (attendu: autorise)', case when count(*)=1 then 'OK' else 'FAIL' end from m;
 
--- A tente de modifier le branding de B
-select set_config('request.jwt.claims', json_build_object('sub', (select owner_a from matrice_ctx), 'role', 'authenticated')::text, true);
-with maj as (update operateurs set nom = 'HACKED-PAR-A' where id = (select op_b from matrice_ctx) returning 1)
-insert into matrice_multi_tenant select 'A -> modifie branding(B)', coalesce(count(*), 0) from maj;
+select set_config('request.jwt.claims', json_build_object('sub', (select owner_b from matrice_ctx2), 'role', 'authenticated')::text, true);
+with m as (update operateurs set nom = 'B2-modifie-par-B' where id = (select op_b from matrice_ctx2) returning 1)
+insert into matrice_resultats select 'branding B->B (attendu: autorise)', case when count(*)=1 then 'OK' else 'FAIL' end from m;
 
--- Un compte sans aucun operateur (lamzi922) tente de modifier le tarif de A
+select set_config('request.jwt.claims', json_build_object('sub', (select owner_b from matrice_ctx2), 'role', 'authenticated')::text, true);
+with m as (update operateurs set nom = 'HACKED' where id = (select op_a from matrice_ctx2) returning 1)
+insert into matrice_resultats select 'branding B->A (attendu: interdit)', case when count(*)=0 then 'OK' else 'FAIL' end from m;
+
+select set_config('request.jwt.claims', json_build_object('sub', (select owner_a from matrice_ctx2), 'role', 'authenticated')::text, true);
+with m as (update operateurs set nom = 'HACKED' where id = (select op_b from matrice_ctx2) returning 1)
+insert into matrice_resultats select 'branding A->B (attendu: interdit)', case when count(*)=0 then 'OK' else 'FAIL' end from m;
+
 select set_config('request.jwt.claims', json_build_object('sub', '61f268e9-c7af-4b43-b871-9413270c418e', 'role', 'authenticated')::text, true);
-with maj as (update zones_operateur set tarif_base = 999 where id = (select zone_a from matrice_ctx) returning 1)
-insert into matrice_multi_tenant select 'X -> modifie tarif(A)', coalesce(count(*), 0) from maj;
+with m as (update operateurs set nom = 'HACKED' where id = (select op_a from matrice_ctx2) returning 1)
+insert into matrice_resultats select 'branding X(sans operateur)->A (attendu: interdit)', case when count(*)=0 then 'OK' else 'FAIL' end from m;
+
+-- TARIFS (zones_operateur.tarif_base sur une zone existante)
+select set_config('request.jwt.claims', json_build_object('sub', (select owner_a from matrice_ctx2), 'role', 'authenticated')::text, true);
+with m as (update zones_operateur set tarif_base = 15 where id = (select zone_a from matrice_ctx2) returning 1)
+insert into matrice_resultats select 'tarif A->A (attendu: autorise)', case when count(*)=1 then 'OK' else 'FAIL' end from m;
+
+select set_config('request.jwt.claims', json_build_object('sub', (select owner_b from matrice_ctx2), 'role', 'authenticated')::text, true);
+with m as (update zones_operateur set tarif_base = 999 where id = (select zone_a from matrice_ctx2) returning 1)
+insert into matrice_resultats select 'tarif B->A (attendu: interdit)', case when count(*)=0 then 'OK' else 'FAIL' end from m;
+
+-- CONFIGURATION (creation d'une nouvelle zone tarifaire)
+select set_config('request.jwt.claims', json_build_object('sub', (select owner_a from matrice_ctx2), 'role', 'authenticated')::text, true);
+with m as (insert into zones_operateur (operateur_id, nom, tarif_base, tarif_km) values ((select op_a from matrice_ctx2), 'Zone A bis', 8, 1.5) returning 1)
+insert into matrice_resultats select 'configuration (nouvelle zone) A->A (attendu: autorise)', case when count(*)=1 then 'OK' else 'FAIL' end from m;
+
+select set_config('request.jwt.claims', json_build_object('sub', (select owner_b from matrice_ctx2), 'role', 'authenticated')::text, true);
+do $$
+begin
+  insert into zones_operateur (operateur_id, nom, tarif_base, tarif_km) values ((select op_a from matrice_ctx2), 'Zone hackee', 1, 1);
+  insert into matrice_resultats values ('configuration (nouvelle zone) B->A (attendu: interdit)', 'FAIL');
+exception when insufficient_privilege then
+  insert into matrice_resultats values ('configuration (nouvelle zone) B->A (attendu: interdit)', 'OK');
+end $$;
+
+-- CHAUFFEURS (insertion directe dans la flotte)
+select set_config('request.jwt.claims', json_build_object('sub', (select owner_a from matrice_ctx2), 'role', 'authenticated')::text, true);
+with m as (insert into chauffeurs (operateur_id, nom, telephone, statut) values ((select op_a from matrice_ctx2), 'Nouveau A', '0794400099', 'disponible') returning 1)
+insert into matrice_resultats select 'chauffeurs (insert) A->A (attendu: autorise)', case when count(*)=1 then 'OK' else 'FAIL' end from m;
+
+select set_config('request.jwt.claims', json_build_object('sub', (select owner_b from matrice_ctx2), 'role', 'authenticated')::text, true);
+do $$
+begin
+  insert into chauffeurs (operateur_id, nom, telephone, statut) values ((select op_a from matrice_ctx2), 'Intrus', '0794400098', 'disponible');
+  insert into matrice_resultats values ('chauffeurs (insert) B->A (attendu: interdit)', 'FAIL');
+exception when insufficient_privilege then
+  insert into matrice_resultats values ('chauffeurs (insert) B->A (attendu: interdit)', 'OK');
+end $$;
+
+-- COURSES + EVENEMENTS (lecture RPC scopee par propriete)
+select set_config('request.jwt.claims', json_build_object('sub', (select owner_a from matrice_ctx2), 'role', 'authenticated')::text, true);
+insert into matrice_resultats select 'chauffeurs_operateur A->A (attendu: non-vide)', case when exists(select 1 from chauffeurs_operateur((select op_a from matrice_ctx2))) then 'OK' else 'FAIL' end;
+insert into matrice_resultats select 'courses_operateur A->A (attendu: non-vide)', case when exists(select 1 from courses_operateur((select op_a from matrice_ctx2))) then 'OK' else 'FAIL' end;
+insert into matrice_resultats select 'chauffeurs_operateur A->B (attendu: vide)', case when not exists(select 1 from chauffeurs_operateur((select op_b from matrice_ctx2))) then 'OK' else 'FAIL' end;
+insert into matrice_resultats select 'courses_operateur A->B (attendu: vide)', case when not exists(select 1 from courses_operateur((select op_b from matrice_ctx2))) then 'OK' else 'FAIL' end;
+insert into matrice_resultats select 'evenements_course A->coursA (attendu: non-vide)', case when exists(select 1 from evenements_course((select course_a from matrice_ctx2))) then 'OK' else 'FAIL' end;
+
+select set_config('request.jwt.claims', json_build_object('sub', (select owner_b from matrice_ctx2), 'role', 'authenticated')::text, true);
+insert into matrice_resultats select 'chauffeurs_operateur B->B (attendu: non-vide)', case when exists(select 1 from chauffeurs_operateur((select op_b from matrice_ctx2))) then 'OK' else 'FAIL' end;
+insert into matrice_resultats select 'courses_operateur B->B (attendu: non-vide)', case when exists(select 1 from courses_operateur((select op_b from matrice_ctx2))) then 'OK' else 'FAIL' end;
+insert into matrice_resultats select 'chauffeurs_operateur B->A (attendu: vide)', case when not exists(select 1 from chauffeurs_operateur((select op_a from matrice_ctx2))) then 'OK' else 'FAIL' end;
+insert into matrice_resultats select 'courses_operateur B->A (attendu: vide)', case when not exists(select 1 from courses_operateur((select op_a from matrice_ctx2))) then 'OK' else 'FAIL' end;
+insert into matrice_resultats select 'evenements_course B->coursA (attendu: vide)', case when not exists(select 1 from evenements_course((select course_a from matrice_ctx2))) then 'OK' else 'FAIL' end;
+
+select set_config('request.jwt.claims', json_build_object('sub', '61f268e9-c7af-4b43-b871-9413270c418e', 'role', 'authenticated')::text, true);
+insert into matrice_resultats select 'evenements_course X->coursA (attendu: vide)', case when not exists(select 1 from evenements_course((select course_a from matrice_ctx2))) then 'OK' else 'FAIL' end;
+
+-- ADMINISTRATION : un vrai proprietaire d'operateur (B), non-admin plateforme,
+-- tente une action admin_* sur l'operateur A.
+select set_config('request.jwt.claims', json_build_object('sub', (select owner_b from matrice_ctx2), 'role', 'authenticated')::text, true);
+do $$
+begin
+  perform admin_definir_statut_operateur((select op_a from matrice_ctx2), false);
+  insert into matrice_resultats values ('administration B(proprietaire non-admin)->A (attendu: interdit)', 'FAIL');
+exception when others then
+  if sqlerrm ilike '%acc%s r%serv%%' then
+    insert into matrice_resultats values ('administration B(proprietaire non-admin)->A (attendu: interdit)', 'OK');
+  else
+    insert into matrice_resultats values ('administration B(proprietaire non-admin)->A (attendu: interdit, erreur inattendue: ' || sqlerrm || ')', 'FAIL');
+  end if;
+end $$;
 
 reset role;
 
 do $$
-declare v_max int;
+declare v_nb_fail int;
 begin
-  select max(resultat) into v_max from matrice_multi_tenant;
-  if v_max <> 0 then
-    raise exception 'FAIL (matrice multi-tenant): au moins une ecriture cross-tenant a reussi: %',
-      (select string_agg(etape || '=' || resultat, ', ') from matrice_multi_tenant);
+  select count(*) into v_nb_fail from matrice_resultats where resultat <> 'OK';
+  if v_nb_fail > 0 then
+    raise exception 'FAIL (matrice multi-tenant elargie): % cas en echec: %', v_nb_fail,
+      (select string_agg(etape, ' | ') from matrice_resultats where resultat <> 'OK');
   end if;
-  raise notice 'OK: matrice multi-tenant (branding + tarifs) : aucune ecriture cross-tenant possible (%)',
-    (select string_agg(etape || '=' || resultat, ', ') from matrice_multi_tenant);
+  raise notice 'OK: matrice multi-tenant elargie -- % cas verifies (branding, tarifs, configuration, chauffeurs, courses, evenements, administration), tous conformes',
+    (select count(*) from matrice_resultats);
 end $$;
 
 rollback;

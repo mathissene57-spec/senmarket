@@ -7,7 +7,7 @@ import { useOperateurId } from '@/lib/useOperateurId'
 
 const Carte = dynamic(() => import('@/components/Carte'), { ssr: false })
 
-type Operateur = { id: string; nom: string; couleur_primaire: string; couleur_secondaire: string; owner_user_id: string | null }
+type Operateur = { id: string; nom: string; couleur_primaire: string; couleur_secondaire: string; ville: string | null; owner_user_id: string | null }
 type ChauffeurRow = { id: string; nom: string; telephone: string; vehicule: string | null; plaque: string | null; note_moyenne: number; statut: string; position_lat: number | null; position_lng: number | null; position_recente: boolean }
 type CourseRow = { id: string; statut: string; adresse_depart: string; adresse_arrivee: string; prix_estime: number; prix_final: number | null; created_at: string; chauffeur_id: string | null; depart_lat: number | null; depart_lng: number | null; bloquee: boolean }
 type CourseEvent = { id: string; type: string; chauffeur_id: string | null; acteur: string | null; details: Record<string, any> | null; created_at: string }
@@ -53,7 +53,7 @@ export default function DashboardPage() {
   const [erreurAuth, setErreurAuth] = useState<string | null>(null)
   const [operateur, setOperateur] = useState<Operateur | null>(null)
   const [messageOperateur, setMessageOperateur] = useState<string | null>(null)
-  const [onglet, setOnglet] = useState<'apercu' | 'chauffeurs' | 'courses' | 'flotte' | 'tarifs'>('apercu')
+  const [onglet, setOnglet] = useState<'apercu' | 'chauffeurs' | 'courses' | 'flotte' | 'tarifs' | 'parametres'>('apercu')
   const [chauffeurs, setChauffeurs] = useState<ChauffeurRow[]>([])
   const [courses, setCourses] = useState<CourseRow[]>([])
   const [nouveauNom, setNouveauNom] = useState('')
@@ -76,6 +76,20 @@ export default function DashboardPage() {
   const [nouvelleZoneTarifBase, setNouvelleZoneTarifBase] = useState(10)
   const [nouvelleZoneTarifKm, setNouvelleZoneTarifKm] = useState(2)
   const [ajoutZoneEnCours, setAjoutZoneEnCours] = useState(false)
+  const [nomEdit, setNomEdit] = useState('')
+  const [villeEdit, setVilleEdit] = useState('')
+  const [couleurPrimaireEdit, setCouleurPrimaireEdit] = useState('#101B3D')
+  const [couleurSecondaireEdit, setCouleurSecondaireEdit] = useState('#FF7A28')
+  const [parametresEnCours, setParametresEnCours] = useState(false)
+  const [parametresErreur, setParametresErreur] = useState<string | null>(null)
+  const [parametresSucces, setParametresSucces] = useState(false)
+  const [chauffeurEnEdition, setChauffeurEnEdition] = useState<ChauffeurRow | null>(null)
+  const [editNom, setEditNom] = useState('')
+  const [editTelephone, setEditTelephone] = useState('')
+  const [editVehicule, setEditVehicule] = useState('')
+  const [editPlaque, setEditPlaque] = useState('')
+  const [editionEnCours, setEditionEnCours] = useState(false)
+  const [editionErreur, setEditionErreur] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -93,6 +107,14 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!operateur) return
+    setNomEdit(operateur.nom)
+    setVilleEdit(operateur.ville || '')
+    setCouleurPrimaireEdit(operateur.couleur_primaire)
+    setCouleurSecondaireEdit(operateur.couleur_secondaire)
+  }, [operateur])
+
+  useEffect(() => {
+    if (!operateur) return
     chargerDonnees()
     const channel = supabase
       .channel('dashboard-' + operateur.id)
@@ -103,13 +125,13 @@ export default function DashboardPage() {
   }, [operateur?.id])
 
   async function resoudreOperateur() {
-    const { data } = await supabase.from('operateurs').select('id,nom,couleur_primaire,couleur_secondaire,owner_user_id').eq('id', OPERATEUR_ID).single()
+    const { data } = await supabase.from('operateurs').select('id,nom,couleur_primaire,couleur_secondaire,ville,owner_user_id').eq('id', OPERATEUR_ID).single()
     if (!data) return
     if (data.owner_user_id === session.user.id) { setOperateur(data); return }
     if (data.owner_user_id === null) {
       const { data: ok } = await supabase.rpc('reclamer_operateur', { p_operateur_id: OPERATEUR_ID })
       if (ok) {
-        const { data: refetched } = await supabase.from('operateurs').select('id,nom,couleur_primaire,couleur_secondaire,owner_user_id').eq('id', OPERATEUR_ID).single()
+        const { data: refetched } = await supabase.from('operateurs').select('id,nom,couleur_primaire,couleur_secondaire,ville,owner_user_id').eq('id', OPERATEUR_ID).single()
         setOperateur(refetched)
         return
       }
@@ -271,6 +293,72 @@ export default function DashboardPage() {
     chargerDonnees()
   }
 
+  // Modifier un chauffeur existant (Phase 2B, finition UX) : seuls l'ajout et
+  // le retrait/desactivation existaient -- aucun moyen de corriger une faute
+  // de frappe sur un nom/telephone ou de mettre a jour un vehicule/une plaque
+  // sans supprimer puis recreer le chauffeur (perdant alors son historique de
+  // courses, cf. contrainte FK courses.chauffeur_id).
+  function ouvrirEditionChauffeur(c: ChauffeurRow) {
+    setChauffeurEnEdition(c)
+    setEditNom(c.nom)
+    setEditTelephone(c.telephone)
+    setEditVehicule(c.vehicule || '')
+    setEditPlaque(c.plaque || '')
+    setEditionErreur(null)
+  }
+  function fermerEditionChauffeur() {
+    setChauffeurEnEdition(null)
+  }
+  async function enregistrerEditionChauffeur() {
+    if (!chauffeurEnEdition) return
+    setEditionErreur(null)
+    if (!editNom.trim() || !editTelephone.trim()) { setEditionErreur('Nom et téléphone sont requis.'); return }
+    setEditionEnCours(true)
+    const { error } = await supabase.from('chauffeurs').update({
+      nom: editNom.trim(),
+      telephone: editTelephone.trim(),
+      vehicule: editVehicule.trim() || null,
+      plaque: editPlaque.trim() || null,
+    }).eq('id', chauffeurEnEdition.id)
+    setEditionEnCours(false)
+    if (error) {
+      if (error.code === '23505') {
+        setEditionErreur('Ce numéro de téléphone est déjà utilisé par un autre chauffeur de votre flotte.')
+      } else {
+        setEditionErreur(error.message)
+      }
+      return
+    }
+    setChauffeurEnEdition(null)
+    chargerDonnees()
+  }
+
+  // Parametres operateur (Phase 2B, finition UX) : le nom/ville/couleurs ne
+  // sont saisis qu'une fois, a l'onboarding (creer_mon_operateur) -- aucune
+  // interface ne permettait de les corriger ensuite, alors que la policy RLS
+  // operateurs_maj_owner existe deja pour ca. On ne touche volontairement
+  // qu'a nom/ville/couleurs ici : le slug (URLs deja partagees/imprimees) et
+  // le statut actif (reserve a l'admin plateforme) restent hors de portee de
+  // cette interface, meme si la colonne est techniquement modifiable par le
+  // proprietaire cote base -- une future revue RLS pourrait resserrer ca.
+  async function enregistrerParametres() {
+    if (!operateur) return
+    setParametresErreur(null)
+    setParametresSucces(false)
+    if (!nomEdit.trim()) { setParametresErreur("Le nom de l'opérateur est requis."); return }
+    setParametresEnCours(true)
+    const { error } = await supabase.from('operateurs').update({
+      nom: nomEdit.trim(),
+      ville: villeEdit.trim() || null,
+      couleur_primaire: couleurPrimaireEdit,
+      couleur_secondaire: couleurSecondaireEdit,
+    }).eq('id', operateur.id)
+    setParametresEnCours(false)
+    if (error) { setParametresErreur(error.message); return }
+    setOperateur({ ...operateur, nom: nomEdit.trim(), ville: villeEdit.trim() || null, couleur_primaire: couleurPrimaireEdit, couleur_secondaire: couleurSecondaireEdit })
+    setParametresSucces(true)
+  }
+
   async function seConnecter() {
     setErreurAuth(null)
     const { error } = await supabase.auth.signInWithPassword({ email, password: motDePasse })
@@ -370,6 +458,7 @@ export default function DashboardPage() {
           <button className={`nav-item${onglet === 'chauffeurs' ? ' active' : ''}`} onClick={() => setOnglet('chauffeurs')}>Chauffeurs</button>
           <button className={`nav-item${onglet === 'courses' ? ' active' : ''}`} onClick={() => setOnglet('courses')}>Courses</button>
           <button className={`nav-item${onglet === 'tarifs' ? ' active' : ''}`} onClick={() => setOnglet('tarifs')}>Tarifs</button>
+          <button className={`nav-item${onglet === 'parametres' ? ' active' : ''}`} onClick={() => setOnglet('parametres')}>Paramètres</button>
         </nav>
         <button className="nav-item" style={{ marginTop: 40, color: 'rgba(255,255,255,0.5)' }} onClick={() => supabase.auth.signOut()}>Se déconnecter</button>
       </div>
@@ -473,6 +562,13 @@ export default function DashboardPage() {
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: 6 }}>
+                        <button
+                          className="btn outline"
+                          style={{ width: 'auto', padding: '6px 10px', fontSize: 13 }}
+                          onClick={() => ouvrirEditionChauffeur(c)}
+                        >
+                          Modifier
+                        </button>
                         <button
                           className="btn outline"
                           style={{ width: 'auto', padding: '6px 10px', fontSize: 13 }}
@@ -617,7 +713,55 @@ export default function DashboardPage() {
             </div>
           </>
         )}
+
+        {onglet === 'parametres' && (
+          <>
+            <h1>Paramètres</h1>
+            <div className="card" style={{ padding: 20, maxWidth: 420 }}>
+              <label className="field-label">Nom de l&apos;opérateur</label>
+              <input type="text" value={nomEdit} onChange={(e) => setNomEdit(e.target.value)} />
+              <label className="field-label">Ville</label>
+              <input type="text" value={villeEdit} onChange={(e) => setVilleEdit(e.target.value)} placeholder="Ex : Casablanca" />
+              <div style={{ display: 'flex', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <label className="field-label">Couleur principale</label>
+                  <input type="color" value={couleurPrimaireEdit} onChange={(e) => setCouleurPrimaireEdit(e.target.value)} style={{ width: '100%', height: 44, padding: 4 }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label className="field-label">Couleur secondaire</label>
+                  <input type="color" value={couleurSecondaireEdit} onChange={(e) => setCouleurSecondaireEdit(e.target.value)} style={{ width: '100%', height: 44, padding: 4 }} />
+                </div>
+              </div>
+              {parametresErreur && <p className="error-text">{parametresErreur}</p>}
+              {parametresSucces && <p className="muted" style={{ color: 'var(--success)' }}>Paramètres enregistrés.</p>}
+              <button className="btn accent" onClick={enregistrerParametres} disabled={parametresEnCours} style={{ marginTop: 12 }}>
+                {parametresEnCours ? 'Enregistrement…' : 'Enregistrer'}
+              </button>
+            </div>
+          </>
+        )}
       </div>
+
+      {chauffeurEnEdition && (
+        <div className="modal-overlay" onClick={fermerEditionChauffeur}>
+          <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={fermerEditionChauffeur} aria-label="Fermer">×</button>
+            <h3>Modifier le chauffeur</h3>
+            <label className="field-label">Nom</label>
+            <input type="text" value={editNom} onChange={(e) => setEditNom(e.target.value)} />
+            <label className="field-label">Téléphone</label>
+            <input type="tel" value={editTelephone} onChange={(e) => setEditTelephone(e.target.value)} />
+            <label className="field-label">Véhicule</label>
+            <input type="text" value={editVehicule} onChange={(e) => setEditVehicule(e.target.value)} placeholder="Ex : Dacia Logan" />
+            <label className="field-label">Plaque</label>
+            <input type="text" value={editPlaque} onChange={(e) => setEditPlaque(e.target.value)} />
+            {editionErreur && <p className="error-text">{editionErreur}</p>}
+            <button className="btn accent" onClick={enregistrerEditionChauffeur} disabled={editionEnCours} style={{ marginTop: 12 }}>
+              {editionEnCours ? 'Enregistrement…' : 'Enregistrer'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {timelineCourse && (
         <div className="modal-overlay" onClick={fermerTimeline}>

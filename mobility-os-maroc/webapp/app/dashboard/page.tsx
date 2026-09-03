@@ -11,6 +11,7 @@ type Operateur = { id: string; nom: string; couleur_primaire: string; couleur_se
 type ChauffeurRow = { id: string; nom: string; telephone: string; vehicule: string | null; plaque: string | null; note_moyenne: number; statut: string; position_lat: number | null; position_lng: number | null; position_recente: boolean }
 type CourseRow = { id: string; statut: string; adresse_depart: string; adresse_arrivee: string; prix_estime: number; prix_final: number | null; created_at: string; chauffeur_id: string | null; depart_lat: number | null; depart_lng: number | null; bloquee: boolean }
 type CourseEvent = { id: string; type: string; chauffeur_id: string | null; acteur: string | null; details: Record<string, any> | null; created_at: string }
+type Zone = { id: string; nom: string; tarif_base: number; tarif_km: number }
 
 const LIBELLES_EVENEMENT: Record<string, string> = {
   creee: 'Course créée',
@@ -52,7 +53,7 @@ export default function DashboardPage() {
   const [erreurAuth, setErreurAuth] = useState<string | null>(null)
   const [operateur, setOperateur] = useState<Operateur | null>(null)
   const [messageOperateur, setMessageOperateur] = useState<string | null>(null)
-  const [onglet, setOnglet] = useState<'apercu' | 'chauffeurs' | 'courses' | 'flotte'>('apercu')
+  const [onglet, setOnglet] = useState<'apercu' | 'chauffeurs' | 'courses' | 'flotte' | 'tarifs'>('apercu')
   const [chauffeurs, setChauffeurs] = useState<ChauffeurRow[]>([])
   const [courses, setCourses] = useState<CourseRow[]>([])
   const [nouveauNom, setNouveauNom] = useState('')
@@ -61,10 +62,20 @@ export default function DashboardPage() {
   const [nouvellePlaque, setNouvellePlaque] = useState('')
   const [ajoutEnCours, setAjoutEnCours] = useState(false)
   const [ajoutErreur, setAjoutErreur] = useState<string | null>(null)
+  const [retraitEnCoursId, setRetraitEnCoursId] = useState<string | null>(null)
+  const [retraitErreur, setRetraitErreur] = useState<string | null>(null)
   const [clotureEnCoursId, setClotureEnCoursId] = useState<string | null>(null)
   const [timelineCourse, setTimelineCourse] = useState<CourseRow | null>(null)
   const [timelineEvenements, setTimelineEvenements] = useState<CourseEvent[]>([])
   const [timelineChargement, setTimelineChargement] = useState(false)
+  const [zones, setZones] = useState<Zone[]>([])
+  const [zonesEdit, setZonesEdit] = useState<Record<string, { tarif_base: string; tarif_km: string }>>({})
+  const [zoneEnCoursId, setZoneEnCoursId] = useState<string | null>(null)
+  const [zoneErreur, setZoneErreur] = useState<string | null>(null)
+  const [nouvelleZoneNom, setNouvelleZoneNom] = useState('')
+  const [nouvelleZoneTarifBase, setNouvelleZoneTarifBase] = useState(10)
+  const [nouvelleZoneTarifKm, setNouvelleZoneTarifKm] = useState(2)
+  const [ajoutZoneEnCours, setAjoutZoneEnCours] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -112,6 +123,9 @@ export default function DashboardPage() {
     setChauffeurs(ch || [])
     const { data: co } = await supabase.rpc('courses_operateur', { p_operateur_id: operateur.id })
     setCourses(co || [])
+    const { data: zo } = await supabase.from('zones_operateur').select('id,nom,tarif_base,tarif_km').eq('operateur_id', operateur.id).order('nom')
+    setZones(zo || [])
+    setZonesEdit(Object.fromEntries((zo || []).map((z) => [z.id, { tarif_base: String(z.tarif_base), tarif_km: String(z.tarif_km) }])))
   }
 
   // Aucun mecanisme ne debloquait une course restee coincee en assignee/
@@ -138,6 +152,78 @@ export default function DashboardPage() {
   function fermerTimeline() {
     setTimelineCourse(null)
     setTimelineEvenements([])
+  }
+
+  // Gestion des zones tarifaires (Phase 2B, finition UX) : aucune interface
+  // n'existait apres l'onboarding malgre des policies RLS proprietaire deja
+  // en place (zones_gestion_insert/update/delete_owner) -- un operateur ne
+  // pouvait ni ajouter une deuxieme zone ni corriger un tarif apres coup.
+  async function enregistrerZone(zoneId: string) {
+    const edit = zonesEdit[zoneId]
+    if (!edit) return
+    setZoneErreur(null)
+    setZoneEnCoursId(zoneId)
+    const { error } = await supabase.from('zones_operateur').update({
+      tarif_base: parseFloat(edit.tarif_base) || 0,
+      tarif_km: parseFloat(edit.tarif_km) || 0,
+    }).eq('id', zoneId)
+    setZoneEnCoursId(null)
+    if (error) { setZoneErreur(error.message); return }
+    chargerDonnees()
+  }
+
+  async function supprimerZone(zoneId: string) {
+    if (zones.length <= 1) return
+    if (typeof window !== 'undefined' && !window.confirm('Supprimer cette zone tarifaire ?')) return
+    setZoneErreur(null)
+    setZoneEnCoursId(zoneId)
+    const { error } = await supabase.from('zones_operateur').delete().eq('id', zoneId)
+    setZoneEnCoursId(null)
+    if (error) { setZoneErreur(error.message); return }
+    chargerDonnees()
+  }
+
+  async function ajouterZone() {
+    if (!operateur) return
+    setZoneErreur(null)
+    if (!nouvelleZoneNom.trim()) { setZoneErreur('Le nom de la zone est requis.'); return }
+    setAjoutZoneEnCours(true)
+    const { error } = await supabase.from('zones_operateur').insert({
+      operateur_id: operateur.id,
+      nom: nouvelleZoneNom.trim(),
+      tarif_base: nouvelleZoneTarifBase,
+      tarif_km: nouvelleZoneTarifKm,
+    })
+    setAjoutZoneEnCours(false)
+    if (error) { setZoneErreur(error.message); return }
+    setNouvelleZoneNom(''); setNouvelleZoneTarifBase(10); setNouvelleZoneTarifKm(2)
+    chargerDonnees()
+  }
+
+  // Retirer un chauffeur (Phase 2B, finition UX) : seul l'ajout existait --
+  // aucun moyen de retirer un chauffeur qui ne travaille plus pour
+  // l'operateur, malgre la policy RLS chauffeurs_suppression_owner deja
+  // en place. Bloque volontairement si le chauffeur est en course. Un
+  // chauffeur ayant deja une course a son actif ne peut pas etre supprime
+  // (contrainte de cle etrangere courses.chauffeur_id, decouverte en testant
+  // cette fonctionnalite avant deploiement) -- message clair plutot que
+  // l'erreur Postgres brute.
+  async function retirerChauffeur(c: ChauffeurRow) {
+    if (c.statut === 'en_course') return
+    if (typeof window !== 'undefined' && !window.confirm(`Retirer ${c.nom} de la flotte ?`)) return
+    setRetraitErreur(null)
+    setRetraitEnCoursId(c.id)
+    const { error } = await supabase.from('chauffeurs').delete().eq('id', c.id)
+    setRetraitEnCoursId(null)
+    if (error) {
+      if (error.code === '23503') {
+        setRetraitErreur(`${c.nom} a un historique de courses et ne peut pas être supprimé. Passez-le en "indisponible" via son propre accès chauffeur pour le retirer du dispatch.`)
+      } else {
+        setRetraitErreur(error.message)
+      }
+      return
+    }
+    chargerDonnees()
   }
 
   async function ajouterChauffeur() {
@@ -264,6 +350,7 @@ export default function DashboardPage() {
           <button className={`nav-item${onglet === 'flotte' ? ' active' : ''}`} onClick={() => setOnglet('flotte')}>Carte de flotte</button>
           <button className={`nav-item${onglet === 'chauffeurs' ? ' active' : ''}`} onClick={() => setOnglet('chauffeurs')}>Chauffeurs</button>
           <button className={`nav-item${onglet === 'courses' ? ' active' : ''}`} onClick={() => setOnglet('courses')}>Courses</button>
+          <button className={`nav-item${onglet === 'tarifs' ? ' active' : ''}`} onClick={() => setOnglet('tarifs')}>Tarifs</button>
         </nav>
         <button className="nav-item" style={{ marginTop: 40, color: 'rgba(255,255,255,0.5)' }} onClick={() => supabase.auth.signOut()}>Se déconnecter</button>
       </div>
@@ -345,9 +432,10 @@ export default function DashboardPage() {
         {onglet === 'chauffeurs' && (
           <>
             <h1>Chauffeurs</h1>
+            {retraitErreur && <p className="error-text">{retraitErreur}</p>}
             <table>
               <tbody>
-                <tr><th>Nom</th><th>Téléphone</th><th>Véhicule</th><th>Note</th><th>Statut</th><th>Position</th></tr>
+                <tr><th>Nom</th><th>Téléphone</th><th>Véhicule</th><th>Note</th><th>Statut</th><th>Position</th><th></th></tr>
                 {chauffeurs.map((c) => (
                   <tr key={c.id}>
                     <td>{c.nom}</td>
@@ -363,6 +451,17 @@ export default function DashboardPage() {
                       ) : (
                         <span className="badge warn">ancienne</span>
                       )}
+                    </td>
+                    <td>
+                      <button
+                        className="btn outline"
+                        style={{ width: 'auto', padding: '6px 10px', fontSize: 13 }}
+                        disabled={c.statut === 'en_course' || retraitEnCoursId === c.id}
+                        title={c.statut === 'en_course' ? 'Impossible de retirer un chauffeur en course' : undefined}
+                        onClick={() => retirerChauffeur(c)}
+                      >
+                        {retraitEnCoursId === c.id ? '…' : 'Retirer'}
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -421,6 +520,71 @@ export default function DashboardPage() {
                 ))}
               </tbody>
             </table>
+          </>
+        )}
+
+        {onglet === 'tarifs' && (
+          <>
+            <h1>Tarifs</h1>
+            {zoneErreur && <p className="error-text">{zoneErreur}</p>}
+            <table>
+              <tbody>
+                <tr><th>Zone</th><th>Prix de base (DH)</th><th>Prix / km (DH)</th><th></th></tr>
+                {zones.map((z) => (
+                  <tr key={z.id}>
+                    <td>{z.nom}</td>
+                    <td>
+                      <input
+                        type="number" min="0" step="0.5" style={{ width: 100, marginBottom: 0 }}
+                        value={zonesEdit[z.id]?.tarif_base ?? ''}
+                        onChange={(e) => setZonesEdit({ ...zonesEdit, [z.id]: { ...zonesEdit[z.id], tarif_base: e.target.value } })}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number" min="0" step="0.1" style={{ width: 100, marginBottom: 0 }}
+                        value={zonesEdit[z.id]?.tarif_km ?? ''}
+                        onChange={(e) => setZonesEdit({ ...zonesEdit, [z.id]: { ...zonesEdit[z.id], tarif_km: e.target.value } })}
+                      />
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button className="btn outline" style={{ width: 'auto', padding: '6px 10px', fontSize: 13 }} disabled={zoneEnCoursId === z.id} onClick={() => enregistrerZone(z.id)}>
+                          {zoneEnCoursId === z.id ? '…' : 'Enregistrer'}
+                        </button>
+                        <button
+                          className="btn outline" style={{ width: 'auto', padding: '6px 10px', fontSize: 13 }}
+                          disabled={zones.length <= 1 || zoneEnCoursId === z.id}
+                          title={zones.length <= 1 ? 'Impossible de supprimer la dernière zone' : undefined}
+                          onClick={() => supprimerZone(z.id)}
+                        >
+                          Supprimer
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <h3 style={{ marginTop: 32 }}>Ajouter une zone tarifaire</h3>
+            <div className="card" style={{ padding: 20, maxWidth: 420 }}>
+              <label className="field-label">Nom de la zone</label>
+              <input type="text" value={nouvelleZoneNom} onChange={(e) => setNouvelleZoneNom(e.target.value)} placeholder="Ex : Aéroport" />
+              <div style={{ display: 'flex', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <label className="field-label">Prix de base (DH)</label>
+                  <input type="number" min="0" step="0.5" value={nouvelleZoneTarifBase} onChange={(e) => setNouvelleZoneTarifBase(parseFloat(e.target.value) || 0)} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label className="field-label">Prix / km (DH)</label>
+                  <input type="number" min="0" step="0.1" value={nouvelleZoneTarifKm} onChange={(e) => setNouvelleZoneTarifKm(parseFloat(e.target.value) || 0)} />
+                </div>
+              </div>
+              <button className="btn accent" onClick={ajouterZone} disabled={ajoutZoneEnCours} style={{ marginTop: 12 }}>
+                {ajoutZoneEnCours ? 'Ajout…' : 'Ajouter la zone'}
+              </button>
+            </div>
           </>
         )}
       </div>

@@ -145,6 +145,12 @@ export default function PassagerPage() {
     return () => { supabase.removeChannel(channel) }
   }, [course?.id])
 
+  function reverifierCourse(courseId: string) {
+    supabase.from('courses').select('id,statut,adresse_depart,adresse_arrivee,prix_estime,prix_final,chauffeur_id')
+      .eq('id', courseId).single()
+      .then(({ data }) => { if (data) appliquerMiseAJourCourse(data as Course) })
+  }
+
   // Sondage de secours (finition UX) : le radar de recherche restait bloque
   // a l'ecran meme apres acceptation par un chauffeur -- le canal Realtime
   // seul ne suffit pas dans certains cas reels (onglet mis en arriere-plan
@@ -154,13 +160,30 @@ export default function PassagerPage() {
   // le canal Realtime, qui reste le chemin instantane quand tout va bien.
   useEffect(() => {
     if (!course || (ecran !== 'recherche' && ecran !== 'course')) return
-    const intervalle = setInterval(() => {
-      supabase.from('courses').select('id,statut,adresse_depart,adresse_arrivee,prix_estime,prix_final,chauffeur_id')
-        .eq('id', course.id).single()
-        .then(({ data }) => { if (data) appliquerMiseAJourCourse(data as Course) })
-    }, 4000)
+    const intervalle = setInterval(() => reverifierCourse(course.id), 4000)
     return () => clearInterval(intervalle)
   }, [course?.id, ecran])
+
+  // Reprise sur retour au premier plan (finition UX, cause reelle constatee
+  // en test terrain) : les navigateurs mobiles suspendent les setInterval
+  // ET coupent le websocket Realtime des qu'un onglet passe en arriere-plan
+  // (l'utilisateur bascule sur WhatsApp pour contacter son chauffeur, verrouille
+  // son telephone, etc.) -- le sondage toutes les 4s ci-dessus ne s'execute
+  // simplement plus tant que l'onglet n'est pas revenu au premier plan. On
+  // revient donc les rattraper explicitement des que l'onglet redevient visible,
+  // au lieu d'attendre un minuteur qui ne tournait pas.
+  useEffect(() => {
+    if (!course) return
+    function surRetourAuPremierPlan() {
+      if (document.visibilityState === 'visible') reverifierCourse(course!.id)
+    }
+    document.addEventListener('visibilitychange', surRetourAuPremierPlan)
+    window.addEventListener('focus', surRetourAuPremierPlan)
+    return () => {
+      document.removeEventListener('visibilitychange', surRetourAuPremierPlan)
+      window.removeEventListener('focus', surRetourAuPremierPlan)
+    }
+  }, [course?.id])
 
   const zone = zones.find((z) => z.id === zoneId) || null
   // Estimation affichee avant envoi, a partir des points deja geocodes —

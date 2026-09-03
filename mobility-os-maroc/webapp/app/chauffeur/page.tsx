@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { distanceHaversineKm } from '@/lib/geo'
 import { useOperateurId } from '@/lib/useOperateurId'
+import { registerServiceWorker, notifier } from '@/lib/notifications'
 
 type Operateur = { id: string; nom: string; couleur_primaire: string; couleur_secondaire: string }
 type ChauffeurRow = { id: string; nom: string; telephone: string; statut: string }
@@ -50,14 +51,28 @@ export default function ChauffeurPage() {
   const [messagesVues, setMessagesVues] = useState(0)
   const [messageTexte, setMessageTexte] = useState('')
   const [envoiMessageEnCours, setEnvoiMessageEnCours] = useState(false)
+  const [permissionNotif, setPermissionNotif] = useState<NotificationPermission | 'indisponible'>('indisponible')
   const positionRef = useRef<{ lat: number; lng: number } | null>(null)
   const ecranRef = useRef(ecran)
+  const messagesRef = useRef<Message[]>([])
   // P1.6 : courses deja refusees ou en cours d'evaluation par CE chauffeur —
   // ne doivent jamais reapparaitre, meme quand le rayon de recherche
   // s'elargit avec le temps et que la mise a jour de la course est rediffusee.
   const ignoreesRef = useRef<Set<string>>(new Set())
 
   useEffect(() => { ecranRef.current = ecran }, [ecran])
+  useEffect(() => { messagesRef.current = messages }, [messages])
+
+  useEffect(() => {
+    registerServiceWorker()
+    if (typeof Notification !== 'undefined') setPermissionNotif(Notification.permission)
+  }, [])
+
+  async function activerNotifications() {
+    if (typeof Notification === 'undefined') return
+    const resultat = await Notification.requestPermission()
+    setPermissionNotif(resultat)
+  }
 
   useEffect(() => {
     if (!OPERATEUR_ID) return
@@ -138,6 +153,7 @@ export default function ChauffeurPage() {
             if (distance !== null && distance > rayon) return prev
             setDemande({ id: c.id, adresse_depart: c.adresse_depart, adresse_arrivee: c.adresse_arrivee, prix_estime: c.prix_estime, statut: c.statut, distance_km: distance ?? undefined })
             setEcran('demande')
+            notifier('Nouvelle course !', `${c.adresse_depart} → ${c.adresse_arrivee} · ${c.prix_estime} DH`)
             // P1 (course_events) : journalise la proposition — n'affecte jamais
             // le dispatch lui-meme, purement pour l'audit trail.
             supabase.rpc('proposer_course', { p_course_id: c.id, p_chauffeur_id: prev.id, p_telephone: prev.telephone })
@@ -203,7 +219,17 @@ export default function ChauffeurPage() {
   function chargerMessages(courseId: string) {
     if (!chauffeur) return
     supabase.rpc('messages_course', { p_course_id: courseId, p_telephone: chauffeur.telephone })
-      .then(({ data }) => { if (data) setMessages(data) })
+      .then(({ data }) => {
+        if (!data) return
+        if (data.length > messagesRef.current.length) {
+          const nouveaux: Message[] = data.slice(messagesRef.current.length)
+          const dernierMessage = nouveaux[nouveaux.length - 1]
+          if (dernierMessage.expediteur === 'passager' && (ecranRef.current !== 'messages' || document.hidden)) {
+            notifier(contactPassager?.nom ? `Message de ${contactPassager.nom}` : 'Nouveau message', dernierMessage.contenu)
+          }
+        }
+        setMessages(data)
+      })
   }
 
   useEffect(() => {
@@ -387,6 +413,11 @@ export default function ChauffeurPage() {
                 <div className="card"><div className="muted">Courses</div><div className="price" style={{ fontSize: 20 }}>{historique.length}</div></div>
               </div>
               {message && <p className="muted">{message}</p>}
+              {permissionNotif === 'default' && (
+                <button className="btn ghost" style={{ marginBottom: 8 }} onClick={activerNotifications}>
+                  🔔 Activer les notifications
+                </button>
+              )}
               <button className="btn outline" onClick={() => setEcran('historique')}>Voir l&apos;historique</button>
               <button
                 className="btn ghost"

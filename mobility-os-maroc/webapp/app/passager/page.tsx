@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { distanceHaversineKm } from '@/lib/geo'
 import { useOperateurId } from '@/lib/useOperateurId'
+import { registerServiceWorker, notifier } from '@/lib/notifications'
 
 const Carte = dynamic(() => import('@/components/Carte'), { ssr: false })
 
@@ -109,7 +110,24 @@ export default function PassagerPage() {
   const [otpCodeDebug, setOtpCodeDebug] = useState<string | null>(null)
   const [otpEnCours, setOtpEnCours] = useState(false)
   const [otpErreur, setOtpErreur] = useState<string | null>(null)
+  const [permissionNotif, setPermissionNotif] = useState<NotificationPermission | 'indisponible'>('indisponible')
   const courseRef = useRef<Course | null>(null)
+  const ecranRef = useRef(ecran)
+  const messagesRef = useRef<Message[]>([])
+
+  useEffect(() => {
+    registerServiceWorker()
+    if (typeof Notification !== 'undefined') setPermissionNotif(Notification.permission)
+  }, [])
+
+  async function activerNotifications() {
+    if (typeof Notification === 'undefined') return
+    const resultat = await Notification.requestPermission()
+    setPermissionNotif(resultat)
+  }
+
+  useEffect(() => { ecranRef.current = ecran }, [ecran])
+  useEffect(() => { messagesRef.current = messages }, [messages])
 
   // P0.2 (confort) : le telephone verifie reste valide 24h cote serveur,
   // mais l'ecran revenait a "connexion" a chaque rechargement faute d'etat
@@ -158,6 +176,11 @@ export default function PassagerPage() {
   // canal Realtime OU par le sondage de secours ci-dessous. Factorise pour
   // que les deux chemins produisent exactement la meme transition d'ecran.
   function appliquerMiseAJourCourse(updated: Course) {
+    // Capture avant setCourse : courseRef reflete encore le dernier statut
+    // committe (mis a jour par l'effet ci-dessous apres chaque rendu), donc
+    // fiable pour ne notifier qu'un vrai changement -- sans ca, le sondage
+    // toutes les 4s redeclencherait la meme notification en boucle.
+    const statutPrecedent = courseRef.current?.statut
     setCourse((precedent) => {
       if (updated.chauffeur_id && updated.chauffeur_id !== precedent?.chauffeur_id) {
         supabase.from('chauffeurs').select('id,nom,vehicule,plaque,note_moyenne,nb_courses').eq('id', updated.chauffeur_id).single()
@@ -171,6 +194,13 @@ export default function PassagerPage() {
       }
       return updated
     })
+    if (statutPrecedent !== updated.statut) {
+      if (updated.statut === 'assignee') notifier('Chauffeur trouvé', 'Un chauffeur a accepté votre course et arrive.')
+      else if (updated.statut === 'en_cours') notifier('En route', 'Votre chauffeur est arrivé, la course a commencé.')
+      else if (updated.statut === 'terminee') notifier('Course terminée', 'Vous êtes arrivé à destination.')
+      else if (updated.statut === 'sans_chauffeur') notifier('Aucun chauffeur disponible', "Personne n'a accepté votre demande, réessayez.")
+      else if (updated.statut === 'annulee') notifier('Course annulée', 'Votre course a été annulée.')
+    }
     if (updated.statut === 'assignee' || updated.statut === 'en_cours') {
       setEcran('course')
     } else if (updated.statut === 'terminee') {
@@ -239,7 +269,20 @@ export default function PassagerPage() {
   // le suivi de statut de la course ci-dessus.
   function chargerMessages(courseId: string) {
     supabase.rpc('messages_course', { p_course_id: courseId, p_telephone: telephone })
-      .then(({ data }) => { if (data) setMessages(data) })
+      .then(({ data }) => {
+        if (!data) return
+        if (data.length > messagesRef.current.length) {
+          const nouveaux: Message[] = data.slice(messagesRef.current.length)
+          const dernierMessage = nouveaux[nouveaux.length - 1]
+          // Pas de notification si la conversation est deja affichee a l'ecran
+          // (onglet au premier plan) -- seulement en arriere-plan ou ailleurs
+          // dans l'appli, comme une vraie messagerie.
+          if (dernierMessage.expediteur === 'chauffeur' && (ecranRef.current !== 'messages' || document.hidden)) {
+            notifier(chauffeur?.nom ? `Message de ${chauffeur.nom}` : 'Nouveau message', dernierMessage.contenu)
+          }
+        }
+        setMessages(data)
+      })
   }
 
   useEffect(() => {
@@ -459,6 +502,11 @@ export default function PassagerPage() {
               )}
               {zone && (
                 <div className="card card-row"><span>Prix estimé</span><span className="price">{prixEstime} DH</span></div>
+              )}
+              {permissionNotif === 'default' && (
+                <button className="btn ghost" style={{ marginTop: 4 }} onClick={activerNotifications}>
+                  🔔 Activer les notifications
+                </button>
               )}
               {erreur && <p className="error-text">{erreur}</p>}
             </div>

@@ -816,4 +816,77 @@ begin
   raise notice 'OK: chauffeurs_operateur()/courses_operateur() calculent bien position_recente et bloquee';
 end $$;
 
+-- Matrice de regression multi-tenant (Phase 2A, 2026-09-03) : verifie qu'un
+-- operateur ne peut jamais ecrire dans les tables d'un autre operateur, ni
+-- un compte sans operateur du tout. Deux operateurs synthetiques isoles
+-- (jamais les vrais operateurs de production TransAtlas/Toure transport :
+-- ce fichier cree/detruit des operateurs a chaque run). reclamer_operateur()
+-- exige un owner_user_id existant dans auth.users (FK) -- on reutilise donc
+-- les deux comptes reels deja mobilises ailleurs dans cette suite
+-- (mathissene57@gmail.com, tourebara@gmail.com, lamzi922@gmail.com comme
+-- "compte sans operateur"), en les associant a des operateurs synthetiques
+-- jetables plutot qu'aux operateurs de production. Confirme manuellement le
+-- 2026-09-03 avec les deux vrais operateurs de production : memes resultats
+-- (0 ligne modifiee dans les 3 cas).
+-- Note : les UPDATE bruts ci-dessous doivent tourner sous role authenticated
+-- (top-level, un `do $$` bloc ne peut pas contenir `set role`) pour que RLS
+-- s'applique reellement -- sous le role par defaut de connexion (proprietaire
+-- des tables), RLS est contournee et le test serait un faux negatif.
+create temp table matrice_multi_tenant (etape text, resultat int);
+grant select, insert on matrice_multi_tenant to authenticated;
+
+do $$
+declare
+  v_op_a uuid; v_op_b uuid;
+  v_zone_a uuid;
+begin
+  v_op_a := provisionner_operateur('Matrice A', 'test-matrice-a-' || replace(gen_random_uuid()::text, '-', ''), 'VilleA',
+    '#111111', '#eeeeee', '[{"nom":"Zone A","tarif_base":10,"tarif_km":2}]'::jsonb, '[]'::jsonb);
+  v_op_b := provisionner_operateur('Matrice B', 'test-matrice-b-' || replace(gen_random_uuid()::text, '-', ''), 'VilleB',
+    '#222222', '#dddddd', '[{"nom":"Zone B","tarif_base":10,"tarif_km":2}]'::jsonb, '[]'::jsonb);
+
+  perform set_config('request.jwt.claims', json_build_object('sub', '4fcafad6-ad79-4277-bfa6-4bcb1be5783e', 'role', 'authenticated')::text, true);
+  perform reclamer_operateur(v_op_a);
+  perform set_config('request.jwt.claims', json_build_object('sub', 'b1c55833-4991-4ead-8300-676c14ff4fba', 'role', 'authenticated')::text, true);
+  perform reclamer_operateur(v_op_b);
+
+  create temp table matrice_ctx as
+  select v_op_a as op_a, v_op_b as op_b,
+    (select owner_user_id from operateurs where id = v_op_a) as owner_a,
+    (select owner_user_id from operateurs where id = v_op_b) as owner_b,
+    (select id from zones_operateur where operateur_id = v_op_a) as zone_a;
+  grant select on matrice_ctx to authenticated;
+end $$;
+
+set role authenticated;
+
+-- B tente de modifier le branding de A
+select set_config('request.jwt.claims', json_build_object('sub', (select owner_b from matrice_ctx), 'role', 'authenticated')::text, true);
+with maj as (update operateurs set nom = 'HACKED-PAR-B' where id = (select op_a from matrice_ctx) returning 1)
+insert into matrice_multi_tenant select 'B -> modifie branding(A)', coalesce(count(*), 0) from maj;
+
+-- A tente de modifier le branding de B
+select set_config('request.jwt.claims', json_build_object('sub', (select owner_a from matrice_ctx), 'role', 'authenticated')::text, true);
+with maj as (update operateurs set nom = 'HACKED-PAR-A' where id = (select op_b from matrice_ctx) returning 1)
+insert into matrice_multi_tenant select 'A -> modifie branding(B)', coalesce(count(*), 0) from maj;
+
+-- Un compte sans aucun operateur (lamzi922) tente de modifier le tarif de A
+select set_config('request.jwt.claims', json_build_object('sub', '61f268e9-c7af-4b43-b871-9413270c418e', 'role', 'authenticated')::text, true);
+with maj as (update zones_operateur set tarif_base = 999 where id = (select zone_a from matrice_ctx) returning 1)
+insert into matrice_multi_tenant select 'X -> modifie tarif(A)', coalesce(count(*), 0) from maj;
+
+reset role;
+
+do $$
+declare v_max int;
+begin
+  select max(resultat) into v_max from matrice_multi_tenant;
+  if v_max <> 0 then
+    raise exception 'FAIL (matrice multi-tenant): au moins une ecriture cross-tenant a reussi: %',
+      (select string_agg(etape || '=' || resultat, ', ') from matrice_multi_tenant);
+  end if;
+  raise notice 'OK: matrice multi-tenant (branding + tarifs) : aucune ecriture cross-tenant possible (%)',
+    (select string_agg(etape || '=' || resultat, ', ') from matrice_multi_tenant);
+end $$;
+
 rollback;

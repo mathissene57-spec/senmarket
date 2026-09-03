@@ -43,6 +43,15 @@ type Course = {
   chauffeur_id: string | null
 }
 type Chauffeur = { id: string; nom: string; vehicule: string | null; plaque: string | null; note_moyenne: number }
+type Contact = { nom: string; telephone: string }
+
+// Convertit un numero local marocain (ex: "0655112233") au format
+// international attendu par wa.me (ex: "212655112233") -- wa.me exige les
+// chiffres seuls, sans "+" ni "0" initial.
+function versWhatsapp(tel: string): string {
+  const chiffres = tel.replace(/\D/g, '')
+  return chiffres.startsWith('0') ? '212' + chiffres.slice(1) : chiffres
+}
 
 export default function PassagerPage() {
   const supabase = createClient()
@@ -57,6 +66,7 @@ export default function PassagerPage() {
   const [arrivee, setArrivee] = useState('Gare Casa-Voyageurs')
   const [course, setCourse] = useState<Course | null>(null)
   const [chauffeur, setChauffeur] = useState<Chauffeur | null>(null)
+  const [contactChauffeur, setContactChauffeur] = useState<Contact | null>(null)
   const [note, setNote] = useState(0)
   const [historique, setHistorique] = useState<Course[]>([])
   const [erreur, setErreur] = useState<string | null>(null)
@@ -122,6 +132,12 @@ export default function PassagerPage() {
       if (updated.chauffeur_id && updated.chauffeur_id !== precedent?.chauffeur_id) {
         supabase.from('chauffeurs').select('id,nom,vehicule,plaque,note_moyenne').eq('id', updated.chauffeur_id).single()
           .then(({ data }) => setChauffeur(data))
+        // Le numero du chauffeur n'est jamais lisible directement (colonne
+        // exclue du GRANT anon, c'est son identifiant de connexion) -- on
+        // passe par une RPC qui verifie que CE telephone est bien le passager
+        // de CETTE course avant de renvoyer le contact de l'autre partie.
+        supabase.rpc('obtenir_contact_course', { p_course_id: updated.id, p_telephone: telephone })
+          .then(({ data }) => { if (data && data.length > 0) setContactChauffeur(data[0]) })
       }
       return updated
     })
@@ -212,6 +228,8 @@ export default function PassagerPage() {
     setChargement(false)
     if (error || !data || data.length === 0) { setErreur(error?.message || "Impossible de créer la course."); return }
     const cree = data[0]
+    setChauffeur(null)
+    setContactChauffeur(null)
     setCourse({ id: cree.id, statut: 'en_recherche', adresse_depart: depart, adresse_arrivee: arrivee, prix_estime: cree.prix_estime, prix_final: null, chauffeur_id: null })
     setEcran('recherche')
   }
@@ -219,6 +237,7 @@ export default function PassagerPage() {
   async function annulerCommande() {
     if (course) await supabase.rpc('annuler_course', { p_course_id: course.id, p_telephone: telephone })
     setCourse(null)
+    setContactChauffeur(null)
     setEcran('accueil')
   }
 
@@ -382,6 +401,16 @@ export default function PassagerPage() {
                 <div className="card card-row">
                   <div><strong>{chauffeur.nom}</strong><div className="muted">{chauffeur.vehicule} · {chauffeur.plaque}</div></div>
                   <span>⭐ {chauffeur.note_moyenne}</span>
+                </div>
+              )}
+              {contactChauffeur && (
+                <div className="btn-row" style={{ marginBottom: 12 }}>
+                  <a className="btn outline" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }} href={`tel:${contactChauffeur.telephone}`}>
+                    📞 Appeler
+                  </a>
+                  <a className="btn accent" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }} href={`https://wa.me/${versWhatsapp(contactChauffeur.telephone)}`} target="_blank" rel="noopener">
+                    WhatsApp
+                  </a>
                 </div>
               )}
               <div className="card"><div className="muted">Trajet</div><strong>{course.adresse_depart} → {course.adresse_arrivee}</strong></div>

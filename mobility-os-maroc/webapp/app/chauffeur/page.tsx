@@ -9,6 +9,15 @@ type Operateur = { id: string; nom: string; couleur_primaire: string; couleur_se
 type ChauffeurRow = { id: string; nom: string; telephone: string; statut: string }
 type CourseNotif = { id: string; adresse_depart: string; adresse_arrivee: string; prix_estime: number; statut: string; distance_km?: number }
 type CourseTerminee = { id: string; adresse_depart: string; adresse_arrivee: string; prix_final: number | null; created_at: string }
+type Contact = { nom: string; telephone: string }
+
+// Convertit un numero local marocain (ex: "0655112233") au format
+// international attendu par wa.me (ex: "212655112233") -- wa.me exige les
+// chiffres seuls, sans "+" ni "0" initial.
+function versWhatsapp(tel: string): string {
+  const chiffres = tel.replace(/\D/g, '')
+  return chiffres.startsWith('0') ? '212' + chiffres.slice(1) : chiffres
+}
 
 export default function ChauffeurPage() {
   const supabase = createClient()
@@ -21,6 +30,7 @@ export default function ChauffeurPage() {
   const [chargement, setChargement] = useState(false)
   const [demande, setDemande] = useState<CourseNotif | null>(null)
   const [courseActive, setCourseActive] = useState<CourseNotif | null>(null)
+  const [contactPassager, setContactPassager] = useState<Contact | null>(null)
   const [prixTermine, setPrixTermine] = useState<number | null>(null)
   const [historique, setHistorique] = useState<CourseTerminee[]>([])
   const [message, setMessage] = useState<string | null>(null)
@@ -194,6 +204,12 @@ export default function ChauffeurPage() {
     setChauffeur({ ...chauffeur, statut: 'en_course' })
     setCourseActive(demande)
     setDemande(null)
+    setContactPassager(null)
+    // Le numero du passager n'est jamais lisible directement -- RPC qui
+    // verifie que CE telephone est bien le chauffeur assigne a CETTE course
+    // avant de renvoyer le contact de l'autre partie (meme pattern cote passager).
+    supabase.rpc('obtenir_contact_course', { p_course_id: demande.id, p_telephone: chauffeur.telephone })
+      .then(({ data }) => { if (data && data.length > 0) setContactPassager(data[0]) })
     setEcran('navigation')
   }
 
@@ -219,6 +235,7 @@ export default function ChauffeurPage() {
     await supabase.rpc('avancer_course', { p_course_id: courseActive.id, p_nouveau_statut: 'terminee', p_telephone: chauffeur.telephone })
     setPrixTermine(courseActive.prix_estime)
     setChauffeur({ ...chauffeur, statut: 'disponible' })
+    setContactPassager(null)
     setEcran('fin')
   }
 
@@ -364,6 +381,16 @@ export default function ChauffeurPage() {
             <div className="screen-body">
               <div className="map-placeholder" />
               <div className="card"><div className="muted">Départ</div><strong>{courseActive.adresse_depart}</strong></div>
+              {contactPassager && (
+                <div className="btn-row" style={{ marginTop: 10 }}>
+                  <a className="btn outline" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }} href={`tel:${contactPassager.telephone}`}>
+                    📞 Appeler {contactPassager.nom || 'le passager'}
+                  </a>
+                  <a className="btn accent" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }} href={`https://wa.me/${versWhatsapp(contactPassager.telephone)}`} target="_blank" rel="noopener">
+                    WhatsApp
+                  </a>
+                </div>
+              )}
               <a className="btn outline" href="https://www.google.com/maps" target="_blank" rel="noopener" style={{ display: 'block', textAlign: 'center', textDecoration: 'none', marginTop: 10 }}>
                 Ouvrir la navigation (Waze / Google Maps)
               </a>
@@ -378,6 +405,16 @@ export default function ChauffeurPage() {
             <div className="screen-body">
               <div className="map-placeholder" />
               <div className="card"><div className="muted">Destination</div><strong>{courseActive.adresse_arrivee}</strong></div>
+              {contactPassager && (
+                <div className="btn-row" style={{ marginTop: 10 }}>
+                  <a className="btn outline" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }} href={`tel:${contactPassager.telephone}`}>
+                    📞 Appeler {contactPassager.nom || 'le passager'}
+                  </a>
+                  <a className="btn accent" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }} href={`https://wa.me/${versWhatsapp(contactPassager.telephone)}`} target="_blank" rel="noopener">
+                    WhatsApp
+                  </a>
+                </div>
+              )}
             </div>
             <div className="screen-footer"><button className="btn accent" onClick={terminerCourse}>Terminer la course</button></div>
           </>

@@ -42,8 +42,21 @@ type Course = {
   prix_final: number | null
   chauffeur_id: string | null
 }
-type Chauffeur = { id: string; nom: string; vehicule: string | null; plaque: string | null; note_moyenne: number }
+type Chauffeur = { id: string; nom: string; vehicule: string | null; plaque: string | null; note_moyenne: number; nb_courses: number }
 type Contact = { nom: string; telephone: string }
+type Avis = { note: number; commentaire: string | null; created_at: string }
+
+// Confiance passager (demande produit) : au-dela de la simple moyenne, un
+// badge textuel resume d'un coup d'oeil le niveau de confiance -- absent
+// pour un chauffeur encore sans historique plutot que de le presenter
+// comme "mauvais" faute de donnees.
+function badgeConfiance(chauffeur: Chauffeur): { label: string; classe: string } | null {
+  if (chauffeur.nb_courses === 0) return { label: 'Nouveau chauffeur', classe: 'off' }
+  if (chauffeur.note_moyenne >= 4.5 && chauffeur.nb_courses >= 10) return { label: '🏆 Chauffeur excellent', classe: 'ok' }
+  if (chauffeur.note_moyenne >= 4) return { label: '✓ Chauffeur fiable', classe: 'ok' }
+  if (chauffeur.note_moyenne < 3) return { label: 'Note en baisse', classe: 'warn' }
+  return null
+}
 
 // Convertit un numero local marocain (ex: "0655112233") au format
 // international attendu par wa.me (ex: "212655112233") -- wa.me exige les
@@ -75,7 +88,7 @@ export default function PassagerPage() {
   const [operateur, setOperateur] = useState<Operateur | null>(null)
   const [zones, setZones] = useState<Zone[]>([])
   const [zoneId, setZoneId] = useState<string>('')
-  const [ecran, setEcran] = useState<'connexion' | 'accueil' | 'recherche' | 'course' | 'fin' | 'historique' | 'sans_chauffeur'>('connexion')
+  const [ecran, setEcran] = useState<'connexion' | 'accueil' | 'recherche' | 'course' | 'fin' | 'historique' | 'sans_chauffeur' | 'avis'>('connexion')
   const [telephone, setTelephone] = useState('06 61 22 33 44')
   const [nom, setNom] = useState('')
   const [depart, setDepart] = useState('Position actuelle — Boulevard Zerktouni')
@@ -84,6 +97,10 @@ export default function PassagerPage() {
   const [chauffeur, setChauffeur] = useState<Chauffeur | null>(null)
   const [contactChauffeur, setContactChauffeur] = useState<Contact | null>(null)
   const [note, setNote] = useState(0)
+  const [commentaireAvis, setCommentaireAvis] = useState('')
+  const [avisListe, setAvisListe] = useState<Avis[]>([])
+  const [avisChargement, setAvisChargement] = useState(false)
+  const [ecranPrecedent, setEcranPrecedent] = useState<'course' | 'fin'>('course')
   const [historique, setHistorique] = useState<Course[]>([])
   const [erreur, setErreur] = useState<string | null>(null)
   const [chargement, setChargement] = useState(false)
@@ -146,7 +163,7 @@ export default function PassagerPage() {
   function appliquerMiseAJourCourse(updated: Course) {
     setCourse((precedent) => {
       if (updated.chauffeur_id && updated.chauffeur_id !== precedent?.chauffeur_id) {
-        supabase.from('chauffeurs').select('id,nom,vehicule,plaque,note_moyenne').eq('id', updated.chauffeur_id).single()
+        supabase.from('chauffeurs').select('id,nom,vehicule,plaque,note_moyenne,nb_courses').eq('id', updated.chauffeur_id).single()
           .then(({ data }) => setChauffeur(data))
         // Le numero du chauffeur n'est jamais lisible directement (colonne
         // exclue du GRANT anon, c'est son identifiant de connexion) -- on
@@ -259,7 +276,10 @@ export default function PassagerPage() {
 
   async function envoyerNote() {
     if (!course) return
-    if (note > 0) await supabase.rpc('noter_course', { p_course_id: course.id, p_telephone: telephone, p_note: note })
+    if (note > 0) {
+      await supabase.rpc('noter_course', { p_course_id: course.id, p_telephone: telephone, p_note: note, p_commentaire: commentaireAvis })
+    }
+    setCommentaireAvis('')
     await chargerHistorique()
     setEcran('historique')
   }
@@ -267,6 +287,20 @@ export default function PassagerPage() {
   async function chargerHistorique() {
     const { data } = await supabase.rpc('historique_passager', { p_telephone: telephone })
     setHistorique(data || [])
+  }
+
+  // Confiance passager (demande produit) : le passager doit pouvoir consulter
+  // le detail des avis recus par un chauffeur, pas seulement sa moyenne.
+  // Accessible depuis l'ecran "course" (avant meme la fin du trajet) et
+  // depuis l'ecran "fin", d'ou surRetourAvis() sait vers lequel revenir.
+  async function ouvrirAvis(depuis: 'course' | 'fin') {
+    if (!chauffeur) return
+    setEcranPrecedent(depuis)
+    setAvisChargement(true)
+    setEcran('avis')
+    const { data } = await supabase.rpc('avis_chauffeur', { p_chauffeur_id: chauffeur.id })
+    setAvisListe(data || [])
+    setAvisChargement(false)
   }
 
   // P0.2 : verification OTP reelle avant d'entrer dans l'app. SMS stubbe —
@@ -419,9 +453,22 @@ export default function PassagerPage() {
                 <Carte points={[{ ...pointDepart, couleur: primary }, { ...pointArrivee, couleur: accent }]} zoom={13} />
               </div>
               {chauffeur && (
-                <div className="card card-row">
-                  <div><strong>{chauffeur.nom}</strong><div className="muted">{chauffeur.vehicule} · {chauffeur.plaque}</div></div>
-                  <span>⭐ {chauffeur.note_moyenne}</span>
+                <div className="card">
+                  <div className="card-row">
+                    <div><strong>{chauffeur.nom}</strong><div className="muted">{chauffeur.vehicule} · {chauffeur.plaque}</div></div>
+                    <span>⭐ {chauffeur.note_moyenne}</span>
+                  </div>
+                  <div className="card-row" style={{ marginTop: 10 }}>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <span className="muted">{chauffeur.nb_courses} course{chauffeur.nb_courses !== 1 ? 's' : ''} effectuée{chauffeur.nb_courses !== 1 ? 's' : ''}</span>
+                      {badgeConfiance(chauffeur) && (
+                        <span className={`badge ${badgeConfiance(chauffeur)!.classe}`}>{badgeConfiance(chauffeur)!.label}</span>
+                      )}
+                    </div>
+                    <button className="btn ghost" style={{ width: 'auto', padding: '4px 0', fontSize: 13 }} onClick={() => ouvrirAvis('course')}>
+                      Voir les avis
+                    </button>
+                  </div>
                 </div>
               )}
               {contactChauffeur && (
@@ -452,7 +499,21 @@ export default function PassagerPage() {
                     <button key={i} className={`star${note >= i ? ' filled' : ''}`} onClick={() => setNote(i)}>★</button>
                   ))}
                 </div>
+                {note > 0 && (
+                  <textarea
+                    value={commentaireAvis}
+                    onChange={(e) => setCommentaireAvis(e.target.value)}
+                    placeholder="Un commentaire pour les prochains passagers ? (optionnel)"
+                    rows={3}
+                    style={{ width: '100%', marginTop: 12, padding: '10px 12px', borderRadius: 12, border: '1px solid #DDD', fontSize: 14, fontFamily: 'inherit', resize: 'none' }}
+                  />
+                )}
               </div>
+              {chauffeur && (
+                <button className="btn ghost" style={{ marginTop: 8 }} onClick={() => ouvrirAvis('fin')}>
+                  Voir les avis sur ce chauffeur
+                </button>
+              )}
             </div>
             <div className="screen-footer"><button className="btn" onClick={envoyerNote}>Terminer</button></div>
           </>
@@ -465,6 +526,38 @@ export default function PassagerPage() {
               <p className="muted">Réessayez dans quelques minutes</p>
             </div>
             <div className="screen-footer"><button className="btn" onClick={() => { setCourse(null); setEcran('accueil') }}>Retour</button></div>
+          </>
+        )}
+
+        {ecran === 'avis' && (
+          <>
+            <div className="screen-header">
+              <strong>Avis sur {chauffeur?.nom || 'ce chauffeur'}</strong>
+              <button className="btn ghost" onClick={() => setEcran(ecranPrecedent)}>Retour</button>
+            </div>
+            <div className="screen-body">
+              {chauffeur && (
+                <div className="card card-row" style={{ marginBottom: 16 }}>
+                  <span>⭐ {chauffeur.note_moyenne} de moyenne</span>
+                  <span className="muted">{chauffeur.nb_courses} course{chauffeur.nb_courses !== 1 ? 's' : ''}</span>
+                </div>
+              )}
+              {avisChargement && <p className="muted">Chargement…</p>}
+              {!avisChargement && avisListe.length === 0 && (
+                <p className="muted">Aucun avis pour l&apos;instant — soyez le premier à en laisser un après votre course.</p>
+              )}
+              {!avisChargement && avisListe.map((a, i) => (
+                <div key={i} className="card">
+                  <div className="stars" style={{ fontSize: 18, letterSpacing: 2, cursor: 'default' }}>
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <span key={n} className={`star${a.note >= n ? ' filled' : ''}`} style={{ cursor: 'default' }}>★</span>
+                    ))}
+                  </div>
+                  {a.commentaire && <p style={{ margin: '8px 0 4px' }}>{a.commentaire}</p>}
+                  <div className="muted" style={{ fontSize: 12 }}>{new Date(a.created_at).toLocaleDateString('fr-FR')}</div>
+                </div>
+              ))}
+            </div>
           </>
         )}
 

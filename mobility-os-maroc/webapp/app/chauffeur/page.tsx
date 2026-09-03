@@ -227,6 +227,25 @@ export default function ChauffeurPage() {
     setHistorique(data || [])
   }
 
+  // Changer de chauffeur (finition UX) : aucun moyen de se deconnecter
+  // n'existait dans cette app -- le telephone verifie reste enregistre dans
+  // localStorage et l'effet de reconnexion silencieuse au demarrage reconnecte
+  // automatiquement le meme chauffeur indefiniment. Sur une tablette partagee
+  // par plusieurs chauffeurs (usage reel constate), impossible de rendre la
+  // main a un collegue sans vider le stockage du navigateur a la main.
+  // Bloque si une course est en cours pour ne pas perdre l'ecran de suivi.
+  function seDeconnecter() {
+    if (typeof window !== 'undefined') localStorage.removeItem('mos_chauffeur_telephone')
+    setChauffeur(null)
+    setTelephone('')
+    setHistorique([])
+    setOtpEnvoye(false)
+    setOtpCode('')
+    setOtpCodeDebug(null)
+    setOtpErreur(null)
+    setEcran('connexion')
+  }
+
   const gainsJour = historique
     .filter((c) => new Date(c.created_at).toDateString() === new Date().toDateString())
     .reduce((acc, c) => acc + Number(c.prix_final || 0), 0)
@@ -306,6 +325,15 @@ export default function ChauffeurPage() {
               </div>
               {message && <p className="muted">{message}</p>}
               <button className="btn outline" onClick={() => setEcran('historique')}>Voir l&apos;historique</button>
+              <button
+                className="btn ghost"
+                style={{ marginTop: 8 }}
+                disabled={chauffeur.statut === 'en_course'}
+                title={chauffeur.statut === 'en_course' ? 'Terminez la course en cours avant de changer de chauffeur' : undefined}
+                onClick={seDeconnecter}
+              >
+                Changer de chauffeur
+              </button>
             </div>
           </>
         )}

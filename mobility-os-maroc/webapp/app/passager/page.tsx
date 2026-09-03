@@ -114,28 +114,53 @@ export default function PassagerPage() {
     return () => clearTimeout(delai)
   }, [arrivee])
 
+  // Applique une mise a jour de course (statut/chauffeur_id) recue par le
+  // canal Realtime OU par le sondage de secours ci-dessous. Factorise pour
+  // que les deux chemins produisent exactement la meme transition d'ecran.
+  function appliquerMiseAJourCourse(updated: Course) {
+    setCourse((precedent) => {
+      if (updated.chauffeur_id && updated.chauffeur_id !== precedent?.chauffeur_id) {
+        supabase.from('chauffeurs').select('id,nom,vehicule,plaque,note_moyenne').eq('id', updated.chauffeur_id).single()
+          .then(({ data }) => setChauffeur(data))
+      }
+      return updated
+    })
+    if (updated.statut === 'assignee' || updated.statut === 'en_cours') {
+      setEcran('course')
+    } else if (updated.statut === 'terminee') {
+      setEcran('fin')
+    } else if (updated.statut === 'sans_chauffeur' || updated.statut === 'annulee') {
+      setEcran('sans_chauffeur')
+    }
+  }
+
   useEffect(() => {
     if (!course) return
     const channel = supabase
       .channel('passager-course-' + course.id)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'courses', filter: `id=eq.${course.id}` }, (payload) => {
-        const updated = payload.new as Course
-        setCourse(updated)
-        if (updated.statut === 'assignee' && updated.chauffeur_id) {
-          supabase.from('chauffeurs').select('id,nom,vehicule,plaque,note_moyenne').eq('id', updated.chauffeur_id).single()
-            .then(({ data }) => setChauffeur(data))
-          setEcran('course')
-        } else if (updated.statut === 'en_cours') {
-          setEcran('course')
-        } else if (updated.statut === 'terminee') {
-          setEcran('fin')
-        } else if (updated.statut === 'sans_chauffeur' || updated.statut === 'annulee') {
-          setEcran('sans_chauffeur')
-        }
+        appliquerMiseAJourCourse(payload.new as Course)
       })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [course?.id])
+
+  // Sondage de secours (finition UX) : le radar de recherche restait bloque
+  // a l'ecran meme apres acceptation par un chauffeur -- le canal Realtime
+  // seul ne suffit pas dans certains cas reels (onglet mis en arriere-plan
+  // sur mobile qui coupe le websocket, reconnexion manquee, minuscule
+  // fenetre de course entre l'appel RPC et l'etablissement de l'abonnement).
+  // Une requete directe toutes les 4s vient combler ces trous sans remplacer
+  // le canal Realtime, qui reste le chemin instantane quand tout va bien.
+  useEffect(() => {
+    if (!course || (ecran !== 'recherche' && ecran !== 'course')) return
+    const intervalle = setInterval(() => {
+      supabase.from('courses').select('id,statut,adresse_depart,adresse_arrivee,prix_estime,prix_final,chauffeur_id')
+        .eq('id', course.id).single()
+        .then(({ data }) => { if (data) appliquerMiseAJourCourse(data as Course) })
+    }, 4000)
+    return () => clearInterval(intervalle)
+  }, [course?.id, ecran])
 
   const zone = zones.find((z) => z.id === zoneId) || null
   // Estimation affichee avant envoi, a partir des points deja geocodes —

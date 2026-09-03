@@ -217,12 +217,31 @@ export default function DashboardPage() {
     setRetraitEnCoursId(null)
     if (error) {
       if (error.code === '23503') {
-        setRetraitErreur(`${c.nom} a un historique de courses et ne peut pas être supprimé. Passez-le en "indisponible" via son propre accès chauffeur pour le retirer du dispatch.`)
+        setRetraitErreur(`${c.nom} a un historique de courses et ne peut pas être supprimé. Utilisez plutôt le bouton "Désactiver" pour le retirer du dispatch sans perdre son historique.`)
       } else {
         setRetraitErreur(error.message)
       }
       return
     }
+    chargerDonnees()
+  }
+
+  // Desactiver/reactiver un chauffeur depuis le dashboard (Phase 2B, finition
+  // UX) : "Retirer" (suppression) echoue par construction (FK courses.chauffeur_id)
+  // des qu'un chauffeur a deja roule -- ce qui est le cas de la quasi-totalite
+  // d'une flotte reelle. Le seul recours propose jusqu'ici (demander au
+  // chauffeur de se mettre "indisponible" depuis son propre acces) ne marche
+  // pas quand l'operateur veut le deconnecter lui-meme (chauffeur injoignable,
+  // parti, telephone perdu). Force directement chauffeurs.statut ; autorise par
+  // la policy RLS chauffeurs_maj_owner (deja en place, aucune migration requise).
+  async function basculerDisponibiliteChauffeur(c: ChauffeurRow) {
+    if (c.statut === 'en_course') return
+    const nouveauStatut = c.statut === 'indisponible' ? 'disponible' : 'indisponible'
+    setRetraitErreur(null)
+    setRetraitEnCoursId(c.id)
+    const { error } = await supabase.from('chauffeurs').update({ statut: nouveauStatut }).eq('id', c.id)
+    setRetraitEnCoursId(null)
+    if (error) { setRetraitErreur(error.message); return }
     chargerDonnees()
   }
 
@@ -453,15 +472,26 @@ export default function DashboardPage() {
                       )}
                     </td>
                     <td>
-                      <button
-                        className="btn outline"
-                        style={{ width: 'auto', padding: '6px 10px', fontSize: 13 }}
-                        disabled={c.statut === 'en_course' || retraitEnCoursId === c.id}
-                        title={c.statut === 'en_course' ? 'Impossible de retirer un chauffeur en course' : undefined}
-                        onClick={() => retirerChauffeur(c)}
-                      >
-                        {retraitEnCoursId === c.id ? '…' : 'Retirer'}
-                      </button>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button
+                          className="btn outline"
+                          style={{ width: 'auto', padding: '6px 10px', fontSize: 13 }}
+                          disabled={c.statut === 'en_course' || retraitEnCoursId === c.id}
+                          title={c.statut === 'en_course' ? 'Impossible de changer la disponibilité d’un chauffeur en course' : undefined}
+                          onClick={() => basculerDisponibiliteChauffeur(c)}
+                        >
+                          {retraitEnCoursId === c.id ? '…' : c.statut === 'indisponible' ? 'Réactiver' : 'Désactiver'}
+                        </button>
+                        <button
+                          className="btn outline"
+                          style={{ width: 'auto', padding: '6px 10px', fontSize: 13 }}
+                          disabled={c.statut === 'en_course' || retraitEnCoursId === c.id}
+                          title={c.statut === 'en_course' ? 'Impossible de retirer un chauffeur en course' : undefined}
+                          onClick={() => retirerChauffeur(c)}
+                        >
+                          {retraitEnCoursId === c.id ? '…' : 'Retirer'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

@@ -767,4 +767,53 @@ begin
   raise notice 'OK: proposer_course()/refuser_course() journalisent correctement, isolation cross-operateur respectee';
 end $$;
 
+-- Dispatch/GPS (2026-09-02) : chauffeurs_operateur() distingue desormais un
+-- chauffeur "disponible" d'un chauffeur reellement joignable (position_recente,
+-- fraicheur < 2min), et courses_operateur() signale une course assignee
+-- depuis plus de 20 min sans progression (bloquee). Purement additif -- deux
+-- colonnes calculees en plus, rien d'autre ne change.
+do $$
+declare
+  v_op uuid; v_zone uuid; v_chauffeur_frais uuid; v_chauffeur_stale uuid;
+  v_tel_frais text := '0793300001'; v_tel_stale text := '0793300002';
+  v_course_bloquee uuid; v_course_normale uuid;
+  v_code text;
+  v_recente_frais boolean; v_recente_stale boolean;
+  v_bloquee1 boolean; v_bloquee2 boolean;
+begin
+  v_op := provisionner_operateur('Test GPS', 'test-gps-' || replace(gen_random_uuid()::text, '-', ''), 'TestVille',
+    '#000000', '#ffffff', '[{"nom":"Zone","tarif_base":10,"tarif_km":2}]'::jsonb,
+    format('[{"nom":"Frais","telephone":"%s"},{"nom":"Stale","telephone":"%s"}]', v_tel_frais, v_tel_stale)::jsonb);
+  select id into v_zone from zones_operateur where operateur_id = v_op;
+  select id into v_chauffeur_frais from chauffeurs where operateur_id = v_op and telephone = v_tel_frais;
+  select id into v_chauffeur_stale from chauffeurs where operateur_id = v_op and telephone = v_tel_stale;
+
+  update chauffeurs set position_lat = 33.5, position_lng = -7.6, position_maj_at = now() - interval '30 seconds' where id = v_chauffeur_frais;
+  update chauffeurs set position_lat = 33.5, position_lng = -7.6, position_maj_at = now() - interval '10 minutes' where id = v_chauffeur_stale;
+
+  perform set_config('request.jwt.claims', json_build_object('sub', '4fcafad6-ad79-4277-bfa6-4bcb1be5783e', 'role', 'authenticated')::text, true);
+  perform reclamer_operateur(v_op);
+
+  select position_recente into v_recente_frais from chauffeurs_operateur(v_op) where id = v_chauffeur_frais;
+  select position_recente into v_recente_stale from chauffeurs_operateur(v_op) where id = v_chauffeur_stale;
+  if v_recente_frais is not true then raise exception 'FAIL (dispatch/gps): position vieille de 30s devrait etre recente'; end if;
+  if v_recente_stale is not false then raise exception 'FAIL (dispatch/gps): position vieille de 10min ne devrait pas etre recente'; end if;
+
+  v_code := demander_otp('0793300099'); perform verifier_otp('0793300099', v_code);
+  v_code := demander_otp(v_tel_frais); perform verifier_otp(v_tel_frais, v_code);
+
+  select id into v_course_bloquee from creer_course(v_op, '0793300099', null, 'D', 'A', v_zone, 33.5883, -7.6114, 33.5885, -7.5719);
+  perform accepter_course(v_course_bloquee, v_chauffeur_frais, v_tel_frais);
+  update courses set assignee_at = now() - interval '25 minutes' where id = v_course_bloquee;
+
+  select id into v_course_normale from creer_course(v_op, '0793300099', null, 'D', 'A', v_zone, 33.5883, -7.6114, 33.5885, -7.5719);
+
+  select bloquee into v_bloquee1 from courses_operateur(v_op) where id = v_course_bloquee;
+  select bloquee into v_bloquee2 from courses_operateur(v_op) where id = v_course_normale;
+  if v_bloquee1 is not true then raise exception 'FAIL (dispatch/gps): course assignee depuis 25min devrait etre signalee bloquee'; end if;
+  if v_bloquee2 is not false then raise exception 'FAIL (dispatch/gps): course en_recherche fraiche ne devrait pas etre bloquee'; end if;
+
+  raise notice 'OK: chauffeurs_operateur()/courses_operateur() calculent bien position_recente et bloquee';
+end $$;
+
 rollback;

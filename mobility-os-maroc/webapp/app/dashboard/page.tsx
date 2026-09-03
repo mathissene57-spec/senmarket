@@ -8,8 +8,8 @@ import { useOperateurId } from '@/lib/useOperateurId'
 const Carte = dynamic(() => import('@/components/Carte'), { ssr: false })
 
 type Operateur = { id: string; nom: string; couleur_primaire: string; couleur_secondaire: string; owner_user_id: string | null }
-type ChauffeurRow = { id: string; nom: string; telephone: string; vehicule: string | null; plaque: string | null; note_moyenne: number; statut: string; position_lat: number | null; position_lng: number | null }
-type CourseRow = { id: string; statut: string; adresse_depart: string; adresse_arrivee: string; prix_estime: number; prix_final: number | null; created_at: string; chauffeur_id: string | null; depart_lat: number | null; depart_lng: number | null }
+type ChauffeurRow = { id: string; nom: string; telephone: string; vehicule: string | null; plaque: string | null; note_moyenne: number; statut: string; position_lat: number | null; position_lng: number | null; position_recente: boolean }
+type CourseRow = { id: string; statut: string; adresse_depart: string; adresse_arrivee: string; prix_estime: number; prix_final: number | null; created_at: string; chauffeur_id: string | null; depart_lat: number | null; depart_lng: number | null; bloquee: boolean }
 
 export default function DashboardPage() {
   const supabase = createClient()
@@ -172,8 +172,13 @@ export default function DashboardPage() {
   const primary = operateur.couleur_primaire
   const accent = operateur.couleur_secondaire
   const chauffeursAvecPosition = chauffeurs.filter((c) => c.position_lat != null && c.position_lng != null && c.statut !== 'indisponible')
+  // Dispatch/GPS : une position vieille de plus de 2 min (position_recente = false,
+  // calcule server-side dans chauffeurs_operateur()) signale un chauffeur "disponible"
+  // en base mais probablement injoignable (app fermee, telephone eteint) — affiche en
+  // gris plutot que dans la couleur de statut, pour ne pas le confondre avec un
+  // chauffeur reellement actif.
   const pointsFlotte = [
-    ...chauffeursAvecPosition.map((c) => ({ lat: c.position_lat!, lng: c.position_lng!, couleur: c.statut === 'disponible' ? '#1E8E5A' : accent })),
+    ...chauffeursAvecPosition.map((c) => ({ lat: c.position_lat!, lng: c.position_lng!, couleur: !c.position_recente ? '#9CA3AF' : c.statut === 'disponible' ? '#1E8E5A' : accent })),
     ...coursesEnCours.filter((c) => c.depart_lat != null && c.depart_lng != null).map((c) => ({ lat: c.depart_lat!, lng: c.depart_lng!, couleur: primary })),
   ]
 
@@ -205,7 +210,7 @@ export default function DashboardPage() {
                 {coursesEnCours.length === 0 && <tr><td colSpan={4} className="muted">Aucune course en cours.</td></tr>}
                 {coursesEnCours.map((c) => (
                   <tr key={c.id}>
-                    <td>{c.adresse_depart} → {c.adresse_arrivee}</td>
+                    <td>{c.adresse_depart} → {c.adresse_arrivee} {c.bloquee && <span className="badge danger" title="Assignée depuis plus de 20 min sans progression">⚠️ bloquée</span>}</td>
                     <td><span className={`badge ${c.statut === 'en_recherche' ? 'off' : 'warn'}`}>{c.statut}</span></td>
                     <td>{c.prix_estime} DH</td>
                     <td>
@@ -230,9 +235,10 @@ export default function DashboardPage() {
                 <Carte points={pointsFlotte} zoom={12} />
               </div>
             )}
-            <div style={{ display: 'flex', gap: 20, marginTop: 12 }}>
-              <span className="muted"><span style={{ color: '#1E8E5A' }}>●</span> Chauffeur disponible ({chauffeursAvecPosition.filter((c) => c.statut === 'disponible').length})</span>
-              <span className="muted"><span style={{ color: accent }}>●</span> Chauffeur en course ({chauffeursAvecPosition.filter((c) => c.statut === 'en_course').length})</span>
+            <div style={{ display: 'flex', gap: 20, marginTop: 12, flexWrap: 'wrap' }}>
+              <span className="muted"><span style={{ color: '#1E8E5A' }}>●</span> Chauffeur disponible ({chauffeursAvecPosition.filter((c) => c.statut === 'disponible' && c.position_recente).length})</span>
+              <span className="muted"><span style={{ color: accent }}>●</span> Chauffeur en course ({chauffeursAvecPosition.filter((c) => c.statut === 'en_course' && c.position_recente).length})</span>
+              <span className="muted"><span style={{ color: '#9CA3AF' }}>●</span> Position ancienne, +2min ({chauffeursAvecPosition.filter((c) => !c.position_recente).length})</span>
               <span className="muted"><span style={{ color: primary }}>●</span> Départ course en attente ({coursesEnCours.filter((c) => c.depart_lat != null).length})</span>
             </div>
             <p className="muted" style={{ marginTop: 8 }}>
@@ -246,7 +252,7 @@ export default function DashboardPage() {
             <h1>Chauffeurs</h1>
             <table>
               <tbody>
-                <tr><th>Nom</th><th>Téléphone</th><th>Véhicule</th><th>Note</th><th>Statut</th></tr>
+                <tr><th>Nom</th><th>Téléphone</th><th>Véhicule</th><th>Note</th><th>Statut</th><th>Position</th></tr>
                 {chauffeurs.map((c) => (
                   <tr key={c.id}>
                     <td>{c.nom}</td>
@@ -254,6 +260,15 @@ export default function DashboardPage() {
                     <td>{c.vehicule} {c.plaque && `· ${c.plaque}`}</td>
                     <td>{c.note_moyenne}</td>
                     <td><span className={`badge ${c.statut === 'disponible' ? 'ok' : c.statut === 'en_course' ? 'warn' : 'off'}`}>{c.statut}</span></td>
+                    <td>
+                      {c.position_lat == null ? (
+                        <span className="muted">inconnue</span>
+                      ) : c.position_recente ? (
+                        <span className="badge ok">à jour</span>
+                      ) : (
+                        <span className="badge warn">ancienne</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -286,7 +301,7 @@ export default function DashboardPage() {
                 {courses.map((c) => (
                   <tr key={c.id}>
                     <td>{new Date(c.created_at).toLocaleString('fr-FR')}</td>
-                    <td>{c.adresse_depart} → {c.adresse_arrivee}</td>
+                    <td>{c.adresse_depart} → {c.adresse_arrivee} {c.bloquee && <span className="badge danger" title="Assignée depuis plus de 20 min sans progression">⚠️ bloquée</span>}</td>
                     <td><span className={`badge ${c.statut === 'terminee' ? 'ok' : c.statut === 'annulee' || c.statut === 'sans_chauffeur' ? 'danger' : 'warn'}`}>{c.statut}</span></td>
                     <td>{c.prix_final ?? c.prix_estime} DH</td>
                     <td>

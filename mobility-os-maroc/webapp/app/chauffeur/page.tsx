@@ -250,6 +250,7 @@ export default function ChauffeurPage() {
   return (
     <div className="page-shell" style={vars}>
       <div className="phone">
+      <div key={ecran} className="screen-fade">
         {ecran === 'connexion' && (
           <div className="screen-body center" style={{ justifyContent: 'center', display: 'flex', flexDirection: 'column' }}>
             <div style={{ margin: '0 auto 24px' }}><span className="brand-mark">{operateur?.nom?.[0] || 'M'}</span></div>
@@ -378,6 +379,7 @@ export default function ChauffeurPage() {
             </div>
           </>
         )}
+      </div>
       </div>
     </div>
   )

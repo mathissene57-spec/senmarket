@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { distanceHaversineKm } from '@/lib/geo'
 import { useOperateurId } from '@/lib/useOperateurId'
-import { registerServiceWorker, notifier } from '@/lib/notifications'
+import { registerServiceWorker, notifier, subscribeToPush } from '@/lib/notifications'
 
 const Carte = dynamic(() => import('@/components/Carte'), { ssr: false })
 
@@ -124,6 +124,7 @@ export default function PassagerPage() {
     if (typeof Notification === 'undefined') return
     const resultat = await Notification.requestPermission()
     setPermissionNotif(resultat)
+    if (resultat === 'granted') subscribeToPush(supabase, telephone)
   }
 
   useEffect(() => { ecranRef.current = ecran }, [ecran])
@@ -139,7 +140,10 @@ export default function PassagerPage() {
     if (!sauvegarde) return
     setTelephone(sauvegarde)
     supabase.rpc('historique_passager', { p_telephone: sauvegarde }).then(({ error }) => {
-      if (!error) setEcran('accueil')
+      if (!error) {
+        setEcran('accueil')
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') subscribeToPush(supabase, sauvegarde)
+      }
     })
   }, [])
 
@@ -404,6 +408,7 @@ export default function PassagerPage() {
     if (!data) { setOtpErreur('Code incorrect.'); return }
     if (typeof window !== 'undefined') localStorage.setItem('mos_passager_telephone', telephone)
     setEcran('accueil')
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') subscribeToPush(supabase, telephone)
   }
 
   const primary = operateur?.couleur_primaire || '#101B3D'

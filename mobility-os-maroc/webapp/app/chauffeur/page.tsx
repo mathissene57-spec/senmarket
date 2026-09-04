@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { distanceHaversineKm } from '@/lib/geo'
 import { useOperateurId } from '@/lib/useOperateurId'
-import { registerServiceWorker, notifier } from '@/lib/notifications'
+import { registerServiceWorker, notifier, subscribeToPush } from '@/lib/notifications'
 
 type Operateur = { id: string; nom: string; couleur_primaire: string; couleur_secondaire: string }
 type ChauffeurRow = { id: string; nom: string; telephone: string; statut: string }
@@ -72,6 +72,7 @@ export default function ChauffeurPage() {
     if (typeof Notification === 'undefined') return
     const resultat = await Notification.requestPermission()
     setPermissionNotif(resultat)
+    if (resultat === 'granted' && chauffeur) subscribeToPush(supabase, chauffeur.telephone)
   }
 
   useEffect(() => {
@@ -97,6 +98,7 @@ export default function ChauffeurPage() {
         setChauffeur(trouve)
         setEcran('accueil')
         chargerHistorique(trouve.id, trouve.telephone)
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') subscribeToPush(supabase, trouve.telephone)
       }
     })
   }, [OPERATEUR_ID])
@@ -180,6 +182,7 @@ export default function ChauffeurPage() {
     setChauffeur(trouve)
     setEcran('accueil')
     chargerHistorique(trouve.id, trouve.telephone)
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') subscribeToPush(supabase, trouve.telephone)
   }
 
   // P0.2 : verification OTP reelle avant connexion_chauffeur. SMS stubbe —

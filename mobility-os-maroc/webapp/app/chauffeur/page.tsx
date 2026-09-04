@@ -130,6 +130,35 @@ export default function ChauffeurPage() {
     return () => navigator.geolocation.clearWatch(watchId)
   }, [chauffeur?.id])
 
+  // Evalue une ligne "courses" recue (par Realtime ou par le sondage de
+  // secours ci-dessous) et l'affiche comme demande si elle est pertinente
+  // pour ce chauffeur. Factorise pour que les deux chemins appliquent
+  // exactement la meme logique de filtrage.
+  function evaluerCandidateCourse(c: any) {
+    if (c.statut !== 'en_recherche' || ignoreesRef.current.has(c.id) || ecranRef.current === 'demande') return
+    setChauffeur((prev) => {
+      if (prev && prev.statut === 'disponible') {
+        const position = positionRef.current
+        const depart = c.depart_lat != null && c.depart_lng != null ? { lat: c.depart_lat, lng: c.depart_lng } : null
+        const rayon = Number(c.rayon_recherche_km) || 3
+        const distance = position && depart ? distanceHaversineKm(position, depart) : null
+        // Position connue et course hors du rayon actuel : on l'ignore pour
+        // l'instant, un autre chauffeur plus proche la verra — mais on ne la
+        // marque pas comme definitivement refusee, elle pourra redevenir
+        // visible si le rayon s'elargit encore. Sans position connue, on
+        // affiche quand meme (pas de regression pour un chauffeur sans GPS).
+        if (distance !== null && distance > rayon) return prev
+        setDemande({ id: c.id, adresse_depart: c.adresse_depart, adresse_arrivee: c.adresse_arrivee, prix_estime: c.prix_estime, statut: c.statut, distance_km: distance ?? undefined })
+        setEcran('demande')
+        notifier('Nouvelle course !', `${c.adresse_depart} → ${c.adresse_arrivee} · ${c.prix_estime} DH`)
+        // P1 (course_events) : journalise la proposition — n'affecte jamais
+        // le dispatch lui-meme, purement pour l'audit trail.
+        supabase.rpc('proposer_course', { p_course_id: c.id, p_chauffeur_id: prev.id, p_telephone: prev.telephone })
+      }
+      return prev
+    })
+  }
+
   // P1.6 : ecoute aussi bien la creation que les mises a jour d'une course —
   // le rayon de recherche s'elargit avec le temps (voir expirer_courses_en_
   // recherche cote serveur), donc une demande d'abord hors de portee peut
@@ -139,33 +168,46 @@ export default function ChauffeurPage() {
     const channel = supabase
       .channel('chauffeur-' + chauffeur.id)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'courses', filter: `operateur_id=eq.${OPERATEUR_ID}` }, (payload) => {
-        const c = payload.new as any
-        if (c.statut !== 'en_recherche' || ignoreesRef.current.has(c.id) || ecranRef.current === 'demande') return
-        setChauffeur((prev) => {
-          if (prev && prev.statut === 'disponible') {
-            const position = positionRef.current
-            const depart = c.depart_lat != null && c.depart_lng != null ? { lat: c.depart_lat, lng: c.depart_lng } : null
-            const rayon = Number(c.rayon_recherche_km) || 3
-            const distance = position && depart ? distanceHaversineKm(position, depart) : null
-            // Position connue et course hors du rayon actuel : on l'ignore pour
-            // l'instant, un autre chauffeur plus proche la verra — mais on ne la
-            // marque pas comme definitivement refusee, elle pourra redevenir
-            // visible si le rayon s'elargit encore. Sans position connue, on
-            // affiche quand meme (pas de regression pour un chauffeur sans GPS).
-            if (distance !== null && distance > rayon) return prev
-            setDemande({ id: c.id, adresse_depart: c.adresse_depart, adresse_arrivee: c.adresse_arrivee, prix_estime: c.prix_estime, statut: c.statut, distance_km: distance ?? undefined })
-            setEcran('demande')
-            notifier('Nouvelle course !', `${c.adresse_depart} → ${c.adresse_arrivee} · ${c.prix_estime} DH`)
-            // P1 (course_events) : journalise la proposition — n'affecte jamais
-            // le dispatch lui-meme, purement pour l'audit trail.
-            supabase.rpc('proposer_course', { p_course_id: c.id, p_chauffeur_id: prev.id, p_telephone: prev.telephone })
-          }
-          return prev
-        })
+        evaluerCandidateCourse(payload.new as any)
       })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [chauffeur?.id])
+
+  // Sondage de secours (meme cause reelle que cote passager, jamais couverte
+  // ici jusqu'ici) : le canal Realtime seul ne suffit pas des que le websocket
+  // se coupe (telephone verrouille, onglet en arriere-plan, reseau mobile
+  // instable) — une course creee pendant la coupure n'est jamais rejouee par
+  // Realtime a la reconnexion, elle est simplement perdue pour ce chauffeur.
+  // Une requete directe toutes les 4s, plus un rattrapage immediat au retour
+  // au premier plan, comble ce trou sans remplacer le canal Realtime.
+  function rechercherCoursesEnAttente() {
+    if (!chauffeur || !OPERATEUR_ID || chauffeur.statut !== 'disponible') return
+    supabase.from('courses')
+      .select('id,statut,adresse_depart,adresse_arrivee,prix_estime,depart_lat,depart_lng,rayon_recherche_km')
+      .eq('operateur_id', OPERATEUR_ID)
+      .eq('statut', 'en_recherche')
+      .then(({ data }) => { (data || []).forEach(evaluerCandidateCourse) })
+  }
+
+  useEffect(() => {
+    if (!chauffeur || chauffeur.statut !== 'disponible') return
+    const intervalle = setInterval(rechercherCoursesEnAttente, 4000)
+    return () => clearInterval(intervalle)
+  }, [chauffeur?.id, chauffeur?.statut])
+
+  useEffect(() => {
+    if (!chauffeur) return
+    function surRetourAuPremierPlan() {
+      if (document.visibilityState === 'visible') rechercherCoursesEnAttente()
+    }
+    document.addEventListener('visibilitychange', surRetourAuPremierPlan)
+    window.addEventListener('focus', surRetourAuPremierPlan)
+    return () => {
+      document.removeEventListener('visibilitychange', surRetourAuPremierPlan)
+      window.removeEventListener('focus', surRetourAuPremierPlan)
+    }
+  }, [chauffeur?.id, chauffeur?.statut])
 
   async function seConnecter() {
     if (!OPERATEUR_ID) return

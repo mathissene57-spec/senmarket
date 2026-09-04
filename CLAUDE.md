@@ -11,6 +11,10 @@ SenMarket is a marketplace connecting Senegalese sellers/shops to buyers in Moro
 
 **`README.md` is not documentation.** Despite its name, it is a large (~1800-line) self-contained static HTML/CSS/JS prototype (vanilla JS, no framework, no build step) of the full consumer-facing marketplace UI — shop/product browsing, cart, favorites, WhatsApp-based ordering, boutique registration, demo `SHOPS`/`PRODS` data, etc. It's a design/spec deliverable from an external agency ("FlowDynamicsAgency") showing the target UX. It has **no backend of its own** (no Supabase calls at all) and its demo data model does **not** match the real Supabase schema (e.g. it never got a per-boutique `devise`, never modeled stock protection, etc.). Use it only as a visual/UX reference, never as a source of truth for the data model or business rules — that's the real Supabase schema now.
 
+## `senlink/` is a separate product, not part of SenMarket
+
+`senlink/` (sibling directory at repo root, same precedent as `flowdynamicsagency-portfolio/`) is **SenLink**, a package-tracking/logistics platform for a Morocco↔Senegal shipping corridor — technically and commercially a separate product from SenMarket, even though it shares the same Next.js 14 + Supabase stack. It has its own `package.json`, its own Supabase client/server/middleware pattern, and — critically — **its own, entirely separate Supabase project/schema**, never the one described below. Do not conflate `senlink/`'s tables (`organizations`, `shipments`, `shipment_events`, `hubs`, `pickup_points`, `transporters`, `incidents`, `notifications`, etc., defined in `senlink/supabase/migrations/`) with SenMarket's real backend. See `senlink/README.md` and `senlink/docs/blueprint.md` for details. As of this writing `senlink/`'s Supabase migration has been written but **not applied** — no real SenLink Supabase project has been provisioned yet.
+
 ## Commands
 
 ```bash

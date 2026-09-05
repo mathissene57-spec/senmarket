@@ -1393,4 +1393,40 @@ begin
 end $$;
 reset role;
 
+-- L-1 (2026-09-05, plan de finalisation V1) : coupe-circuit global anti-bot
+-- sur demander_otp() (au-dela de la limite existante par numero) --
+-- n'affecte jamais les numeros de la liste de demo (utilises massivement
+-- par cette suite via test_demander_otp_et_lire_code() tout au long du
+-- fichier), ne compte que les demandes reelles. Prefixe '077778' choisi
+-- pour ne collisionner avec aucun autre numero de ce fichier (un numero
+-- deja enregistre comme demo plus haut, meme reutilise ici, ne compterait
+-- pas comme une demande reelle et fausserait le calcul).
+do $$
+declare
+  i int;
+  v_deja int;
+  v_manquant int;
+begin
+  -- Le trafic demo de toute la suite (deja des dizaines d'appels a ce
+  -- stade) ne doit avoir aucun effet sur le compteur reel.
+  select count(*) into v_deja from otp_codes where created_at > now() - interval '1 minute' and code_demo is null;
+  v_manquant := 20 - v_deja;
+  for i in 1..greatest(v_manquant, 0) loop
+    perform demander_otp('077778' || lpad(i::text, 4, '0'));
+  end loop;
+  begin
+    perform demander_otp('0777779999');
+    raise exception 'FAIL (L-1): le coupe-circuit global aurait du se declencher au-dela de 20 demandes reelles/minute';
+  exception when others then
+    if sqlerrm like 'Service temporairement indisponible%' then
+      raise notice 'OK (L-1): coupe-circuit global anti-bot declenche au-dela de 20 demandes OTP reelles/minute';
+    else raise; end if;
+  end;
+
+  -- Un numero de demo continue de fonctionner normalement malgre le
+  -- coupe-circuit global desormais declenche (il ne compte pas dedans).
+  perform test_demander_otp_et_lire_code('0777778999');
+  raise notice 'OK (L-1): un numero de demo reste utilisable meme apres declenchement du coupe-circuit global';
+end $$;
+
 rollback;

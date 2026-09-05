@@ -96,9 +96,14 @@ begin
   end if;
   raise notice 'OK test 1: creer_course (prix serveur = % DH pour % km)', v_prix, round(v_distance, 2);
 
-  -- Test 1b : un trajet plus long produit un prix plus eleve
-  select prix_estime into v_prix_proche from creer_course(v_operateur_id, '0711111111', null, 'D', 'A', v_zone_id, 33.5883, -7.6114, 33.5885, -7.5719);
-  select prix_estime into v_prix_loin from creer_course(v_operateur_id, '0711111111', null, 'D', 'A', v_zone_id, 33.5883, -7.6114, 34.0209, -6.8416);
+  -- Test 1b : un trajet plus long produit un prix plus eleve. Deux numeros
+  -- distincts (plutot que '0711111111', deja utilise par le test 1 avec une
+  -- course encore en_recherche) -- depuis H-3 (2026-09-05), un passager ne
+  -- peut plus avoir deux courses actives simultanement.
+  v_code := test_demander_otp_et_lire_code('0711111112'); perform verifier_otp('0711111112', v_code);
+  v_code := test_demander_otp_et_lire_code('0711111113'); perform verifier_otp('0711111113', v_code);
+  select prix_estime into v_prix_proche from creer_course(v_operateur_id, '0711111112', null, 'D', 'A', v_zone_id, 33.5883, -7.6114, 33.5885, -7.5719);
+  select prix_estime into v_prix_loin from creer_course(v_operateur_id, '0711111113', null, 'D', 'A', v_zone_id, 33.5883, -7.6114, 34.0209, -6.8416);
   if v_prix_loin <= v_prix_proche then
     raise exception 'FAIL test 1b: un trajet plus long (%) devrait couter plus qu''un trajet court (%)', v_prix_loin, v_prix_proche;
   end if;
@@ -818,14 +823,20 @@ begin
   if v_recente_frais is not true then raise exception 'FAIL (dispatch/gps): position vieille de 30s devrait etre recente'; end if;
   if v_recente_stale is not false then raise exception 'FAIL (dispatch/gps): position vieille de 10min ne devrait pas etre recente'; end if;
 
+  -- Deux passagers distincts pour les deux courses (0793300099 pour la
+  -- bloquee, 0793300098 pour la normale) -- depuis H-3 (2026-09-05), un
+  -- passager ne peut plus avoir deux courses actives en meme temps, et
+  -- v_course_bloquee reste volontairement 'assignee' (jamais terminee) pour
+  -- ce test.
   v_code := test_demander_otp_et_lire_code('0793300099'); perform verifier_otp('0793300099', v_code);
+  v_code := test_demander_otp_et_lire_code('0793300098'); perform verifier_otp('0793300098', v_code);
   v_code := test_demander_otp_et_lire_code(v_tel_frais); perform verifier_otp(v_tel_frais, v_code);
 
   select id into v_course_bloquee from creer_course(v_op, '0793300099', null, 'D', 'A', v_zone, 33.5883, -7.6114, 33.5885, -7.5719);
   perform accepter_course(v_course_bloquee, v_chauffeur_frais, v_tel_frais);
   update courses set assignee_at = now() - interval '25 minutes' where id = v_course_bloquee;
 
-  select id into v_course_normale from creer_course(v_op, '0793300099', null, 'D', 'A', v_zone, 33.5883, -7.6114, 33.5885, -7.5719);
+  select id into v_course_normale from creer_course(v_op, '0793300098', null, 'D', 'A', v_zone, 33.5883, -7.6114, 33.5885, -7.5719);
 
   select bloquee into v_bloquee1 from courses_operateur(v_op) where id = v_course_bloquee;
   select bloquee into v_bloquee2 from courses_operateur(v_op) where id = v_course_normale;
@@ -1256,5 +1267,38 @@ end $$;
 reset role;
 
 do $$ begin raise notice 'TOUS LES TESTS P0.4 (RE-TEST D''ATTAQUE C-1/C-2/C-3/H-1/H-2/H-4/H-5) SONT PASSES'; end $$;
+
+-- H-3 (2026-09-05, plan de finalisation V1) : un passager ne peut plus avoir
+-- deux courses actives simultanement -- empeche l'amplification "creer_course
+-- en boucle -> notifier_nouvelle_course fan-out vers toute la flotte".
+do $$
+declare
+  v_op uuid; v_zone uuid;
+  v_tel text := '0799996001';
+  v_code text;
+  v_course_id uuid;
+begin
+  v_op := provisionner_operateur('Test H3', 'test-h3-' || replace(gen_random_uuid()::text, '-', ''), 'TestVille',
+    '#000000', '#ffffff', '[{"nom":"Zone","tarif_base":10,"tarif_km":2}]'::jsonb, '[]'::jsonb);
+  select id into v_zone from zones_operateur where operateur_id = v_op;
+  v_code := test_demander_otp_et_lire_code(v_tel); perform verifier_otp(v_tel, v_code);
+
+  select id into v_course_id from creer_course(v_op, v_tel, null, 'D', 'A', v_zone, 33.5883, -7.6114, 33.5885, -7.5719);
+
+  begin
+    perform creer_course(v_op, v_tel, null, 'D2', 'A2', v_zone, 33.5883, -7.6114, 33.5885, -7.5719);
+    raise exception 'FAIL (H-3): une deuxieme course active pour le meme passager aurait du etre rejetee';
+  exception when others then
+    if sqlerrm not like 'Vous avez deja une course active%' then raise; end if;
+  end;
+
+  perform annuler_course(v_course_id, v_tel);
+
+  if not exists (select 1 from creer_course(v_op, v_tel, null, 'D3', 'A3', v_zone, 33.5883, -7.6114, 33.5885, -7.5719)) then
+    raise exception 'FAIL (H-3): une nouvelle course aurait du etre autorisee apres annulation de la precedente';
+  end if;
+
+  raise notice 'OK (H-3): une seule course active a la fois par passager, nouvelle course autorisee apres annulation';
+end $$;
 
 rollback;

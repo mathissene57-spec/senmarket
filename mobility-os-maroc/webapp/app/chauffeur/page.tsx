@@ -10,7 +10,7 @@ import { registerServiceWorker, notifier, subscribeToPush } from '@/lib/notifica
 const Carte = dynamic(() => import('@/components/Carte'), { ssr: false })
 
 type Operateur = { id: string; nom: string; couleur_primaire: string; couleur_secondaire: string }
-type ChauffeurRow = { id: string; nom: string; telephone: string; statut: string }
+type ChauffeurRow = { id: string; nom: string; telephone: string; statut: string; type_vehicule: string }
 type CourseNotif = {
   id: string
   adresse_depart: string
@@ -22,6 +22,8 @@ type CourseNotif = {
   depart_lng?: number | null
   arrivee_lat?: number | null
   arrivee_lng?: number | null
+  type_vehicule?: string
+  type_course?: string
 }
 type CourseTerminee = { id: string; adresse_depart: string; adresse_arrivee: string; prix_final: number | null; created_at: string }
 type Contact = { nom: string; telephone: string }
@@ -166,7 +168,10 @@ export default function ChauffeurPage() {
   function evaluerCandidateCourse(c: any) {
     if (c.statut !== 'en_recherche' || ignoreesRef.current.has(c.id) || ecranRef.current === 'demande') return
     setChauffeur((prev) => {
-      if (prev && prev.statut === 'disponible') {
+      // Filtrage par type de vehicule (P11, demande produit) : un chauffeur
+      // moto ne doit jamais voir une course voiture et inversement -- chaque
+      // course snapshote le type demande par le passager a la commande.
+      if (prev && prev.statut === 'disponible' && (c.type_vehicule || 'voiture') === prev.type_vehicule) {
         const position = positionRef.current
         const depart = c.depart_lat != null && c.depart_lng != null ? { lat: c.depart_lat, lng: c.depart_lng } : null
         const rayon = Number(c.rayon_recherche_km) || 3
@@ -188,6 +193,8 @@ export default function ChauffeurPage() {
           depart_lng: c.depart_lng,
           arrivee_lat: c.arrivee_lat,
           arrivee_lng: c.arrivee_lng,
+          type_vehicule: c.type_vehicule,
+          type_course: c.type_course,
         })
         setEcran('demande')
         notifier('Nouvelle course !', `${c.adresse_depart} → ${c.adresse_arrivee} · ${c.prix_estime} DH`)
@@ -224,7 +231,7 @@ export default function ChauffeurPage() {
   function rechercherCoursesEnAttente() {
     if (!chauffeur || !OPERATEUR_ID || chauffeur.statut !== 'disponible') return
     supabase.from('courses')
-      .select('id,statut,adresse_depart,adresse_arrivee,prix_estime,depart_lat,depart_lng,arrivee_lat,arrivee_lng,rayon_recherche_km')
+      .select('id,statut,adresse_depart,adresse_arrivee,prix_estime,depart_lat,depart_lng,arrivee_lat,arrivee_lng,rayon_recherche_km,type_vehicule,type_course')
       .eq('operateur_id', OPERATEUR_ID)
       .eq('statut', 'en_recherche')
       .then(({ data }) => { (data || []).forEach(evaluerCandidateCourse) })
@@ -516,7 +523,10 @@ export default function ChauffeurPage() {
 
         {ecran === 'demande' && demande && (
           <>
-            <div className="screen-header"><strong>Nouvelle course</strong></div>
+            <div className="screen-header">
+              <strong>Nouvelle course</strong>
+              <span className="badge warn">{demande.type_course === 'intervilles' ? '🛣️ Intervilles' : '🏙️ Ville'}{demande.type_vehicule === 'moto' ? ' · 🏍️' : ''}</span>
+            </div>
             <div className="screen-body">
               <div className="card">
                 <div className="card-row"><span className="muted">Départ</span><span>{demande.adresse_depart}</span></div>

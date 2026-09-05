@@ -8,7 +8,8 @@ import { useOperateurId } from '@/lib/useOperateurId'
 const Carte = dynamic(() => import('@/components/Carte'), { ssr: false })
 
 type Operateur = { id: string; nom: string; couleur_primaire: string; couleur_secondaire: string; ville: string | null; owner_user_id: string | null }
-type ChauffeurRow = { id: string; nom: string; telephone: string; vehicule: string | null; plaque: string | null; note_moyenne: number; statut: string; position_lat: number | null; position_lng: number | null; position_recente: boolean }
+type ChauffeurRow = { id: string; nom: string; telephone: string; vehicule: string | null; plaque: string | null; note_moyenne: number; statut: string; position_lat: number | null; position_lng: number | null; position_recente: boolean; type_vehicule: string }
+type TrajetInterville = { id: string; ville_depart: string; ville_arrivee: string; prix: number; actif: boolean }
 type CourseRow = { id: string; statut: string; adresse_depart: string; adresse_arrivee: string; prix_estime: number; prix_final: number | null; created_at: string; chauffeur_id: string | null; depart_lat: number | null; depart_lng: number | null; bloquee: boolean }
 type CourseEvent = { id: string; type: string; chauffeur_id: string | null; acteur: string | null; details: Record<string, any> | null; created_at: string }
 type Zone = { id: string; nom: string; tarif_base: number; tarif_km: number }
@@ -60,6 +61,7 @@ export default function DashboardPage() {
   const [nouveauTelephone, setNouveauTelephone] = useState('')
   const [nouveauVehicule, setNouveauVehicule] = useState('')
   const [nouvellePlaque, setNouvellePlaque] = useState('')
+  const [nouveauTypeVehicule, setNouveauTypeVehicule] = useState<'voiture' | 'moto'>('voiture')
   const [ajoutEnCours, setAjoutEnCours] = useState(false)
   const [ajoutErreur, setAjoutErreur] = useState<string | null>(null)
   const [retraitEnCoursId, setRetraitEnCoursId] = useState<string | null>(null)
@@ -88,8 +90,19 @@ export default function DashboardPage() {
   const [editTelephone, setEditTelephone] = useState('')
   const [editVehicule, setEditVehicule] = useState('')
   const [editPlaque, setEditPlaque] = useState('')
+  const [editTypeVehicule, setEditTypeVehicule] = useState<'voiture' | 'moto'>('voiture')
   const [editionEnCours, setEditionEnCours] = useState(false)
   const [editionErreur, setEditionErreur] = useState<string | null>(null)
+  // Trajets intervilles (P11, demande produit) : prix fixe par trajet
+  // ville_depart -> ville_arrivee, distinct des zones tarifaires "ville"
+  // (celles-ci restent basees sur la distance geocodee).
+  const [trajetsIntervilles, setTrajetsIntervilles] = useState<TrajetInterville[]>([])
+  const [nouvelleVilleDepart, setNouvelleVilleDepart] = useState('')
+  const [nouvelleVilleArrivee, setNouvelleVilleArrivee] = useState('')
+  const [nouveauPrixTrajet, setNouveauPrixTrajet] = useState(100)
+  const [ajoutTrajetEnCours, setAjoutTrajetEnCours] = useState(false)
+  const [trajetErreur, setTrajetErreur] = useState<string | null>(null)
+  const [trajetEnCoursId, setTrajetEnCoursId] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -148,6 +161,8 @@ export default function DashboardPage() {
     const { data: zo } = await supabase.from('zones_operateur').select('id,nom,tarif_base,tarif_km').eq('operateur_id', operateur.id).order('nom')
     setZones(zo || [])
     setZonesEdit(Object.fromEntries((zo || []).map((z) => [z.id, { tarif_base: String(z.tarif_base), tarif_km: String(z.tarif_km) }])))
+    const { data: ti } = await supabase.from('trajets_intervilles').select('id,ville_depart,ville_arrivee,prix,actif').eq('operateur_id', operateur.id).order('created_at')
+    setTrajetsIntervilles(ti || [])
   }
 
   // Aucun mecanisme ne debloquait une course restee coincee en assignee/
@@ -222,6 +237,45 @@ export default function DashboardPage() {
     chargerDonnees()
   }
 
+  // Trajets intervilles (P11, demande produit) : prix fixe par trajet plutot
+  // que le calcul par distance des zones "ville" -- meme patron CRUD que les
+  // zones tarifaires ci-dessus (policies RLS owner deja en place).
+  async function ajouterTrajetInterville() {
+    if (!operateur) return
+    setTrajetErreur(null)
+    if (!nouvelleVilleDepart.trim() || !nouvelleVilleArrivee.trim()) { setTrajetErreur('Ville de départ et ville d’arrivée sont requises.'); return }
+    setAjoutTrajetEnCours(true)
+    const { error } = await supabase.from('trajets_intervilles').insert({
+      operateur_id: operateur.id,
+      ville_depart: nouvelleVilleDepart.trim(),
+      ville_arrivee: nouvelleVilleArrivee.trim(),
+      prix: nouveauPrixTrajet,
+    })
+    setAjoutTrajetEnCours(false)
+    if (error) { setTrajetErreur(error.message); return }
+    setNouvelleVilleDepart(''); setNouvelleVilleArrivee(''); setNouveauPrixTrajet(100)
+    chargerDonnees()
+  }
+
+  async function basculerActifTrajet(t: TrajetInterville) {
+    setTrajetErreur(null)
+    setTrajetEnCoursId(t.id)
+    const { error } = await supabase.from('trajets_intervilles').update({ actif: !t.actif }).eq('id', t.id)
+    setTrajetEnCoursId(null)
+    if (error) { setTrajetErreur(error.message); return }
+    chargerDonnees()
+  }
+
+  async function supprimerTrajetInterville(t: TrajetInterville) {
+    if (typeof window !== 'undefined' && !window.confirm(`Supprimer le trajet ${t.ville_depart} → ${t.ville_arrivee} ?`)) return
+    setTrajetErreur(null)
+    setTrajetEnCoursId(t.id)
+    const { error } = await supabase.from('trajets_intervilles').delete().eq('id', t.id)
+    setTrajetEnCoursId(null)
+    if (error) { setTrajetErreur(error.message); return }
+    chargerDonnees()
+  }
+
   // Retirer un chauffeur (Phase 2B, finition UX) : seul l'ajout existait --
   // aucun moyen de retirer un chauffeur qui ne travaille plus pour
   // l'operateur, malgre la policy RLS chauffeurs_suppression_owner deja
@@ -279,6 +333,7 @@ export default function DashboardPage() {
       vehicule: nouveauVehicule.trim() || null,
       plaque: nouvellePlaque.trim() || null,
       statut: 'disponible',
+      type_vehicule: nouveauTypeVehicule,
     })
     setAjoutEnCours(false)
     if (error) {
@@ -289,7 +344,7 @@ export default function DashboardPage() {
       }
       return
     }
-    setNouveauNom(''); setNouveauTelephone(''); setNouveauVehicule(''); setNouvellePlaque('')
+    setNouveauNom(''); setNouveauTelephone(''); setNouveauVehicule(''); setNouvellePlaque(''); setNouveauTypeVehicule('voiture')
     chargerDonnees()
   }
 
@@ -304,6 +359,7 @@ export default function DashboardPage() {
     setEditTelephone(c.telephone)
     setEditVehicule(c.vehicule || '')
     setEditPlaque(c.plaque || '')
+    setEditTypeVehicule(c.type_vehicule === 'moto' ? 'moto' : 'voiture')
     setEditionErreur(null)
   }
   function fermerEditionChauffeur() {
@@ -319,6 +375,7 @@ export default function DashboardPage() {
       telephone: editTelephone.trim(),
       vehicule: editVehicule.trim() || null,
       plaque: editPlaque.trim() || null,
+      type_vehicule: editTypeVehicule,
     }).eq('id', chauffeurEnEdition.id)
     setEditionEnCours(false)
     if (error) {
@@ -543,11 +600,12 @@ export default function DashboardPage() {
             {retraitErreur && <p className="error-text">{retraitErreur}</p>}
             <table>
               <tbody>
-                <tr><th>Nom</th><th>Téléphone</th><th>Véhicule</th><th>Note</th><th>Statut</th><th>Position</th><th></th></tr>
+                <tr><th>Nom</th><th>Téléphone</th><th>Type</th><th>Véhicule</th><th>Note</th><th>Statut</th><th>Position</th><th></th></tr>
                 {chauffeurs.map((c) => (
                   <tr key={c.id}>
                     <td>{c.nom}</td>
                     <td>{c.telephone}</td>
+                    <td><span className={`badge ${c.type_vehicule === 'moto' ? 'warn' : 'off'}`}>{c.type_vehicule === 'moto' ? '🏍️ Moto' : '🚗 Voiture'}</span></td>
                     <td>{c.vehicule} {c.plaque && `· ${c.plaque}`}</td>
                     <td>{c.note_moyenne}</td>
                     <td><span className={`badge ${c.statut === 'disponible' ? 'ok' : c.statut === 'en_course' ? 'warn' : 'off'}`}>{c.statut}</span></td>
@@ -600,6 +658,11 @@ export default function DashboardPage() {
               <input type="text" value={nouveauNom} onChange={(e) => setNouveauNom(e.target.value)} />
               <label className="field-label">Téléphone</label>
               <input type="tel" value={nouveauTelephone} onChange={(e) => setNouveauTelephone(e.target.value)} placeholder="06..." />
+              <label className="field-label">Type de véhicule</label>
+              <select value={nouveauTypeVehicule} onChange={(e) => setNouveauTypeVehicule(e.target.value as 'voiture' | 'moto')} style={{ width: '100%', padding: '13px 14px', borderRadius: 12, border: '1px solid #D9C9B5', fontSize: 15, marginBottom: 12, fontFamily: 'inherit' }}>
+                <option value="voiture">🚗 Voiture</option>
+                <option value="moto">🏍️ Moto</option>
+              </select>
               <label className="field-label">Véhicule</label>
               <input type="text" value={nouveauVehicule} onChange={(e) => setNouveauVehicule(e.target.value)} placeholder="Ex : Dacia Logan" />
               <label className="field-label">Plaque</label>
@@ -711,6 +774,47 @@ export default function DashboardPage() {
                 {ajoutZoneEnCours ? 'Ajout…' : 'Ajouter la zone'}
               </button>
             </div>
+
+            <h3 style={{ marginTop: 40 }}>Trajets intervilles</h3>
+            <p className="muted" style={{ marginTop: -8 }}>Prix fixe par trajet, distinct des zones tarifaires ci-dessus (basées sur la distance en ville).</p>
+            {trajetErreur && <p className="error-text">{trajetErreur}</p>}
+            <table>
+              <tbody>
+                <tr><th>Départ</th><th>Arrivée</th><th>Prix (DH)</th><th>Statut</th><th></th></tr>
+                {trajetsIntervilles.length === 0 && <tr><td colSpan={5} className="muted">Aucun trajet intervilles.</td></tr>}
+                {trajetsIntervilles.map((t) => (
+                  <tr key={t.id}>
+                    <td>{t.ville_depart}</td>
+                    <td>{t.ville_arrivee}</td>
+                    <td>{t.prix} DH</td>
+                    <td><span className={`badge ${t.actif ? 'ok' : 'off'}`}>{t.actif ? 'actif' : 'suspendu'}</span></td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button className="btn outline" style={{ width: 'auto', padding: '6px 10px', fontSize: 13 }} disabled={trajetEnCoursId === t.id} onClick={() => basculerActifTrajet(t)}>
+                          {trajetEnCoursId === t.id ? '…' : t.actif ? 'Suspendre' : 'Réactiver'}
+                        </button>
+                        <button className="btn outline" style={{ width: 'auto', padding: '6px 10px', fontSize: 13 }} disabled={trajetEnCoursId === t.id} onClick={() => supprimerTrajetInterville(t)}>
+                          Supprimer
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <h3 style={{ marginTop: 32 }}>Ajouter un trajet intervilles</h3>
+            <div className="card" style={{ padding: 20, maxWidth: 420 }}>
+              <label className="field-label">Ville de départ</label>
+              <input type="text" value={nouvelleVilleDepart} onChange={(e) => setNouvelleVilleDepart(e.target.value)} placeholder="Ex : Casablanca" />
+              <label className="field-label">Ville d’arrivée</label>
+              <input type="text" value={nouvelleVilleArrivee} onChange={(e) => setNouvelleVilleArrivee(e.target.value)} placeholder="Ex : Marrakech" />
+              <label className="field-label">Prix fixe (DH)</label>
+              <input type="number" min="0" step="10" value={nouveauPrixTrajet} onChange={(e) => setNouveauPrixTrajet(parseFloat(e.target.value) || 0)} />
+              <button className="btn accent" onClick={ajouterTrajetInterville} disabled={ajoutTrajetEnCours} style={{ marginTop: 12 }}>
+                {ajoutTrajetEnCours ? 'Ajout…' : 'Ajouter le trajet'}
+              </button>
+            </div>
           </>
         )}
 
@@ -751,6 +855,11 @@ export default function DashboardPage() {
             <input type="text" value={editNom} onChange={(e) => setEditNom(e.target.value)} />
             <label className="field-label">Téléphone</label>
             <input type="tel" value={editTelephone} onChange={(e) => setEditTelephone(e.target.value)} />
+            <label className="field-label">Type de véhicule</label>
+            <select value={editTypeVehicule} onChange={(e) => setEditTypeVehicule(e.target.value as 'voiture' | 'moto')} style={{ width: '100%', padding: '13px 14px', borderRadius: 12, border: '1px solid #D9C9B5', fontSize: 15, marginBottom: 12, fontFamily: 'inherit' }}>
+              <option value="voiture">🚗 Voiture</option>
+              <option value="moto">🏍️ Moto</option>
+            </select>
             <label className="field-label">Véhicule</label>
             <input type="text" value={editVehicule} onChange={(e) => setEditVehicule(e.target.value)} placeholder="Ex : Dacia Logan" />
             <label className="field-label">Plaque</label>

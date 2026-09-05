@@ -46,6 +46,7 @@ type Course = {
 type Chauffeur = { id: string; nom: string; vehicule: string | null; plaque: string | null; note_moyenne: number; nb_courses: number }
 type Contact = { nom: string; telephone: string }
 type Avis = { note: number; commentaire: string | null; created_at: string }
+type TrajetInterville = { id: string; ville_depart: string; ville_arrivee: string; prix: number }
 type Message = { id: string; expediteur: 'passager' | 'chauffeur'; contenu: string; created_at: string }
 
 // Confiance passager (demande produit) : au-dela de la simple moyenne, un
@@ -82,6 +83,16 @@ export default function PassagerPage() {
   const [operateur, setOperateur] = useState<Operateur | null>(null)
   const [zones, setZones] = useState<Zone[]>([])
   const [zoneId, setZoneId] = useState<string>('')
+  // Courses intervilles + moto (P11, demande produit) : modeCourse bascule
+  // entre le flux "ville" existant (adresses libres + zone + distance
+  // geocodee) et un nouveau flux "intervilles" (trajet a prix fixe choisi
+  // dans une liste) ; typeVehicule s'applique aux deux flux et est simplement
+  // transmis au serveur, qui applique une reduction moto uniquement en mode
+  // "ville" (un trajet intervilles a deja un prix fixe).
+  const [modeCourse, setModeCourse] = useState<'ville' | 'intervilles'>('ville')
+  const [typeVehicule, setTypeVehicule] = useState<'voiture' | 'moto'>('voiture')
+  const [trajetsIntervilles, setTrajetsIntervilles] = useState<TrajetInterville[]>([])
+  const [trajetIntervilleId, setTrajetIntervilleId] = useState<string>('')
   const [ecran, setEcran] = useState<'connexion' | 'accueil' | 'recherche' | 'course' | 'fin' | 'historique' | 'sans_chauffeur' | 'avis' | 'messages'>('connexion')
   const [telephone, setTelephone] = useState('06 61 22 33 44')
   const [nom, setNom] = useState('')
@@ -163,6 +174,11 @@ export default function PassagerPage() {
       .then(({ data }) => {
         setZones(data || [])
         if (data && data.length > 0) setZoneId(data[0].id)
+      })
+    supabase.from('trajets_intervilles').select('id,ville_depart,ville_arrivee,prix').eq('operateur_id', OPERATEUR_ID).eq('actif', true).order('ville_depart')
+      .then(({ data }) => {
+        setTrajetsIntervilles(data || [])
+        if (data && data.length > 0) setTrajetIntervilleId(data[0].id)
       })
   }, [OPERATEUR_ID])
 
@@ -324,28 +340,40 @@ export default function PassagerPage() {
   }
 
   const zone = zones.find((z) => z.id === zoneId) || null
+  const trajetInterville = trajetsIntervilles.find((t) => t.id === trajetIntervilleId) || null
   // Estimation affichee avant envoi, a partir des points deja geocodes —
   // uniquement indicative : le prix qui compte vraiment est celui que le
   // serveur recalcule dans creer_course a partir des memes coordonnees,
   // jamais celui envoye par le navigateur (voir audit du 2026-09-02, §9).
+  // Un trajet intervilles a un prix fixe, sans rapport avec la distance
+  // geocodee -- la reduction moto (0.65x) ne s'applique qu'en mode "ville",
+  // meme regle server-side (voir migration p11_intervilles_moto).
   const distanceEstimeeKm = distanceHaversineKm(pointDepart, pointArrivee)
-  const prixEstime = zone ? Math.round((Number(zone.tarif_base) + Number(zone.tarif_km) * distanceEstimeeKm) * 100) / 100 : 0
+  const prixEstimeVille = zone ? Math.round((Number(zone.tarif_base) + Number(zone.tarif_km) * distanceEstimeeKm) * (typeVehicule === 'moto' ? 0.65 : 1) * 100) / 100 : 0
+  const prixEstime = modeCourse === 'intervilles' ? (trajetInterville?.prix ?? 0) : prixEstimeVille
 
   async function commander() {
-    if (!zoneId || !OPERATEUR_ID) return
+    if (!OPERATEUR_ID) return
+    if (modeCourse === 'ville' && !zoneId) return
+    if (modeCourse === 'intervilles' && !trajetIntervilleId) return
     setErreur(null)
     setChargement(true)
+    const adresseDepart = modeCourse === 'intervilles' ? (trajetInterville?.ville_depart || depart) : depart
+    const adresseArrivee = modeCourse === 'intervilles' ? (trajetInterville?.ville_arrivee || arrivee) : arrivee
     const { data, error } = await supabase.rpc('creer_course', {
       p_operateur_id: OPERATEUR_ID,
       p_telephone: telephone,
       p_nom: nom,
-      p_adresse_depart: depart,
-      p_adresse_arrivee: arrivee,
+      p_adresse_depart: adresseDepart,
+      p_adresse_arrivee: adresseArrivee,
       p_zone_id: zoneId,
       p_depart_lat: pointDepart.lat,
       p_depart_lng: pointDepart.lng,
       p_arrivee_lat: pointArrivee.lat,
       p_arrivee_lng: pointArrivee.lng,
+      p_type_vehicule: typeVehicule,
+      p_type_course: modeCourse,
+      p_trajet_interville_id: modeCourse === 'intervilles' ? trajetIntervilleId : null,
     })
     setChargement(false)
     if (error || !data || data.length === 0) { setErreur(error?.message || "Impossible de créer la course."); return }
@@ -499,22 +527,51 @@ export default function PassagerPage() {
               <span className="badge ok">En ligne</span>
             </div>
             <div className="map-sheet">
-              {repereEnCours && <p className="muted" style={{ marginTop: 0, marginBottom: 12 }}>Repérage de l&apos;adresse…</p>}
-              <label className="field-label">Point de départ</label>
-              <input type="text" value={depart} onChange={(e) => setDepart(e.target.value)} />
-              <label className="field-label">Destination</label>
-              <input type="text" value={arrivee} onChange={(e) => setArrivee(e.target.value)} />
-              {zones.length > 0 && (
+              <div className="btn-row" style={{ marginBottom: 12 }}>
+                <button className={`btn ${modeCourse === 'ville' ? 'accent' : 'outline'}`} onClick={() => setModeCourse('ville')}>🏙️ Ville</button>
+                <button className={`btn ${modeCourse === 'intervilles' ? 'accent' : 'outline'}`} onClick={() => setModeCourse('intervilles')}>🛣️ Intervilles</button>
+              </div>
+              <div className="btn-row" style={{ marginBottom: 12 }}>
+                <button className={`btn ${typeVehicule === 'voiture' ? 'accent' : 'outline'}`} onClick={() => setTypeVehicule('voiture')}>🚗 Voiture</button>
+                <button className={`btn ${typeVehicule === 'moto' ? 'accent' : 'outline'}`} onClick={() => setTypeVehicule('moto')}>🏍️ Moto</button>
+              </div>
+
+              {modeCourse === 'ville' ? (
                 <>
-                  <label className="field-label">Zone tarifaire</label>
-                  <select value={zoneId} onChange={(e) => setZoneId(e.target.value)} style={{ width: '100%', padding: '13px 14px', borderRadius: 12, border: '1px solid #DDD', fontSize: 15, marginBottom: 12, fontFamily: 'inherit' }}>
-                    {zones.map((z) => (
-                      <option key={z.id} value={z.id}>{z.nom}</option>
-                    ))}
-                  </select>
+                  {repereEnCours && <p className="muted" style={{ marginTop: 0, marginBottom: 12 }}>Repérage de l&apos;adresse…</p>}
+                  <label className="field-label">Point de départ</label>
+                  <input type="text" value={depart} onChange={(e) => setDepart(e.target.value)} />
+                  <label className="field-label">Destination</label>
+                  <input type="text" value={arrivee} onChange={(e) => setArrivee(e.target.value)} />
+                  {zones.length > 0 && (
+                    <>
+                      <label className="field-label">Zone tarifaire</label>
+                      <select value={zoneId} onChange={(e) => setZoneId(e.target.value)} style={{ width: '100%', padding: '13px 14px', borderRadius: 12, border: '1px solid #D9C9B5', fontSize: 15, marginBottom: 12, fontFamily: 'inherit' }}>
+                        {zones.map((z) => (
+                          <option key={z.id} value={z.id}>{z.nom}</option>
+                        ))}
+                      </select>
+                    </>
+                  )}
+                </>
+              ) : (
+                <>
+                  {trajetsIntervilles.length === 0 ? (
+                    <p className="muted">Aucun trajet intervilles disponible pour cet opérateur pour le moment.</p>
+                  ) : (
+                    <>
+                      <label className="field-label">Trajet</label>
+                      <select value={trajetIntervilleId} onChange={(e) => setTrajetIntervilleId(e.target.value)} style={{ width: '100%', padding: '13px 14px', borderRadius: 12, border: '1px solid #D9C9B5', fontSize: 15, marginBottom: 12, fontFamily: 'inherit' }}>
+                        {trajetsIntervilles.map((t) => (
+                          <option key={t.id} value={t.id}>{t.ville_depart} → {t.ville_arrivee} · {t.prix} DH</option>
+                        ))}
+                      </select>
+                    </>
+                  )}
                 </>
               )}
-              {zone && (
+
+              {(modeCourse === 'ville' ? zone : trajetInterville) && (
                 <div className="card card-row"><span>Prix estimé</span><span className="price">{prixEstime} DH</span></div>
               )}
               {permissionNotif === 'default' && (
@@ -523,7 +580,12 @@ export default function PassagerPage() {
                 </button>
               )}
               {erreur && <p className="error-text">{erreur}</p>}
-              <button className="btn accent" style={{ marginTop: 4 }} onClick={commander} disabled={chargement || !depart.trim() || !arrivee.trim()}>
+              <button
+                className="btn accent"
+                style={{ marginTop: 4 }}
+                onClick={commander}
+                disabled={chargement || (modeCourse === 'ville' ? (!depart.trim() || !arrivee.trim()) : !trajetIntervilleId)}
+              >
                 {chargement ? 'Envoi…' : 'Commander'}
               </button>
             </div>

@@ -43,7 +43,6 @@ export default function ChauffeurPage() {
   const [positionConnue, setPositionConnue] = useState(false)
   const [otpEnvoye, setOtpEnvoye] = useState(false)
   const [otpCode, setOtpCode] = useState('')
-  const [otpCodeDebug, setOtpCodeDebug] = useState<string | null>(null)
   const [otpEnCours, setOtpEnCours] = useState(false)
   const [otpErreur, setOtpErreur] = useState<string | null>(null)
   const [ecranAvantMessages, setEcranAvantMessages] = useState<'navigation' | 'encours'>('navigation')
@@ -227,16 +226,17 @@ export default function ChauffeurPage() {
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') subscribeToPush(supabase, trouve.telephone)
   }
 
-  // P0.2 : verification OTP reelle avant connexion_chauffeur. SMS stubbe —
-  // aucun fournisseur configure — demander_otp() renvoie le code en clair,
-  // affiche ici dans un bandeau "mode demo" au lieu d'un SMS reel.
+  // P0.2 : verification OTP reelle avant connexion_chauffeur. Le code n'est
+  // plus jamais renvoye par demander_otp() (correctif securite C-1, 2026-09-05
+  // -- auparavant renvoye en clair dans la reponse RPC, ce qui permettait de
+  // "verifier" n'importe quel numero sans jamais y avoir acces). Le code part
+  // desormais uniquement par SMS reel une fois un fournisseur configure.
   async function demanderOtp() {
     setOtpErreur(null)
     setOtpEnCours(true)
-    const { data, error } = await supabase.rpc('demander_otp', { p_telephone: telephone.replace(/\s/g, '') })
+    const { error } = await supabase.rpc('demander_otp', { p_telephone: telephone.replace(/\s/g, '') })
     setOtpEnCours(false)
     if (error) { setOtpErreur(error.message); return }
-    setOtpCodeDebug(data as string)
     setOtpEnvoye(true)
   }
 
@@ -370,7 +370,6 @@ export default function ChauffeurPage() {
     setHistorique([])
     setOtpEnvoye(false)
     setOtpCode('')
-    setOtpCodeDebug(null)
     setOtpErreur(null)
     setEcran('connexion')
   }
@@ -414,11 +413,6 @@ export default function ChauffeurPage() {
               <input type="tel" value={telephone} onChange={(e) => setTelephone(e.target.value)} placeholder="0655112233" disabled={otpEnvoye} />
               {otpEnvoye && (
                 <>
-                  {otpCodeDebug && (
-                    <p className="muted" style={{ background: '#FFF1DE', padding: 10, borderRadius: 8 }}>
-                      Mode démo (SMS non branché) — votre code : <strong>{otpCodeDebug}</strong>
-                    </p>
-                  )}
                   <label className="field-label">Code reçu par SMS</label>
                   <input type="text" inputMode="numeric" maxLength={6} value={otpCode} onChange={(e) => setOtpCode(e.target.value)} placeholder="123456" />
                 </>
@@ -434,7 +428,7 @@ export default function ChauffeurPage() {
                 <button className="btn" onClick={verifierOtpEtConnecter} disabled={otpCode.length !== 6 || chargement || otpEnCours}>
                   {chargement || otpEnCours ? 'Connexion…' : 'Confirmer et se connecter'}
                 </button>
-                <button className="btn ghost" style={{ marginTop: 8 }} onClick={() => { setOtpEnvoye(false); setOtpCode(''); setOtpCodeDebug(null); setOtpErreur(null) }}>
+                <button className="btn ghost" style={{ marginTop: 8 }} onClick={() => { setOtpEnvoye(false); setOtpCode(''); setOtpErreur(null) }}>
                   Changer de numéro
                 </button>
               </>

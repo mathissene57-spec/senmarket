@@ -21,6 +21,7 @@ Si la réponse est non, ou si elle est « ça fait joli », la fonctionnalité n
 - [x] **Étape 3** : maquettes des écrans, identité visuelle du projet, démonstration du parcours complet. → maquettes cliquables dans [`prototype/`](./prototype/index.html), script de démo dans [`03-maquettes-identite-demo.md`](./03-maquettes-identite-demo.md). Version en ligne (à ouvrir directement dans un navigateur, sans rien cloner) : https://claude.ai/code/artifact/3d6d9673-e1a9-42e0-b3b7-f7ec393fc510
 - [x] **Étape 4** : dossier commercial — présentation partenaire, EOI, modèle économique détaillé, proposition de déploiement. → dossier complet dans [`04-dossier-commercial/`](./04-dossier-commercial/00-dossier-commercial.md), support de présentation dans [`04-dossier-commercial/presentation-partenaire.pptx`](./04-dossier-commercial/presentation-partenaire.pptx)
 - [x] **Étape 5 — Samedi** : matériel de présentation finalisé (checklist, déroulé minuté, notes de présentateur, FAQ). L'exécution en direct reste un événement réel, pas quelque chose que ce chantier peut cocher à l'avance. → [`05-jour-j.md`](./05-jour-j.md)
+- [x] **Étape 6 — Finalisation V1** : Phase 1 du déploiement (backend Supabase réel, multi-tenant, RLS, Realtime — voir `webapp/` et `supabase/`) construite et durcie (audit sécurité, correctifs C-1 à L-2, PWA installable). Documentation client pour la Phase 2 (lancement fermé). → [`06-documentation-client/`](./06-documentation-client/), rapports d'audit dans [`supabase/audit/`](./supabase/audit/)
 
 ## Fichiers du chantier
 
@@ -38,4 +39,4 @@ Si la réponse est non, ou si elle est « ça fait joli », la fonctionnalité n
 | `04-dossier-commercial/presentation-partenaire.pptx` | Support de présentation (11 diapositives, captures des maquettes + notes de présentateur intégrées) | 4 |
 | `05-jour-j.md` | Checklist avant, déroulé minuté, FAQ objections, actions de clôture | 5 |
 
-Le chantier des 5 étapes est complet. La suite dépend de l'issue de la présentation de samedi (voir `05-jour-j.md`, section "Après la présentation").
+Le chantier des 5 étapes est complet. La Phase 0/1 du déploiement pilote (`04-dossier-commercial/02-proposition-deploiement-pilote.md`) a été menée : backend réel construit et durci, documentation client livrée. La suite dépend de l'issue de la présentation de samedi (voir `05-jour-j.md`, section "Après la présentation") et de la Phase 2 (lancement fermé avec les premiers chauffeurs pilotes).

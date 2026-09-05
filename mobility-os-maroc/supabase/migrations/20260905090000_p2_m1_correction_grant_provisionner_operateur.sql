@@ -1,0 +1,13 @@
+-- P2 (M-1, suite) : correction d'un octroi de privileges trop large.
+--
+-- provisionner_operateur(..., p_generer_invitation) est un nouvel objet
+-- fonction Postgres (consequence du DROP/CREATE de la migration
+-- precedente, pas un veritable remplacement en place) -- il a donc herite
+-- des privileges par defaut de ce projet (deja documente : toute nouvelle
+-- fonction est EXECUTE-able par PUBLIC/anon/authenticated sauf REVOKE
+-- explicite). Cette fonction est reservee a l'onboarding assiste
+-- (provisioning d'un nouvel operateur), qui ne doit etre appelable que par
+-- le service_role -- jamais par un client anonyme ou authentifie. On
+-- revoque explicitement, comme deja fait pour les autres RPCs internes
+-- (declencher_push, envoyer_sms_otp, etc.).
+revoke all on function public.provisionner_operateur(text, text, text, text, text, jsonb, jsonb, boolean) from public, anon, authenticated;

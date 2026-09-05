@@ -887,7 +887,8 @@ declare
   v_zone_a uuid; v_zone_b uuid;
   v_chauffeur_a uuid; v_chauffeur_b uuid;
   v_tel_a text := '0794400001'; v_tel_b text := '0794400002';
-  v_tel_pass text := '0794400011';
+  v_tel_pass_a text := '0794400011';
+  v_tel_pass_b text := '0794400012';
   v_course_a uuid; v_course_b uuid;
   v_code text;
 begin
@@ -907,9 +908,13 @@ begin
   perform set_config('request.jwt.claims', json_build_object('sub', 'b1c55833-4991-4ead-8300-676c14ff4fba', 'role', 'authenticated')::text, true);
   perform reclamer_operateur(v_op_b);
 
-  v_code := test_demander_otp_et_lire_code(v_tel_pass); perform verifier_otp(v_tel_pass, v_code);
-  select id into v_course_a from creer_course(v_op_a, v_tel_pass, null, 'D', 'A', v_zone_a, 33.5883, -7.6114, 33.5885, -7.5719);
-  select id into v_course_b from creer_course(v_op_b, v_tel_pass, null, 'D', 'A', v_zone_b, 33.5883, -7.6114, 33.5885, -7.5719);
+  -- Deux passagers distincts (plutot qu'un seul reutilise pour les deux
+  -- courses) -- depuis H-3 (2026-09-05), un meme numero ne peut plus avoir
+  -- deux courses actives simultanement, meme chez deux operateurs differents.
+  v_code := test_demander_otp_et_lire_code(v_tel_pass_a); perform verifier_otp(v_tel_pass_a, v_code);
+  v_code := test_demander_otp_et_lire_code(v_tel_pass_b); perform verifier_otp(v_tel_pass_b, v_code);
+  select id into v_course_a from creer_course(v_op_a, v_tel_pass_a, null, 'D', 'A', v_zone_a, 33.5883, -7.6114, 33.5885, -7.5719);
+  select id into v_course_b from creer_course(v_op_b, v_tel_pass_b, null, 'D', 'A', v_zone_b, 33.5883, -7.6114, 33.5885, -7.5719);
 
   create temp table matrice_ctx2 as
   select v_op_a as op_a, v_op_b as op_b,
@@ -1299,6 +1304,40 @@ begin
   end if;
 
   raise notice 'OK (H-3): une seule course active a la fois par passager, nouvelle course autorisee apres annulation';
+end $$;
+
+-- M-1 (2026-09-05, plan de finalisation V1) : invitation a usage unique pour
+-- reclamer_operateur(), opt-in via provisionner_operateur(..., p_generer_
+-- invitation => true). Retro-compatible : tout appel sans ce parametre (tous
+-- les tests ci-dessus compris) continue de fonctionner exactement comme avant.
+do $$
+declare
+  v_op uuid;
+  v_token uuid;
+begin
+  v_op := provisionner_operateur('Test M1', 'test-m1-' || replace(gen_random_uuid()::text, '-', ''), 'TestVille',
+    '#000000', '#ffffff', '[]'::jsonb, '[]'::jsonb, true);
+  select invitation_token into v_token from operateurs where id = v_op;
+  if v_token is null then
+    raise exception 'FAIL (M-1): invitation_token aurait du etre genere quand demande';
+  end if;
+
+  perform set_config('request.jwt.claims', json_build_object('sub', '61f268e9-c7af-4b43-b871-9413270c418e', 'role', 'authenticated')::text, true);
+
+  if reclamer_operateur(v_op, gen_random_uuid()) is not false then
+    raise exception 'FAIL (M-1): un mauvais token aurait du etre rejete';
+  end if;
+  if reclamer_operateur(v_op) is not false then
+    raise exception 'FAIL (M-1): l''absence de token aurait du etre rejetee quand une invitation existe';
+  end if;
+  if reclamer_operateur(v_op, v_token) is not true then
+    raise exception 'FAIL (M-1): le bon token aurait du etre accepte';
+  end if;
+  if exists (select 1 from operateurs where id = v_op and invitation_token is not null) then
+    raise exception 'FAIL (M-1): le token aurait du etre consomme (mis a null) apres reclamation reussie';
+  end if;
+
+  raise notice 'OK (M-1): invitation a usage unique -- mauvais token et absence de token rejetes, bon token accepte et consomme';
 end $$;
 
 rollback;

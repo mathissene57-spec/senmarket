@@ -129,6 +129,7 @@ export default function PassagerPage() {
   const [verificationSession, setVerificationSession] = useState(
     () => typeof window !== 'undefined' && !!localStorage.getItem('mos_passager_telephone')
   )
+  const [finEnCours, setFinEnCours] = useState(false)
   const courseRef = useRef<Course | null>(null)
   const ecranRef = useRef(ecran)
   const messagesRef = useRef<Message[]>([])
@@ -393,6 +394,21 @@ export default function PassagerPage() {
     setEcran('accueil')
   }
 
+  // P12 (demande produit) : le passager doit pouvoir mettre fin a sa course
+  // a tout moment, meme si le chauffeur ne l'avance jamais (course bloquee
+  // en "assignee"/"en_cours") -- jusqu'ici seul l'ecran "recherche" (avant
+  // prise en charge) avait un bouton d'annulation ; rien ne debloquait une
+  // course deja assignee sans passer par le dashboard operateur. Le
+  // resultat (annulee ou terminee) est decide server-side selon l'etat
+  // reel de la course (voir passager_terminer_course).
+  async function terminerMaCourseMaintenant() {
+    if (!course || finEnCours) return
+    setFinEnCours(true)
+    await supabase.rpc('passager_terminer_course', { p_course_id: course.id, p_telephone: telephone })
+    setFinEnCours(false)
+    reverifierCourse(course.id)
+  }
+
   async function envoyerNote() {
     if (!course) return
     if (note > 0) {
@@ -645,6 +661,11 @@ export default function PassagerPage() {
                 )}
               </div>
               <div className="card"><div className="muted">Trajet</div><strong>{course.adresse_depart} → {course.adresse_arrivee}</strong></div>
+            </div>
+            <div className="screen-footer">
+              <button className="btn ghost" disabled={finEnCours} onClick={terminerMaCourseMaintenant}>
+                {finEnCours ? '…' : 'Terminer la course'}
+              </button>
             </div>
           </>
         )}

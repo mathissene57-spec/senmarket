@@ -51,6 +51,17 @@ export default function ChauffeurPage() {
   const [messageTexte, setMessageTexte] = useState('')
   const [envoiMessageEnCours, setEnvoiMessageEnCours] = useState(false)
   const [permissionNotif, setPermissionNotif] = useState<NotificationPermission | 'indisponible'>('indisponible')
+  // P7 (confort) : un onglet mis en arriere-plan peut etre completement
+  // decharge par le navigateur mobile (iOS Safari, Android sous pression
+  // memoire) -- au retour, React remonte de zero et l'ecran "connexion"
+  // s'affichait un instant avant que la reconnexion silencieuse (ci-dessous)
+  // ne bascule sur "accueil", donnant l'impression d'une deconnexion alors
+  // que la session (verifiee 24h) etait toujours valide. Ce drapeau retarde
+  // l'affichage de l'ecran connexion tant qu'on n'a pas la reponse de la
+  // tentative de reconnexion silencieuse, quand un numero est deja enregistre.
+  const [verificationSession, setVerificationSession] = useState(
+    () => typeof window !== 'undefined' && !!localStorage.getItem('mos_chauffeur_telephone')
+  )
   const positionRef = useRef<{ lat: number; lng: number } | null>(null)
   const ecranRef = useRef(ecran)
   const messagesRef = useRef<Message[]>([])
@@ -89,7 +100,7 @@ export default function ChauffeurPage() {
   useEffect(() => {
     if (!OPERATEUR_ID) return
     const sauvegarde = typeof window !== 'undefined' ? localStorage.getItem('mos_chauffeur_telephone') : null
-    if (!sauvegarde) return
+    if (!sauvegarde) { setVerificationSession(false); return }
     setTelephone(sauvegarde)
     supabase.rpc('connexion_chauffeur', { p_operateur_id: OPERATEUR_ID, p_telephone: sauvegarde }).then(({ data, error }) => {
       const trouve = data && data.length > 0 ? data[0] : null
@@ -99,6 +110,7 @@ export default function ChauffeurPage() {
         chargerHistorique(trouve.id, trouve.telephone)
         if (typeof Notification !== 'undefined' && Notification.permission === 'granted') subscribeToPush(supabase, trouve.telephone)
       }
+      setVerificationSession(false)
     })
   }, [OPERATEUR_ID])
 
@@ -387,7 +399,7 @@ export default function ChauffeurPage() {
     ['--accent-text' as any]: couleurTexteContrastee(accent),
   }
 
-  if (chargementOperateur) return null
+  if (chargementOperateur || verificationSession) return null
   if (erreurResolution || !OPERATEUR_ID) {
     return (
       <div className="page-shell">

@@ -110,6 +110,14 @@ export default function PassagerPage() {
   const [otpEnCours, setOtpEnCours] = useState(false)
   const [otpErreur, setOtpErreur] = useState<string | null>(null)
   const [permissionNotif, setPermissionNotif] = useState<NotificationPermission | 'indisponible'>('indisponible')
+  // P7 (confort) : meme correctif que app/chauffeur/page.tsx -- un onglet
+  // mis en arriere-plan peut etre completement decharge par le navigateur
+  // mobile ; au retour, React remonte de zero et l'ecran "connexion"
+  // s'affichait un instant avant que la sonde silencieuse (ci-dessous) ne
+  // bascule sur "accueil", donnant l'impression d'une deconnexion.
+  const [verificationSession, setVerificationSession] = useState(
+    () => typeof window !== 'undefined' && !!localStorage.getItem('mos_passager_telephone')
+  )
   const courseRef = useRef<Course | null>(null)
   const ecranRef = useRef(ecran)
   const messagesRef = useRef<Message[]>([])
@@ -136,13 +144,14 @@ export default function PassagerPage() {
   // toujours verifie, on saute directement a l'accueil.
   useEffect(() => {
     const sauvegarde = typeof window !== 'undefined' ? localStorage.getItem('mos_passager_telephone') : null
-    if (!sauvegarde) return
+    if (!sauvegarde) { setVerificationSession(false); return }
     setTelephone(sauvegarde)
     supabase.rpc('historique_passager', { p_telephone: sauvegarde }).then(({ error }) => {
       if (!error) {
         setEcran('accueil')
         if (typeof Notification !== 'undefined' && Notification.permission === 'granted') subscribeToPush(supabase, sauvegarde)
       }
+      setVerificationSession(false)
     })
   }, [])
 
@@ -420,7 +429,7 @@ export default function PassagerPage() {
     ['--accent-text' as any]: couleurTexteContrastee(accent),
   }
 
-  if (chargementOperateur) return null
+  if (chargementOperateur || verificationSession) return null
   if (erreurResolution || !OPERATEUR_ID) {
     return (
       <div className="page-shell">

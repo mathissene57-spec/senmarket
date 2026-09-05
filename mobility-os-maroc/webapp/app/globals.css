@@ -1,12 +1,20 @@
 :root {
-  --primary: #101B3D;
-  --accent: #FF7A28;
-  --bg: #F7F5F1;
+  /* Palette "Atlas & Ocre" (refonte design, demande produit : que la
+     plateforme "sente l'Afrique" et se distingue d'un clone generique) --
+     terracotta/rouille et ocre/or plutot que le bleu marine/orange neutre
+     precedent. Reste la palette PAR DEFAUT : chaque operateur choisit ses
+     propres couleurs a l'onboarding (couleur_primaire/couleur_secondaire,
+     stockees en base) qui prennent le pas via les variables inline --primary/
+     --accent -- ceci ne s'applique qu'avant chargement de l'operateur, et
+     aux pages sans operateur (accueil, admin, onboarding). */
+  --primary: #7A3B1E;
+  --accent: #E0A526;
+  --bg: #FBF3E7;
   --surface: #FFFFFF;
-  --text: #1A1A1A;
-  --muted: #6B7280;
-  --success: #1E8E5A;
-  --danger: #D64545;
+  --text: #2B1D14;
+  --muted: #8A6F5C;
+  --success: #3F7D4F;
+  --danger: #C1432E;
   --radius: 16px;
 }
 
@@ -35,6 +43,13 @@ button { font-family: inherit; }
   justify-content: center;
   padding: 12px 16px;
   box-sizing: border-box;
+  background-color: var(--bg);
+  /* Trame geometrique discrete (losanges croises, esprit zellige) derriere
+     le cadre telephone -- purement ambiante (opacite tres faible), visible
+     surtout autour du telephone sur grand ecran. */
+  background-image:
+    repeating-linear-gradient(45deg, rgba(122,59,30,0.05) 0, rgba(122,59,30,0.05) 1px, transparent 1px, transparent 28px),
+    repeating-linear-gradient(-45deg, rgba(122,59,30,0.05) 0, rgba(122,59,30,0.05) 1px, transparent 1px, transparent 28px);
 }
 .phone {
   width: auto;
@@ -45,7 +60,7 @@ button { font-family: inherit; }
   background: var(--surface);
   border-radius: 44px;
   border: 8px solid #14141a;
-  box-shadow: 0 8px 16px rgba(16,27,61,0.12), 0 40px 70px -20px rgba(16,27,61,0.35);
+  box-shadow: 0 8px 16px rgba(122,59,30,0.12), 0 40px 70px -20px rgba(122,59,30,0.35);
   overflow: hidden;
   position: relative;
   display: flex;
@@ -65,8 +80,8 @@ button { font-family: inherit; }
 .screen-header {
   padding: 34px 18px 14px;
   display: flex; align-items: center; justify-content: space-between;
-  border-bottom: 1px solid #EEE;
-  box-shadow: 0 1px 0 rgba(16,27,61,0.02);
+  border-bottom: 1px solid #E8DFD3;
+  box-shadow: 0 1px 0 rgba(122,59,30,0.03);
   position: relative; z-index: 1;
 }
 .screen-body { flex: 1; overflow-y: auto; padding: 18px 18px 12px; }
@@ -75,18 +90,18 @@ button { font-family: inherit; }
    decorative lui-meme. */
 .phone > .screen-body:first-child { padding-top: 34px; }
 .screen-footer {
-  padding: 14px 18px 26px; border-top: 1px solid #EEE;
-  box-shadow: 0 -6px 16px -12px rgba(16,27,61,0.25);
+  padding: 14px 18px 26px; border-top: 1px solid #E8DFD3;
+  box-shadow: 0 -6px 16px -12px rgba(122,59,30,0.25);
 }
 
 .map-placeholder {
   height: 220px;
   border-radius: var(--radius);
-  border: 1px solid rgba(16,27,61,0.06);
-  box-shadow: 0 1px 2px rgba(16,27,61,0.03), 0 10px 22px -12px rgba(16,27,61,0.18);
+  border: 1px solid rgba(122,59,30,0.08);
+  box-shadow: 0 1px 2px rgba(122,59,30,0.03), 0 10px 22px -12px rgba(122,59,30,0.18);
   background:
     radial-gradient(circle at 30% 30%, rgba(255,255,255,0.5), transparent 40%),
-    repeating-linear-gradient(45deg, #E3E8F0 0 12px, #DCE3ED 12px 24px);
+    repeating-linear-gradient(45deg, #EBD9C0 0 12px, #E0C29C 12px 24px);
   position: relative;
   margin-bottom: 16px;
   overflow: hidden;
@@ -111,28 +126,48 @@ button { font-family: inherit; }
   background: var(--surface);
   border-radius: 24px 24px 0 0;
   padding: 18px 18px 22px;
-  box-shadow: 0 -10px 28px -12px rgba(16,27,61,0.4);
+  box-shadow: 0 -10px 28px -12px rgba(122,59,30,0.4);
   max-height: 58%;
   overflow-y: auto;
 }
 
 .brand { display: flex; align-items: center; gap: 8px; }
 .brand-mark {
+  position: relative;
   width: 32px; height: 32px; border-radius: 10px;
   background: var(--primary); color: #fff;
   display: flex; align-items: center; justify-content: center;
   font-weight: 800; font-size: 15px; flex-shrink: 0;
-  box-shadow: inset 0 -2px 0 rgba(0,0,0,0.12), 0 2px 6px -1px rgba(16,27,61,0.35);
+  box-shadow: inset 0 -2px 0 rgba(0,0,0,0.12), 0 2px 6px -1px rgba(122,59,30,0.35);
 }
+/* Motif etoile a 8 pointes (zellige/khatam) : deux carres superposes a 45°,
+   purement decoratif en arriere-plan de la marque -- clin d'oeil a la
+   geometrie andalouse/marocaine, opacite faible pour ne jamais gener la
+   lisibilite de l'initiale affichee au premier plan. */
+.brand-mark::before,
+.brand-mark::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  z-index: -1;
+  border-radius: 4px;
+  background: var(--accent);
+  opacity: 0.3;
+}
+.brand-mark::after { transform: rotate(45deg); }
+/* Variante agrandie pour l'ecran de connexion (premier contact avec la
+   marque) -- le motif etoile s'y lit beaucoup mieux qu'a 32px. */
+.brand-mark-lg { width: 56px; height: 56px; border-radius: 16px; font-size: 24px; }
+.brand-mark-lg::before, .brand-mark-lg::after { inset: -9px; border-radius: 7px; }
 .brand-label { font-weight: 700; font-size: 15px; letter-spacing: -0.01em; }
 
 input[type="tel"], input[type="text"], input[type="email"], input[type="password"] {
   width: 100%; padding: 13px 14px; border-radius: 12px;
-  border: 1px solid #DDD; font-size: 15px; margin-bottom: 12px; font-family: inherit;
+  border: 1px solid #D9C9B5; font-size: 15px; margin-bottom: 12px; font-family: inherit;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 input[type="tel"]:focus, input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focus {
-  outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(16,27,61,0.08);
+  outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(122,59,30,0.08);
 }
 /* Champ de code OTP : cible via l'attribut inputMode (rendu inputmode en DOM),
    sans avoir a toucher au JSX des deux apps qui le partagent. Plus grand,
@@ -149,11 +184,11 @@ label.field-label { display: block; color: var(--muted); font-size: 13px; margin
   width: 100%; padding: 14px; border-radius: 12px; border: none;
   background: var(--primary); color: var(--primary-text, #fff); font-weight: 700; font-size: 15px;
   cursor: pointer; font-family: inherit;
-  box-shadow: 0 1px 2px rgba(16,27,61,0.08), 0 8px 16px -6px rgba(16,27,61,0.35);
+  box-shadow: 0 1px 2px rgba(122,59,30,0.08), 0 8px 16px -6px rgba(122,59,30,0.35);
   transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
 }
-.btn:active:not(:disabled) { transform: scale(0.97); box-shadow: 0 1px 2px rgba(16,27,61,0.08); }
-.btn.accent { background: var(--accent); color: var(--accent-text, #fff); box-shadow: 0 1px 2px rgba(16,27,61,0.08), 0 8px 16px -6px rgba(255,122,40,0.45); }
+.btn:active:not(:disabled) { transform: scale(0.97); box-shadow: 0 1px 2px rgba(122,59,30,0.08); }
+.btn.accent { background: var(--accent); color: var(--accent-text, #fff); box-shadow: 0 1px 2px rgba(122,59,30,0.08), 0 8px 16px -6px rgba(224,165,38,0.45); }
 .btn.outline { background: transparent; color: var(--primary); border: 1px solid var(--primary); box-shadow: none; }
 .btn.danger { background: var(--danger); }
 .btn.ghost { background: transparent; color: var(--muted); font-weight: 500; box-shadow: none; }
@@ -162,17 +197,17 @@ label.field-label { display: block; color: var(--muted); font-size: 13px; margin
 .btn-row .btn { flex: 1; }
 
 .card {
-  background: var(--surface); border: 1px solid #EEE; border-radius: var(--radius);
+  background: var(--surface); border: 1px solid #E8DFD3; border-radius: var(--radius);
   padding: 14px; margin-bottom: 12px;
-  box-shadow: 0 1px 2px rgba(16,27,61,0.03), 0 6px 16px -10px rgba(16,27,61,0.15);
+  box-shadow: 0 1px 2px rgba(122,59,30,0.03), 0 6px 16px -10px rgba(122,59,30,0.15);
 }
 .card-row { display: flex; justify-content: space-between; align-items: center; }
 
 .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
 .badge.ok { background: #E6F4EC; color: var(--success); }
 .badge.warn { background: #FFF1DE; color: #B25E00; }
-.badge.off { background: #F0F0F0; color: var(--muted); }
-.badge.danger { background: #FBE7E7; color: var(--danger); }
+.badge.off { background: #F1EAE0; color: var(--muted); }
+.badge.danger { background: #FBE3DA; color: var(--danger); }
 
 .muted { color: var(--muted); font-size: 13px; }
 .error-text { color: var(--danger); font-size: 13px; margin: -4px 0 10px; }
@@ -180,7 +215,7 @@ label.field-label { display: block; color: var(--muted); font-size: 13px; margin
 .center { text-align: center; }
 
 .modal-overlay {
-  position: fixed; inset: 0; background: rgba(16,27,61,0.55);
+  position: fixed; inset: 0; background: rgba(43,29,20,0.6);
   display: flex; align-items: center; justify-content: center;
   z-index: 50; padding: 20px;
 }
@@ -194,7 +229,7 @@ label.field-label { display: block; color: var(--muted); font-size: 13px; margin
   color: var(--muted); font-size: 22px; float: right; line-height: 1; padding: 0;
 }
 
-.timeline { list-style: none; margin: 16px 0 0; padding: 0 0 0 20px; border-left: 2px solid #EEE; }
+.timeline { list-style: none; margin: 16px 0 0; padding: 0 0 0 20px; border-left: 2px solid #E8DFD3; }
 .timeline-item { position: relative; padding-bottom: 18px; }
 .timeline-item:last-child { padding-bottom: 0; }
 .timeline-item::before {
@@ -210,7 +245,7 @@ label.field-label { display: block; color: var(--muted); font-size: 13px; margin
 .pulse {
   position: relative;
   width: 64px; height: 64px; margin: 32px auto 28px; border-radius: 50%;
-  background: var(--accent); box-shadow: 0 6px 20px -4px rgba(255,122,40,0.5);
+  background: var(--accent); box-shadow: 0 6px 20px -4px rgba(224,165,38,0.5);
   animation: pulse-core 1.4s ease-in-out infinite;
 }
 .pulse::before, .pulse::after {
@@ -229,7 +264,7 @@ label.field-label { display: block; color: var(--muted); font-size: 13px; margin
 
 .toggle {
   position: relative; width: 52px; height: 30px; border-radius: 999px;
-  background: #DDD; cursor: pointer; transition: background 0.2s; border: none; padding: 0;
+  background: #D9C9B5; cursor: pointer; transition: background 0.2s; border: none; padding: 0;
 }
 .toggle.on { background: var(--success); }
 .toggle::after {
@@ -240,7 +275,7 @@ label.field-label { display: block; color: var(--muted); font-size: 13px; margin
 
 .stars { font-size: 32px; letter-spacing: 6px; cursor: pointer; }
 .star {
-  color: #DDD; background: none; border: none; padding: 0; font-size: inherit; cursor: pointer;
+  color: #D9C9B5; background: none; border: none; padding: 0; font-size: inherit; cursor: pointer;
   transition: transform 0.12s ease, color 0.12s ease; display: inline-block;
 }
 .star:hover { transform: scale(1.15); }
@@ -274,18 +309,18 @@ label.field-label { display: block; color: var(--muted); font-size: 13px; margin
 .main { padding: 28px 36px; overflow-x: auto; }
 .main h1 { margin-top: 0; }
 .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 28px; }
-.kpi-card { background: var(--surface); border: 1px solid #EEE; border-radius: var(--radius); padding: 18px; }
+.kpi-card { background: var(--surface); border: 1px solid #E8DFD3; border-radius: var(--radius); padding: 18px; }
 .kpi-card .value { font-size: 26px; font-weight: 800; color: var(--primary); }
 .stat-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; }
 .stat-row .badge { font-size: 13px; padding: 6px 12px; }
 table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: var(--radius); overflow: hidden; }
-th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid #EEE; font-size: 14px; }
-th { background: #FAFAFA; color: var(--muted); font-weight: 600; }
+th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid #E8DFD3; font-size: 14px; }
+th { background: #F7F1E8; color: var(--muted); font-weight: 600; }
 
 .auth-shell {
   min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px;
 }
 .auth-card {
   width: 100%; max-width: 380px; background: var(--surface); border-radius: var(--radius);
-  border: 1px solid #EEE; padding: 32px;
+  border: 1px solid #E8DFD3; padding: 32px;
 }

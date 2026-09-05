@@ -420,8 +420,8 @@ export default function PassagerPage() {
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') subscribeToPush(supabase, telephone)
   }
 
-  const primary = operateur?.couleur_primaire || '#101B3D'
-  const accent = operateur?.couleur_secondaire || '#FF7A28'
+  const primary = operateur?.couleur_primaire || '#7A3B1E'
+  const accent = operateur?.couleur_secondaire || '#E0A526'
   const vars = {
     ['--primary' as any]: primary,
     ['--accent' as any]: accent,
@@ -447,7 +447,7 @@ export default function PassagerPage() {
       <div key={ecran} className="screen-fade">
         {ecran === 'connexion' && (
           <div className="screen-body center" style={{ justifyContent: 'center', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ margin: '0 auto 24px' }}><span className="brand-mark">{operateur?.nom?.[0] || 'M'}</span></div>
+            <div style={{ margin: '0 auto 24px' }}><span className="brand-mark brand-mark-lg">{operateur?.nom?.[0] || 'M'}</span></div>
             <h2 style={{ marginBottom: 4 }}>{operateur?.nom || 'Mobility OS'}</h2>
             <p className="muted">Réservez une course en quelques secondes</p>
             <div style={{ marginTop: 24, textAlign: 'left' }}>
@@ -676,7 +676,7 @@ export default function PassagerPage() {
                   style={{
                     alignSelf: m.expediteur === 'passager' ? 'flex-end' : 'flex-start',
                     maxWidth: '80%',
-                    background: m.expediteur === 'passager' ? 'var(--primary)' : '#F0F0F0',
+                    background: m.expediteur === 'passager' ? 'var(--primary)' : '#F0E4D3',
                     color: m.expediteur === 'passager' ? 'var(--primary-text, #fff)' : 'var(--text)',
                     borderRadius: 14,
                     padding: '8px 12px',

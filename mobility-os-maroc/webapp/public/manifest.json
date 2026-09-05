@@ -4,8 +4,8 @@
   "description": "Plateforme de mobilité multi-services en marque blanche",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#101B3D",
-  "theme_color": "#101B3D",
+  "background_color": "#7A3B1E",
+  "theme_color": "#7A3B1E",
   "orientation": "portrait",
   "lang": "fr",
   "icons": [

@@ -419,8 +419,8 @@ export default function ChauffeurPage() {
     .filter((c) => new Date(c.created_at).toDateString() === new Date().toDateString())
     .reduce((acc, c) => acc + Number(c.prix_final || 0), 0)
 
-  const primary = operateur?.couleur_primaire || '#101B3D'
-  const accent = operateur?.couleur_secondaire || '#FF7A28'
+  const primary = operateur?.couleur_primaire || '#7A3B1E'
+  const accent = operateur?.couleur_secondaire || '#E0A526'
   const vars = {
     ['--primary' as any]: primary,
     ['--accent' as any]: accent,
@@ -446,7 +446,7 @@ export default function ChauffeurPage() {
       <div key={ecran} className="screen-fade">
         {ecran === 'connexion' && (
           <div className="screen-body center" style={{ justifyContent: 'center', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ margin: '0 auto 24px' }}><span className="brand-mark">{operateur?.nom?.[0] || 'M'}</span></div>
+            <div style={{ margin: '0 auto 24px' }}><span className="brand-mark brand-mark-lg">{operateur?.nom?.[0] || 'M'}</span></div>
             <h2 style={{ marginBottom: 4 }}>{operateur?.nom} Chauffeur</h2>
             <p className="muted">Espace réservé aux chauffeurs de la flotte</p>
             <div style={{ marginTop: 24, textAlign: 'left' }}>
@@ -637,7 +637,7 @@ export default function ChauffeurPage() {
                 <div key={m.id} style={{
                   alignSelf: m.expediteur === 'chauffeur' ? 'flex-end' : 'flex-start',
                   maxWidth: '80%',
-                  background: m.expediteur === 'chauffeur' ? 'var(--primary)' : '#F0F0F0',
+                  background: m.expediteur === 'chauffeur' ? 'var(--primary)' : '#F0E4D3',
                   color: m.expediteur === 'chauffeur' ? 'var(--primary-text, #fff)' : 'var(--text)',
                   borderRadius: 14, padding: '8px 12px',
                 }}>

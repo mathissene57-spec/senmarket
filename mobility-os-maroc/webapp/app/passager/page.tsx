@@ -14,19 +14,19 @@ const Carte = dynamic(() => import('@/components/Carte'), { ssr: false })
 const POINT_DEPART_DEFAUT = { lat: 33.5883, lng: -7.6114 }
 const POINT_ARRIVEE_DEFAUT = { lat: 33.5885, lng: -7.5719 }
 
-// Geocodage via Nominatim (OpenStreetMap), gratuit et sans cle API — usage
-// limite a ~1 requete/seconde par sa politique d'usage publique, largement
-// suffisant pour un pilote. A remplacer par un fournisseur payant si le
-// volume grossit significativement.
+// Geocodage via /api/geocoder (proxy serveur vers Nominatim/OpenStreetMap,
+// voir app/api/geocoder/route.ts -- correctif M-2 du 2026-09-05 : l'appel
+// direct au navigateur ne pouvait pas identifier l'application aupres de
+// Nominatim comme sa politique d'usage l'exige, et envoyait chaque adresse
+// tapee par un passager directement a un tiers sans passer par l'app).
 async function geocoder(adresse: string): Promise<{ lat: number; lng: number } | null> {
   const requete = adresse.trim()
   if (requete.length < 3) return null
   try {
-    const params = new URLSearchParams({ q: `${requete}, Casablanca, Maroc`, format: 'json', limit: '1' })
-    const reponse = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`)
-    const resultats = await reponse.json()
-    if (!Array.isArray(resultats) || resultats.length === 0) return null
-    return { lat: parseFloat(resultats[0].lat), lng: parseFloat(resultats[0].lon) }
+    const reponse = await fetch(`/api/geocoder?q=${encodeURIComponent(requete)}`)
+    const point = await reponse.json()
+    if (point.lat == null || point.lng == null) return null
+    return { lat: point.lat, lng: point.lng }
   } catch {
     return null
   }

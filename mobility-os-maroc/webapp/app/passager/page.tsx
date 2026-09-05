@@ -485,16 +485,21 @@ export default function PassagerPage() {
         )}
 
         {ecran === 'accueil' && (
-          <>
-            <div className="screen-header">
+          // Carte plein ecran en fond (demande produit) : auparavant la carte
+          // n'occupait qu'un bandeau fixe de 220px au-dessus du formulaire
+          // (.map-placeholder standard) -- desormais elle remplit tout
+          // l'ecran et le formulaire flotte par-dessus dans une feuille
+          // ancree en bas, comme les apps de VTC grand public.
+          <div className="map-fullscreen">
+            <div className="map-layer">
+              <Carte points={[{ ...pointDepart, couleur: primary }, { ...pointArrivee, couleur: accent }]} zoom={13} />
+            </div>
+            <div className="map-overlay-top">
               <span className="brand"><span className="brand-mark">{operateur?.nom?.[0] || 'M'}</span><span className="brand-label">{operateur?.nom}</span></span>
               <span className="badge ok">En ligne</span>
             </div>
-            <div className="screen-body">
-              <div className="map-placeholder">
-                <Carte points={[{ ...pointDepart, couleur: primary }, { ...pointArrivee, couleur: accent }]} zoom={13} />
-              </div>
-              {repereEnCours && <p className="muted" style={{ marginTop: -8, marginBottom: 12 }}>Repérage de l&apos;adresse…</p>}
+            <div className="map-sheet">
+              {repereEnCours && <p className="muted" style={{ marginTop: 0, marginBottom: 12 }}>Repérage de l&apos;adresse…</p>}
               <label className="field-label">Point de départ</label>
               <input type="text" value={depart} onChange={(e) => setDepart(e.target.value)} />
               <label className="field-label">Destination</label>
@@ -518,13 +523,11 @@ export default function PassagerPage() {
                 </button>
               )}
               {erreur && <p className="error-text">{erreur}</p>}
-            </div>
-            <div className="screen-footer">
-              <button className="btn accent" onClick={commander} disabled={chargement || !depart.trim() || !arrivee.trim()}>
+              <button className="btn accent" style={{ marginTop: 4 }} onClick={commander} disabled={chargement || !depart.trim() || !arrivee.trim()}>
                 {chargement ? 'Envoi…' : 'Commander'}
               </button>
             </div>
-          </>
+          </div>
         )}
 
         {ecran === 'recherche' && (

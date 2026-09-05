@@ -93,6 +93,29 @@ button { font-family: inherit; }
 }
 .map-placeholder .leaflet-container { background: transparent; font-family: inherit; }
 
+/* Carte plein ecran (ecran "accueil" passager) : la carte remplit tout
+   l'espace disponible en fond, le formulaire de commande flotte par-dessus
+   dans une feuille ancree en bas -- contrairement a .map-placeholder qui
+   reste un bandeau de hauteur fixe au-dessus du formulaire. */
+.map-fullscreen { position: relative; flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.map-layer { position: absolute; inset: 0; z-index: 0; }
+.map-layer .leaflet-container { height: 100%; width: 100%; font-family: inherit; }
+.map-overlay-top {
+  position: relative; z-index: 2;
+  padding: 34px 18px 14px;
+  display: flex; align-items: center; justify-content: space-between;
+  background: linear-gradient(180deg, rgba(255,255,255,0.94) 0%, rgba(255,255,255,0.75) 65%, rgba(255,255,255,0) 100%);
+}
+.map-sheet {
+  position: relative; z-index: 2; margin-top: auto;
+  background: var(--surface);
+  border-radius: 24px 24px 0 0;
+  padding: 18px 18px 22px;
+  box-shadow: 0 -10px 28px -12px rgba(16,27,61,0.4);
+  max-height: 58%;
+  overflow-y: auto;
+}
+
 .brand { display: flex; align-items: center; gap: 8px; }
 .brand-mark {
   width: 32px; height: 32px; border-radius: 10px;

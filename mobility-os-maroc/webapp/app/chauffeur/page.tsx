@@ -1,14 +1,28 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { distanceHaversineKm } from '@/lib/geo'
 import { useOperateurId } from '@/lib/useOperateurId'
 import { registerServiceWorker, notifier, subscribeToPush } from '@/lib/notifications'
 
+const Carte = dynamic(() => import('@/components/Carte'), { ssr: false })
+
 type Operateur = { id: string; nom: string; couleur_primaire: string; couleur_secondaire: string }
 type ChauffeurRow = { id: string; nom: string; telephone: string; statut: string }
-type CourseNotif = { id: string; adresse_depart: string; adresse_arrivee: string; prix_estime: number; statut: string; distance_km?: number }
+type CourseNotif = {
+  id: string
+  adresse_depart: string
+  adresse_arrivee: string
+  prix_estime: number
+  statut: string
+  distance_km?: number
+  depart_lat?: number | null
+  depart_lng?: number | null
+  arrivee_lat?: number | null
+  arrivee_lng?: number | null
+}
 type CourseTerminee = { id: string; adresse_depart: string; adresse_arrivee: string; prix_final: number | null; created_at: string }
 type Contact = { nom: string; telephone: string }
 type Message = { id: string; expediteur: 'passager' | 'chauffeur'; contenu: string; created_at: string }
@@ -40,7 +54,11 @@ export default function ChauffeurPage() {
   const [prixTermine, setPrixTermine] = useState<number | null>(null)
   const [historique, setHistorique] = useState<CourseTerminee[]>([])
   const [message, setMessage] = useState<string | null>(null)
-  const [positionConnue, setPositionConnue] = useState(false)
+  // Position reelle du chauffeur (pas seulement un booleen "connue") --
+  // necessaire pour afficher une vraie carte (correctif : la carte ne
+  // s'affichait jamais cote chauffeur, l'ecran ne montrait qu'un fond
+  // decoratif .map-placeholder vide, contrairement a l'app passager).
+  const [position, setPosition] = useState<{ lat: number; lng: number } | null>(null)
   const [otpEnvoye, setOtpEnvoye] = useState(false)
   const [otpCode, setOtpCode] = useState('')
   const [otpEnCours, setOtpEnCours] = useState(false)
@@ -126,7 +144,7 @@ export default function ChauffeurPage() {
       (pos) => {
         const point = { lat: pos.coords.latitude, lng: pos.coords.longitude }
         positionRef.current = point
-        setPositionConnue(true)
+        setPosition(point)
         const maintenant = Date.now()
         if (maintenant - dernierEnvoi > 15000) {
           dernierEnvoi = maintenant
@@ -159,7 +177,18 @@ export default function ChauffeurPage() {
         // visible si le rayon s'elargit encore. Sans position connue, on
         // affiche quand meme (pas de regression pour un chauffeur sans GPS).
         if (distance !== null && distance > rayon) return prev
-        setDemande({ id: c.id, adresse_depart: c.adresse_depart, adresse_arrivee: c.adresse_arrivee, prix_estime: c.prix_estime, statut: c.statut, distance_km: distance ?? undefined })
+        setDemande({
+          id: c.id,
+          adresse_depart: c.adresse_depart,
+          adresse_arrivee: c.adresse_arrivee,
+          prix_estime: c.prix_estime,
+          statut: c.statut,
+          distance_km: distance ?? undefined,
+          depart_lat: c.depart_lat,
+          depart_lng: c.depart_lng,
+          arrivee_lat: c.arrivee_lat,
+          arrivee_lng: c.arrivee_lng,
+        })
         setEcran('demande')
         notifier('Nouvelle course !', `${c.adresse_depart} → ${c.adresse_arrivee} · ${c.prix_estime} DH`)
         // P1 (course_events) : journalise la proposition — n'affecte jamais
@@ -195,7 +224,7 @@ export default function ChauffeurPage() {
   function rechercherCoursesEnAttente() {
     if (!chauffeur || !OPERATEUR_ID || chauffeur.statut !== 'disponible') return
     supabase.from('courses')
-      .select('id,statut,adresse_depart,adresse_arrivee,prix_estime,depart_lat,depart_lng,rayon_recherche_km')
+      .select('id,statut,adresse_depart,adresse_arrivee,prix_estime,depart_lat,depart_lng,arrivee_lat,arrivee_lng,rayon_recherche_km')
       .eq('operateur_id', OPERATEUR_ID)
       .eq('statut', 'en_recherche')
       .then(({ data }) => { (data || []).forEach(evaluerCandidateCourse) })
@@ -453,12 +482,14 @@ export default function ChauffeurPage() {
             <div className="screen-header">
               <span className="brand"><span className="brand-mark">{operateur?.nom?.[0] || 'M'}</span><span className="brand-label">{operateur?.nom}</span></span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span className="muted">{chauffeur.statut === 'disponible' ? 'Disponible' : chauffeur.statut === 'en_course' ? 'En course' : 'Indisponible'}{positionConnue ? ' · 📍' : ''}</span>
+                <span className="muted">{chauffeur.statut === 'disponible' ? 'Disponible' : chauffeur.statut === 'en_course' ? 'En course' : 'Indisponible'}{position ? ' · 📍' : ''}</span>
                 <button className={`toggle${chauffeur.statut === 'disponible' ? ' on' : ''}`} onClick={toggleDispo} disabled={chauffeur.statut === 'en_course'} />
               </div>
             </div>
             <div className="screen-body">
-              <div className="map-placeholder" />
+              <div className="map-placeholder">
+                {position && <Carte points={[{ ...position, couleur: primary }]} zoom={15} />}
+              </div>
               <div className="kpi-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div className="card"><div className="muted">Gains aujourd&apos;hui</div><div className="price" style={{ fontSize: 20 }}>{gainsJour} DH</div></div>
                 <div className="card"><div className="muted">Courses</div><div className="price" style={{ fontSize: 20 }}>{historique.length}</div></div>
@@ -507,7 +538,19 @@ export default function ChauffeurPage() {
           <>
             <div className="screen-header"><strong>En route vers le passager</strong></div>
             <div className="screen-body">
-              <div className="map-placeholder" />
+              <div className="map-placeholder">
+                {(position || (courseActive.depart_lat != null && courseActive.depart_lng != null)) && (
+                  <Carte
+                    points={[
+                      ...(position ? [{ ...position, couleur: primary }] : []),
+                      ...(courseActive.depart_lat != null && courseActive.depart_lng != null
+                        ? [{ lat: courseActive.depart_lat, lng: courseActive.depart_lng, couleur: accent }]
+                        : []),
+                    ]}
+                    zoom={14}
+                  />
+                )}
+              </div>
               <div className="card"><div className="muted">Départ</div><strong>{courseActive.adresse_depart}</strong></div>
               {contactPassager && (
                 <div className="btn-row" style={{ marginTop: 10 }}>
@@ -536,7 +579,19 @@ export default function ChauffeurPage() {
           <>
             <div className="screen-header"><strong>Passager à bord</strong></div>
             <div className="screen-body">
-              <div className="map-placeholder" />
+              <div className="map-placeholder">
+                {(position || (courseActive.arrivee_lat != null && courseActive.arrivee_lng != null)) && (
+                  <Carte
+                    points={[
+                      ...(position ? [{ ...position, couleur: primary }] : []),
+                      ...(courseActive.arrivee_lat != null && courseActive.arrivee_lng != null
+                        ? [{ lat: courseActive.arrivee_lat, lng: courseActive.arrivee_lng, couleur: accent }]
+                        : []),
+                    ]}
+                    zoom={14}
+                  />
+                )}
+              </div>
               <div className="card"><div className="muted">Destination</div><strong>{courseActive.adresse_arrivee}</strong></div>
               {contactPassager && (
                 <div className="btn-row" style={{ marginTop: 10 }}>

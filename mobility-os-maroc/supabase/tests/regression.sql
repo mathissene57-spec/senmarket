@@ -1340,4 +1340,57 @@ begin
   raise notice 'OK (M-1): invitation a usage unique -- mauvais token et absence de token rejetes, bon token accepte et consomme';
 end $$;
 
+-- M-3 (2026-09-05, plan de finalisation V1) : avis_courses n'etait plus
+-- lisible directement en masse (lecture publique sans scope ni limite) --
+-- seule la fonction preexistante avis_chauffeur(p_chauffeur_id, p_limite),
+-- deja scopee et plafonnee, reste le chemin public legitime.
+do $$
+declare
+  v_op uuid; v_zone uuid; v_chauffeur uuid;
+  v_tel_chauffeur text := '0799997001';
+  v_tel_passager text := '0799997002';
+  v_course_id uuid;
+  v_code text;
+  v_nb int;
+begin
+  v_op := provisionner_operateur('Test Avis', 'test-avis-' || replace(gen_random_uuid()::text, '-', ''), 'TestVille',
+    '#000000', '#ffffff', '[{"nom":"Zone","tarif_base":10,"tarif_km":2}]'::jsonb,
+    format('[{"nom":"Chauffeur","telephone":"%s"}]', v_tel_chauffeur)::jsonb);
+  select id into v_zone from zones_operateur where operateur_id = v_op;
+  select id into v_chauffeur from chauffeurs where operateur_id = v_op;
+
+  v_code := test_demander_otp_et_lire_code(v_tel_chauffeur); perform verifier_otp(v_tel_chauffeur, v_code);
+  v_code := test_demander_otp_et_lire_code(v_tel_passager); perform verifier_otp(v_tel_passager, v_code);
+
+  select id into v_course_id from creer_course(v_op, v_tel_passager, null, 'D', 'A', v_zone, 33.5883, -7.6114, 33.5885, -7.5719);
+  perform accepter_course(v_course_id, v_chauffeur, v_tel_chauffeur);
+  perform avancer_course(v_course_id, 'en_cours', v_tel_chauffeur);
+  perform avancer_course(v_course_id, 'terminee', v_tel_chauffeur);
+  perform noter_course(v_course_id, v_tel_passager, 5, 'excellent chauffeur');
+
+  select count(*) into v_nb from avis_chauffeur(v_chauffeur, 20);
+  if v_nb <> 1 then
+    raise exception 'FAIL (M-3): avis_chauffeur() aurait du renvoyer 1 avis, obtenu %', v_nb;
+  end if;
+  raise notice 'OK (M-3): avis_chauffeur() (fonction scopee preexistante) continue de fonctionner';
+end $$;
+
+set role anon;
+do $$
+begin
+  begin
+    perform 1 from avis_courses limit 1;
+    raise exception 'FAIL (M-3): lecture directe de avis_courses aurait du etre bloquee pour anon';
+  exception when insufficient_privilege then
+    raise notice 'OK (M-3): lecture directe de avis_courses bloquee pour anon';
+  end;
+  begin
+    perform count(*) from avis_chauffeur('20c2a76e-6f18-42ff-b95d-4895dcd6e49c'::uuid, 20);
+    raise notice 'OK (M-3): avis_chauffeur() reste executable par anon (chemin legitime prevu)';
+  exception when insufficient_privilege then
+    raise exception 'FAIL (M-3): avis_chauffeur() ne devrait pas etre bloquee pour anon';
+  end;
+end $$;
+reset role;
+
 rollback;

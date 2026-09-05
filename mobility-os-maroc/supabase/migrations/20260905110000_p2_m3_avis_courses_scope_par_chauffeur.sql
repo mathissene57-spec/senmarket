@@ -1,0 +1,20 @@
+-- P2 (M-3, plan de finalisation V1) : avis_courses avait une seule policy
+-- (avis_lecture_publique, qual = true, roles {public}) et aucune autre
+-- restriction -- n'importe qui, sans authentification, pouvait lire
+-- l'integralite des avis de la plateforme en un seul appel REST
+-- (GET /rest/v1/avis_courses?select=*), tous operateurs/chauffeurs
+-- confondus, y compris le champ libre commentaire redige par le passager.
+--
+-- Une fonction scopee equivalente existe deja en production,
+-- avis_chauffeur(p_chauffeur_id uuid, p_limite integer) -- meme patron que
+-- chauffeurs_operateur()/courses_operateur(), deja executable par
+-- anon/authenticated, deja plafonnee (limit entre 1 et 100, defaut 20) --
+-- elle n'avait simplement jamais ete accompagnee de la fermeture de l'acces
+-- direct a la table brute, qui restait donc un chemin de contournement
+-- total (lecture de TOUS les avis de TOUS les operateurs en un appel,
+-- sans passer par le scope chauffeur ni la limite). Verifie avant
+-- correction : aucune page de webapp/ n'interroge avis_courses
+-- directement (grep sur le depot) -- donc fermer l'acces direct ne casse
+-- aucune fonctionnalite existante, y compris celles qui utilisent deja
+-- avis_chauffeur().
+revoke select on public.avis_courses from anon, authenticated;

@@ -1,0 +1,31 @@
+-- Correction de la migration 20260905040000 : revoquer operateurs.owner_user_id
+-- (SELECT) pour authenticated cassait en direct le dashboard operateur --
+-- confirme par test live avant tout commit (erreur "permission denied for
+-- table operateurs" a la mise a jour d'un chauffeur).
+--
+-- Cause : chauffeurs_maj_owner / chauffeurs_gestion_owner /
+-- chauffeurs_suppression_owner / zones_gestion_insert_owner /
+-- zones_gestion_update_owner / zones_gestion_delete_owner verifient toutes
+-- la propriete via une sous-requete `operateur_id IN (SELECT id FROM
+-- operateurs WHERE owner_user_id = auth.uid())`. Une sous-requete RLS vers
+-- une AUTRE table est evaluee avec les privileges normaux du role appelant
+-- sur cette table -- contrairement a un predicat RLS direct sur la table
+-- filtree elle-meme (operateurs_maj_owner), qui continue de fonctionner sans
+-- SELECT direct sur owner_user_id (confirme par test). Revoquer la colonne
+-- pour authenticated cassait donc silencieusement tout le CRUD chauffeurs/
+-- zones du dashboard pour les deux operateurs reels du pilote.
+--
+-- H-2 reste corrige pour sa partie la plus severe : un visiteur anonyme
+-- (anon, sans aucun compte) ne peut plus lire owner_user_id du tout --
+-- c'etait le coeur du probleme (fuite d'identite vers n'importe qui sur
+-- internet, sans authentification). authenticated conserve l'acces complet
+-- a la table operateurs (necessaire aux policies ci-dessus) : un compte
+-- authentifie quelconque (mais SANS operateur a lui) pourrait encore lire
+-- owner_user_id d'un AUTRE operateur -- gap residuel documente, moins severe
+-- (necessite un compte reel, pas un simple visiteur), a fermer proprement
+-- plus tard en remplacant les sous-requetes ci-dessus par une fonction
+-- SECURITY DEFINER dediee (est_owner_de_operateur(uuid)) qui ne necessiterait
+-- plus aucun GRANT SELECT direct sur owner_user_id pour authenticated --
+-- hors perimetre de ce correctif P0/P1 (six policies a reecrire et re-tester,
+-- risque non justifie dans l'urgence de la fermeture des failles critiques).
+grant select on public.operateurs to authenticated;

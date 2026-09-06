@@ -120,7 +120,7 @@ Deno.serve(async (req: Request) => {
     return new Response("Non autorise", { status: 401 })
   }
 
-  const { telephone, titre, corps } = await req.json()
+  const { telephone, titre, corps, url } = await req.json()
   if (!telephone || !titre) return new Response("Requete invalide", { status: 400 })
 
   const { data: abonnements } = await supabase
@@ -129,7 +129,11 @@ Deno.serve(async (req: Request) => {
     .eq("telephone", telephone)
 
   const vapidPublicRaw = base64UrlToBytes(secretMap.VAPID_PUBLIC_KEY)
-  const chargeJson = JSON.stringify({ title: titre, body: corps || "" })
+  // `url` : chemin de l'app a rouvrir si aucun onglet n'est deja ouvert (voir
+  // sw.js notificationclick) -- sans lui, taper sur la notification ramenait
+  // systematiquement sur la page d'accueil generique au lieu du tableau de
+  // bord chauffeur/passager concerne.
+  const chargeJson = JSON.stringify({ title: titre, body: corps || "", url: url || "/" })
 
   const resultats = await Promise.all((abonnements || []).map(async (abo: any) => {
     try {

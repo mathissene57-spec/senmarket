@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { distanceHaversineKm } from '@/lib/geo'
 import { useOperateurId } from '@/lib/useOperateurId'
 import { registerServiceWorker, notifier, subscribeToPush } from '@/lib/notifications'
+import { useAppelInterne } from '@/lib/useAppelInterne'
 
 const Carte = dynamic(() => import('@/components/Carte'), { ssr: false })
 
@@ -130,6 +131,12 @@ export default function PassagerPage() {
     () => typeof window !== 'undefined' && !!localStorage.getItem('mos_passager_telephone')
   )
   const [finEnCours, setFinEnCours] = useState(false)
+  // Appel interne (demande produit) : audio WebRTC direct avec le chauffeur,
+  // sans jamais exposer le vrai numero de l'un a l'autre -- voir
+  // lib/useAppelInterne.ts. Actif des qu'une course existe (pas seulement
+  // sur l'ecran "course") pour pouvoir recevoir un appel entrant meme si le
+  // passager consulte l'ecran "messages" ou "avis" a ce moment-la.
+  const appel = useAppelInterne(supabase, course?.id, nom.trim() || 'Passager')
   const courseRef = useRef<Course | null>(null)
   const ecranRef = useRef(ecran)
   const messagesRef = useRef<Message[]>([])
@@ -655,9 +662,9 @@ export default function PassagerPage() {
                   )}
                 </button>
                 {contactChauffeur && (
-                  <a className="btn outline" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }} href={`tel:${contactChauffeur.telephone}`}>
+                  <button className="btn outline" onClick={appel.demarrerAppel} disabled={appel.etat !== 'inactif'}>
                     📞 Appeler
-                  </a>
+                  </button>
                 )}
               </div>
               <div className="card"><div className="muted">Trajet</div><strong>{course.adresse_depart} → {course.adresse_arrivee}</strong></div>
@@ -806,6 +813,44 @@ export default function PassagerPage() {
         )}
       </div>
       </div>
+      {(appel.etat !== 'inactif' || appel.erreur) && (
+        <div className="modal-overlay">
+          <div className="modal-panel" style={{ textAlign: 'center', maxWidth: 300 }}>
+            {appel.etat === 'sortant' && (
+              <>
+                <div className="pulse" />
+                <h3 style={{ marginBottom: 4 }}>Appel en cours…</h3>
+                <p className="muted">{chauffeur?.nom || 'Chauffeur'}</p>
+                <button className="btn outline" style={{ marginTop: 16 }} onClick={appel.raccrocher}>Annuler</button>
+              </>
+            )}
+            {appel.etat === 'entrant' && (
+              <>
+                <div className="pulse" />
+                <h3 style={{ marginBottom: 4 }}>Appel entrant</h3>
+                <p className="muted">{appel.correspondant}</p>
+                <div className="btn-row" style={{ marginTop: 16 }}>
+                  <button className="btn outline" onClick={appel.refuserAppel}>Refuser</button>
+                  <button className="btn accent" onClick={appel.accepterAppel}>Répondre</button>
+                </div>
+              </>
+            )}
+            {appel.etat === 'connecte' && (
+              <>
+                <h3 style={{ marginBottom: 4 }}>{chauffeur?.nom || 'Chauffeur'}</h3>
+                <p className="muted">{String(Math.floor(appel.dureeSec / 60)).padStart(2, '0')}:{String(appel.dureeSec % 60).padStart(2, '0')}</p>
+                <div className="btn-row" style={{ marginTop: 16 }}>
+                  <button className="btn outline" onClick={appel.toggleMic}>{appel.micCoupe ? '🔇 Micro coupé' : '🎙️ Micro actif'}</button>
+                  <button className="btn danger" onClick={appel.raccrocher}>Raccrocher</button>
+                </div>
+              </>
+            )}
+            {appel.etat === 'inactif' && appel.erreur && <p className="muted">{appel.erreur}</p>}
+            {appel.etat !== 'inactif' && appel.erreur && <p className="error-text" style={{ marginTop: 12 }}>{appel.erreur}</p>}
+          </div>
+        </div>
+      )}
+      <audio ref={appel.audioRef} autoPlay playsInline hidden />
     </div>
   )
 }

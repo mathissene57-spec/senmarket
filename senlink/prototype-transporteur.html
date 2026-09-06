@@ -1,0 +1,2233 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<!--
+  ================================================================
+  SENLINK -- Prototype UX : Dashboard Transporteur (design deliverable,
+  pas de code de prod)
+  ================================================================
+  Prototype HTML/CSS/JS autonome, sans framework ni étape de build,
+  même précédent que senlink/prototype.html (parcours client) et le
+  prototype SenMarket à la racine du dépôt. Aucun appel Supabase ici :
+  données de démonstration codées en dur, persistance locale via
+  localStorage uniquement.
+
+  Les règles métier simulées ici (transitions de statut, transitions de
+  lot, réconciliation, contrôle géographique) reproduisent volontairement
+  celles de Migration 1 (Security Core, colis) et Migration 2 (Lots
+  Security Core, jamais appliquée) telles que conçues en conversation --
+  ce prototype sert de référence visuelle et de validation UX AVANT le
+  branchement au vrai backend, il ne fait jamais autorité sur le schéma
+  ou les règles métier réelles.
+-->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0A1A0F">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="description" content="SenLink -- Dashboard Transporteur (prototype) : le poste de pilotage numérique du transporteur, de la réception du lot à la remise au point relais.">
+<title>SenLink -- Dashboard Transporteur (prototype)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+<!-- Carte GPS du lot (Map+GPS V1) -- si ce script échoue à charger (réseau
+     restreint), le JS détecte l'absence de window.L et retombe sur la
+     barre stylisée déjà éprouvée -- voir leafletAvailable(). -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+/* ================================================================
+   DESIGN TOKENS -- identiques à senlink/prototype.html
+   ================================================================ */
+:root {
+  --g:      #00C96B;
+  --gm:     #00A65A;
+  --gd:     #0A1A0F;
+  --gdd:    #111F16;
+  --gg:     rgba(0,201,107,.12);
+  --gdim:   rgba(0,201,107,.06);
+  --gold:   #D4A017;
+  --goldb:  #F5B800;
+  --red:    #C41E3A;
+  --redb:   rgba(196,30,58,.08);
+  --amber:  #F5A623;
+  --amberb: rgba(245,166,35,.14);
+  --blue:   #2E7DD1;
+  --blueb:  rgba(46,125,209,.12);
+  --bg:     #F8F6F1;
+  --bgw:    #F0ECE2;
+  --card:   #FFFFFF;
+  --txt:    #1A1A1A;
+  --txt2:   #3D3D3D;
+  --mut:    #7A7A7A;
+  --bdr:    #E8E2D9;
+  --bdrs:   #F0EBE3;
+  --r8:     10px;
+  --r12:    14px;
+  --r16:    18px;
+  --r20:    22px;
+  --r24:    26px;
+  --rpill:  100px;
+  --sh:     0 2px 12px rgba(0,0,0,.07);
+  --shl:    0 8px 32px rgba(0,0,0,.11);
+  --shx:    0 20px 60px rgba(0,0,0,.15);
+  --shg:    0 4px 20px rgba(0,201,107,.25);
+  --ease:   cubic-bezier(.16,1,.3,1);
+  --nav:    60px;
+  --tab:    64px;
+  --safe:   env(safe-area-inset-bottom, 0px);
+  --safeT:  env(safe-area-inset-top, 0px);
+  --z-nav:  100;
+  --z-sh:   200;
+  --z-dlg:  300;
+  --z-tst:  400;
+}
+
+/* ================================================================
+   RESET
+   ================================================================ */
+*,*::before,*::after { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html { height:100%; overscroll-behavior:none; scroll-behavior:smooth; }
+body {
+  font-family:'DM Sans',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  background:var(--bg); color:var(--txt);
+  min-height:100%; overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+  padding-bottom:calc(var(--tab) + var(--safe));
+}
+a { text-decoration:none; color:inherit; }
+button { font-family:inherit; cursor:pointer; border:none; background:none; touch-action:manipulation; }
+img { max-width:100%; display:block; object-fit:cover; }
+input,select,textarea {
+  font-family:inherit; font-size:16px; -webkit-appearance:none; touch-action:manipulation;
+}
+input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width:auto; font-size:inherit; }
+.sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); }
+
+/* ================================================================
+   TOP NAVBAR
+   ================================================================ */
+#topnav {
+  position:fixed; top:0; left:0; right:0;
+  height:var(--nav); z-index:var(--z-nav);
+  padding-top:var(--safeT);
+  background:var(--gd);
+  border-bottom:1px solid rgba(255,255,255,.08);
+  display:flex; align-items:center; justify-content:space-between;
+  padding-left:16px; padding-right:16px;
+  transition:box-shadow .25s;
+}
+#topnav.shadow { box-shadow:0 2px 20px rgba(0,0,0,.25); }
+.tn-logo { display:flex; align-items:center; gap:9px; }
+.tn-ico {
+  width:36px; height:36px; border-radius:10px;
+  background:linear-gradient(135deg,var(--g),var(--gm));
+  display:flex; align-items:center; justify-content:center;
+  font-size:18px; box-shadow:var(--shg); flex-shrink:0;
+}
+.tn-name { font-family:'Playfair Display',serif; font-size:20px; font-weight:900; color:#fff; }
+.tn-name span { color:var(--goldb); }
+.tn-org { font-size:10px; color:rgba(255,255,255,.55); margin-top:1px; }
+.tn-acts { display:flex; align-items:center; gap:8px; }
+.tn-btn {
+  width:38px; height:38px; border-radius:var(--r8);
+  background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1);
+  display:flex; align-items:center; justify-content:center;
+  font-size:18px; position:relative; color:#fff;
+  transition:all .2s var(--ease);
+}
+.tn-btn:active { transform:scale(.91); background:var(--gg); border-color:var(--g); }
+.tn-badge {
+  position:absolute; top:-5px; right:-5px;
+  width:18px; height:18px; background:var(--red); color:#fff;
+  font-size:9px; font-weight:700; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  border:2px solid var(--gd); transform:scale(0); transition:transform .2s var(--ease);
+}
+.tn-badge.show { transform:scale(1); }
+
+/* ================================================================
+   NAVIGATION DESKTOP -- masquée en mobile
+   ================================================================ */
+#desktopnav { display:none; }
+
+/* ================================================================
+   BOTTOM TAB BAR (avec bouton Scanner central surélevé)
+   ================================================================ */
+#btmnav {
+  position:fixed; bottom:0; left:0; right:0;
+  height:calc(var(--tab) + var(--safe)); z-index:var(--z-nav);
+  background:rgba(250,247,242,.97);
+  backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+  border-top:1px solid var(--bdr);
+  display:flex; align-items:flex-start; justify-content:space-around;
+  padding-top:6px; padding-bottom:var(--safe);
+}
+.tab { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:5px 4px; cursor:pointer; position:relative; transition:all .2s var(--ease); -webkit-user-select:none; user-select:none; }
+.tab:active { transform:scale(.88); }
+.tab-ico { font-size:22px; line-height:1; transition:transform .2s var(--ease); }
+.tab-lbl { font-size:10px; font-weight:600; color:var(--mut); transition:color .2s; }
+.tab.on .tab-ico { transform:scale(1.1); }
+.tab.on .tab-lbl { color:var(--g); }
+.tab.on::before { content:''; position:absolute; top:-6px; left:50%; transform:translateX(-50%); width:28px; height:3px; background:var(--g); border-radius:0 0 3px 3px; }
+.tab-scan { position:relative; top:-14px; }
+.tab-scan .tab-ico-w {
+  width:52px; height:52px; border-radius:50%;
+  background:linear-gradient(135deg,var(--g),var(--gm));
+  display:flex; align-items:center; justify-content:center;
+  font-size:24px; box-shadow:var(--shg); border:4px solid var(--bg);
+}
+.tab-scan .tab-lbl { color:var(--gm); font-weight:700; }
+.tab-scan.on::before { display:none; }
+
+/* ================================================================
+   PAGES
+   ================================================================ */
+.page { display:none; padding-top:var(--nav); min-height:100vh; }
+.page.on { display:block; }
+.page-hd { padding:16px 16px 4px; }
+.page-ttl { font-family:'Playfair Display',serif; font-size:21px; font-weight:900; color:var(--txt); }
+.page-sub { font-size:12.5px; color:var(--mut); margin-top:3px; }
+
+/* ================================================================
+   KPI GRID
+   ================================================================ */
+.kpi-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; padding:12px 16px 4px; }
+.kpi-card { background:var(--card); border:1px solid var(--bdr); border-radius:var(--r16); padding:14px; }
+.kpi-ico { font-size:17px; margin-bottom:6px; }
+.kpi-n { font-family:'Playfair Display',serif; font-size:22px; font-weight:900; color:var(--txt); line-height:1; }
+.kpi-l { font-size:11px; color:var(--mut); margin-top:4px; line-height:1.35; }
+.kpi-card.warn .kpi-n { color:var(--red); }
+.kpi-card.amber .kpi-n { color:#8A5A00; }
+.kpi-card.good .kpi-n { color:var(--gm); }
+
+/* ================================================================
+   "À FAIRE MAINTENANT"
+   ================================================================ */
+.todo-wrap { margin:14px 16px 4px; background:var(--gd); border-radius:var(--r20); padding:16px; }
+.todo-ttl { color:#fff; font-family:'Playfair Display',serif; font-size:14.5px; font-weight:900; margin-bottom:10px; display:flex; align-items:center; gap:7px; }
+.todo-item { display:flex; align-items:center; gap:10px; padding:9px 0; border-top:1px solid rgba(255,255,255,.08); font-size:12.5px; color:rgba(255,255,255,.9); cursor:pointer; }
+.todo-item:first-of-type { border-top:none; }
+.todo-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+.todo-dot.r { background:var(--red); box-shadow:0 0 0 3px rgba(196,30,58,.25); }
+.todo-dot.o { background:var(--amber); box-shadow:0 0 0 3px rgba(245,166,35,.25); }
+.todo-dot.y { background:var(--goldb); box-shadow:0 0 0 3px rgba(245,184,0,.2); }
+.todo-dot.b { background:var(--blue); box-shadow:0 0 0 3px rgba(46,125,209,.22); }
+.todo-dot.gd { background:var(--g); box-shadow:0 0 0 3px rgba(0,201,107,.22); }
+.todo-empty { color:rgba(255,255,255,.55); font-size:12.5px; padding:6px 0; }
+
+/* ================================================================
+   SECTION HEADERS / FILTRES
+   ================================================================ */
+.sec-hd { display:flex; align-items:center; justify-content:space-between; padding:18px 16px 8px; }
+.sec-ttl { font-family:'Playfair Display',serif; font-size:15.5px; font-weight:900; color:var(--txt); }
+.sec-link { font-size:11.5px; font-weight:700; color:var(--gm); }
+.search-sticky { padding:8px 16px 10px; background:var(--bg); position:sticky; top:var(--nav); z-index:50; border-bottom:1px solid var(--bdrs); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); }
+.search-inp-w { position:relative; }
+.search-inp {
+  width:100%; padding:12px 14px 12px 38px; border-radius:var(--r12);
+  border:1.5px solid var(--bdr); background:var(--card); font-size:14px; outline:none;
+}
+.search-inp:focus { border-color:var(--g); }
+.search-ico { position:absolute; left:13px; top:50%; transform:translateY(-50%); font-size:14px; opacity:.6; }
+.filter-row { display:flex; gap:7px; overflow-x:auto; padding:10px 16px 2px; scrollbar-width:none; }
+.filter-row::-webkit-scrollbar { display:none; }
+.filter-chip {
+  flex-shrink:0; font-size:12px; font-weight:700; color:var(--txt2);
+  background:var(--card); border:1.5px solid var(--bdr);
+  padding:7px 13px; border-radius:var(--rpill); white-space:nowrap;
+}
+.filter-chip.on { background:var(--gd); border-color:var(--gd); color:#fff; }
+
+/* ================================================================
+   LISTES (colis / lots / incidents)
+   ================================================================ */
+.list-wrap { padding:6px 16px 16px; display:flex; flex-direction:column; gap:10px; }
+.row-card { background:var(--card); border:1px solid var(--bdr); border-radius:var(--r16); padding:13px 15px; cursor:pointer; transition:transform .15s var(--ease); }
+.row-card:active { transform:scale(.98); }
+.row-top { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.row-code { font-size:13.5px; font-weight:700; color:var(--txt); }
+.row-route { font-size:11.5px; color:var(--mut); margin-top:3px; }
+.row-meta { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.row-meta span { font-size:10.5px; color:var(--txt2); background:var(--bgw); border-radius:var(--r8); padding:3px 8px; }
+.empty-state { text-align:center; padding:50px 24px; color:var(--mut); }
+.empty-state .es-ico { font-size:34px; margin-bottom:10px; }
+.empty-state .es-ttl { font-size:14px; font-weight:700; color:var(--txt); margin-bottom:4px; }
+.empty-state .es-sub { font-size:12.5px; line-height:1.5; }
+
+/* ================================================================
+   BADGES
+   ================================================================ */
+.badge { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:var(--rpill); font-size:10.5px; font-weight:700; white-space:nowrap; }
+.badge.st-neutre  { background:var(--bgw); color:var(--txt2); }
+.badge.st-transit { background:var(--amberb); color:#8A5A00; }
+.badge.st-arrive  { background:var(--blueb); color:var(--blue); }
+.badge.st-livre   { background:var(--gg); color:var(--gm); }
+.badge.st-incident{ background:var(--redb); color:var(--red); }
+
+/* ================================================================
+   FAB SCANNER (desktop)
+   ================================================================ */
+.fab-scan {
+  position:fixed; right:28px; bottom:28px; z-index:90;
+  width:58px; height:58px; border-radius:50%;
+  background:linear-gradient(135deg,var(--g),var(--gm));
+  display:none; align-items:center; justify-content:center;
+  font-size:26px; box-shadow:var(--shg); color:#04150c;
+}
+
+/* ================================================================
+   FORMULAIRE / FIELDSET (repris de prototype.html)
+   ================================================================ */
+.form-wrap { padding:8px 16px 20px; }
+.fieldset { background:var(--card); border:1px solid var(--bdr); border-radius:var(--r16); padding:16px; margin-bottom:14px; }
+.fieldset-lgd { font-size:12px; font-weight:700; color:var(--gm); text-transform:uppercase; letter-spacing:.5px; margin-bottom:12px; }
+.field { margin-bottom:10px; }
+.field:last-child { margin-bottom:0; }
+.field label { display:block; font-size:11.5px; font-weight:600; color:var(--mut); margin-bottom:5px; }
+.field input, .field select, .field textarea {
+  width:100%; padding:11px 13px; border-radius:var(--r8); border:1.5px solid var(--bdr);
+  font-size:14px; color:var(--txt); background:var(--bg); outline:none;
+}
+.field input:focus, .field select:focus { border-color:var(--g); background:var(--card); }
+.field-check { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--txt2); padding:4px 0; }
+.field-check input { margin:0; }
+.field-hint { font-size:10.5px; color:var(--mut); margin-top:4px; }
+.btn-primary {
+  width:100%; padding:14px; border-radius:var(--r12); background:var(--gd); color:#fff;
+  font-size:14.5px; font-weight:700; border:none; cursor:pointer; font-family:inherit; margin-top:4px;
+}
+.btn-primary:active { transform:scale(.98); }
+.btn-primary:disabled { opacity:.45; cursor:not-allowed; }
+.btn-secondary {
+  width:100%; padding:13px; border-radius:var(--r12); background:var(--card); color:var(--txt);
+  border:1.5px solid var(--bdr); font-size:13.5px; font-weight:700; cursor:pointer; font-family:inherit; margin-top:8px;
+}
+.btn-danger { background:var(--red); }
+.btn-row { display:flex; gap:8px; }
+.btn-row .btn-primary, .btn-row .btn-secondary { margin-top:0; }
+
+/* ================================================================
+   CHECKLIST (départ / manifeste)
+   ================================================================ */
+.checklist { background:var(--card); border:1px solid var(--bdr); border-radius:var(--r16); padding:16px; margin:0 16px 14px; }
+.chk-item { display:flex; align-items:center; gap:9px; padding:7px 0; font-size:13px; color:var(--txt2); }
+.chk-ico { width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; flex-shrink:0; }
+.chk-ico.ok { background:var(--gg); color:var(--gm); }
+.chk-ico.ko { background:var(--redb); color:var(--red); }
+.chk-progress { height:6px; border-radius:3px; background:var(--bgw); overflow:hidden; margin:10px 0 4px; }
+.chk-progress-fill { height:100%; background:var(--g); transition:width .3s var(--ease); }
+.chk-progress-lbl { font-size:11px; color:var(--mut); text-align:right; }
+
+/* ================================================================
+   RÉCONCILIATION
+   ================================================================ */
+.recon-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:0 16px 14px; }
+.recon-card { background:var(--card); border:1px solid var(--bdr); border-radius:var(--r16); padding:14px 10px; text-align:center; }
+.recon-n { font-family:'Playfair Display',serif; font-size:24px; font-weight:900; }
+.recon-l { font-size:10.5px; color:var(--mut); margin-top:4px; }
+.recon-card.ecart .recon-n { color:var(--red); }
+.recon-card.ok .recon-n { color:var(--gm); }
+.recon-row--missing { border-left:3px solid var(--red); background:var(--redb); }
+.recon-row--received { border-left:3px solid var(--g); }
+
+/* ================================================================
+   CARTE GPS DU LOT (V1 démo) -- représentation stylisée du trajet,
+   PAS une vraie carte géographique (round de conception Map+GPS,
+   Option A validée). Position/vitesse/précision toujours simulées,
+   voir commentaire JS.
+   ================================================================ */
+.gps-map { background:var(--card); border:1px solid var(--bdr); border-radius:var(--r16); padding:16px; margin:0 16px 14px; }
+.gps-map--live { border-color:var(--g); background:var(--gg); }
+.gps-hd { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--mut); margin-bottom:20px; }
+.gps-hd.live { color:var(--gm); }
+.gps-dot { width:7px; height:7px; border-radius:50%; background:var(--mut); flex-shrink:0; }
+.gps-hd.live .gps-dot { background:var(--g); box-shadow:0 0 0 3px var(--gg); }
+.gps-track { position:relative; height:4px; background:var(--bdr); border-radius:2px; margin:0 4px 10px; }
+.gps-track-fill { position:absolute; left:0; top:0; height:100%; background:var(--g); border-radius:2px; transition:width 1.4s var(--ease); }
+.gps-truck { position:absolute; top:50%; transform:translate(-50%,-50%); font-size:18px; transition:left 1.4s var(--ease); }
+.gps-map-canvas { height:220px; border-radius:var(--r12); overflow:hidden; margin-bottom:10px; position:relative; z-index:0; background:var(--bgw); box-shadow:inset 0 0 0 1px rgba(0,0,0,.06); }
+.gps-map-canvas .leaflet-control-attribution { font-size:8.5px; background:rgba(255,255,255,.8); padding:0 4px; }
+.map-truck-ico { font-size:22px; line-height:1; filter:drop-shadow(0 2px 4px rgba(0,0,0,.4)); }
+.gps-cities { display:flex; justify-content:space-between; font-size:12px; font-weight:700; color:var(--txt); }
+.gps-note { font-size:12px; color:var(--mut); margin-top:10px; }
+.gps-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:14px; }
+.gps-stat { background:var(--card); border:1px solid var(--bdr); border-radius:var(--r12); padding:10px 6px; text-align:center; }
+.gps-stat-n { font-size:14.5px; font-weight:700; color:var(--txt); }
+.gps-stat-l { font-size:10px; color:var(--mut); margin-top:2px; }
+.gps-demo-badge { display:inline-flex; align-items:center; gap:5px; font-size:10px; font-weight:700; color:var(--gold); background:var(--amberb); border-radius:var(--rpill); padding:4px 9px; margin-top:12px; }
+.gps-hist-item { display:flex; justify-content:space-between; align-items:center; padding:10px 16px; border-top:1px solid var(--bdrs); font-size:12.5px; }
+.gps-hist-item:first-child { border-top:none; }
+.gps-hist-time { color:var(--mut); font-size:11px; }
+
+/* ================================================================
+   TIMELINE (preuves)
+   ================================================================ */
+.timeline { list-style:none; padding:2px 16px; }
+.tl-item { display:flex; gap:12px; position:relative; padding-bottom:20px; }
+.tl-item:last-child { padding-bottom:0; }
+.tl-item::before { content:''; position:absolute; left:15px; top:32px; bottom:0; width:2px; background:var(--bdr); }
+.tl-item:last-child::before { display:none; }
+.tl-dot { width:32px; height:32px; border-radius:50%; background:var(--gg); border:1.5px solid var(--g); display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0; z-index:1; }
+.tl-body { flex:1; padding-top:3px; }
+.tl-lbl { font-size:13px; font-weight:700; color:var(--txt); }
+.tl-loc { font-size:11.5px; color:var(--txt2); margin-top:2px; }
+.tl-meta { font-size:10.5px; color:var(--mut); margin-top:2px; }
+.tl-proof { display:inline-flex; align-items:center; gap:4px; font-size:10px; color:var(--gm); background:var(--gg); border-radius:var(--r8); padding:2px 7px; margin-top:5px; }
+
+/* ================================================================
+   SCANNER
+   ================================================================ */
+.scan-target { background:var(--card); border:1.5px dashed var(--bdr); border-radius:var(--r16); margin:12px 16px; padding:20px; text-align:center; }
+.scan-target-ico { font-size:34px; margin-bottom:8px; }
+.scan-code-box { display:flex; gap:8px; padding:0 16px 10px; }
+.scan-picker { padding:4px 16px 8px; display:flex; flex-direction:column; gap:8px; }
+
+/* ================================================================
+   PROFIL -- CARTES MENU
+   ================================================================ */
+.pcard { background:var(--card); border:1px solid var(--bdr); border-radius:var(--r16); margin:0 16px 14px; overflow:hidden; }
+.pcard-ttl { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--mut); padding:14px 16px 6px; }
+.pcard-item { display:flex; align-items:center; gap:12px; padding:13px 16px; border-top:1px solid var(--bdrs); cursor:pointer; }
+.pcard-item:first-of-type { border-top:none; }
+.pi-ico { width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; background:var(--gg); }
+.pi-txt { flex:1; display:flex; flex-direction:column; }
+.pi-txt strong { font-size:13.5px; }
+.pi-txt span { font-size:11px; color:var(--mut); margin-top:1px; }
+.pi-arr { color:var(--mut); font-size:16px; }
+
+/* ================================================================
+   PLANNING -- AGENDA
+   ================================================================ */
+.agenda-day { padding:10px 16px 4px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--mut); }
+.agenda-item { display:flex; gap:12px; padding:11px 16px; background:var(--card); border:1px solid var(--bdr); border-radius:var(--r16); margin:0 16px 8px; align-items:center; }
+.agenda-time { font-family:'Playfair Display',serif; font-weight:900; font-size:13px; color:var(--txt); width:44px; flex-shrink:0; }
+.agenda-ico { width:34px; height:34px; border-radius:10px; background:var(--gg); display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0; }
+.agenda-body { flex:1; }
+.agenda-lbl { font-size:13px; font-weight:700; color:var(--txt); }
+.agenda-sub { font-size:11.5px; color:var(--mut); margin-top:1px; }
+
+/* ================================================================
+   ÉQUIPE
+   ================================================================ */
+.team-row { display:flex; align-items:center; gap:12px; padding:13px 15px; background:var(--card); border:1px solid var(--bdr); border-radius:var(--r16); margin:0 16px 8px; }
+.team-av { width:38px; height:38px; border-radius:50%; background:linear-gradient(135deg,var(--g),var(--gm)); display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:700; color:#04150c; flex-shrink:0; }
+.team-body { flex:1; min-width:0; }
+.team-name { font-size:13.5px; font-weight:700; color:var(--txt); }
+.team-role { font-size:11.5px; color:var(--mut); margin-top:1px; }
+.team-status { font-size:10px; font-weight:700; padding:3px 9px; border-radius:var(--rpill); }
+.team-status.active { background:var(--gg); color:var(--gm); }
+.team-status.invited { background:var(--amberb); color:#8A5A00; }
+
+/* ================================================================
+   MANIFESTE (document)
+   ================================================================ */
+.manifest-doc { margin:0 16px 14px; background:var(--card); border:1.5px solid var(--bdr); border-radius:var(--r16); overflow:hidden; }
+.manifest-hd { background:var(--gd); color:#fff; padding:18px; text-align:center; }
+.manifest-hd .m-ttl { font-family:'Playfair Display',serif; font-size:17px; font-weight:900; }
+.manifest-hd .m-sub { font-size:11.5px; color:rgba(255,255,255,.65); margin-top:3px; }
+.manifest-tbl { width:100%; border-collapse:collapse; }
+.manifest-tbl td { padding:9px 16px; font-size:12.5px; border-top:1px solid var(--bdrs); }
+.manifest-tbl td:first-child { color:var(--mut); }
+.manifest-tbl td:last-child { text-align:right; font-weight:700; color:var(--txt); }
+.manifest-items-hd { padding:14px 16px 6px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--mut); border-top:1px solid var(--bdrs); }
+.manifest-item { display:flex; justify-content:space-between; padding:8px 16px; font-size:12.5px; border-top:1px solid var(--bdrs); }
+.manifest-item .mi-code { font-weight:700; color:var(--txt); }
+.manifest-item .mi-meta { color:var(--mut); }
+@media print {
+  #topnav, #desktopnav, #btmnav, .fab-scan, .overlay, .sheet-hd, #toasts { display:none !important; }
+  .sheet { position:static; transform:none !important; box-shadow:none; max-height:none; width:100%; }
+  body { padding:0; }
+}
+
+/* ================================================================
+   SHEETS / OVERLAYS / TOASTS -- repris de prototype.html
+   ================================================================ */
+.overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:var(--z-sh); opacity:0; pointer-events:none; transition:opacity .25s var(--ease); }
+.overlay.on { opacity:1; pointer-events:auto; }
+.sheet {
+  position:fixed; left:0; right:0; bottom:0; z-index:var(--z-dlg);
+  background:var(--card); border-radius:var(--r24) var(--r24) 0 0;
+  max-height:90vh; overflow-y:auto; transform:translateY(100%);
+  transition:transform .32s var(--ease), opacity .32s var(--ease); padding-bottom:calc(20px + var(--safe));
+}
+.sheet.on { transform:translateY(0); }
+.sheet-hd { position:sticky; top:0; background:var(--card); padding:14px 16px 10px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--bdrs); z-index:1; }
+.sheet-ttl { font-family:'Playfair Display',serif; font-size:15.5px; font-weight:900; }
+.sheet-x { width:32px; height:32px; border-radius:50%; background:var(--bgw); display:flex; align-items:center; justify-content:center; font-size:15px; color:var(--txt2); }
+.sheet-bd { padding:14px 0; }
+#toasts { position:fixed; top:calc(var(--nav) + var(--safeT) + 10px); left:16px; right:16px; z-index:var(--z-tst); display:flex; flex-direction:column; gap:8px; pointer-events:none; }
+.toast {
+  display:flex; align-items:center; gap:10px; background:var(--gd); color:#fff;
+  padding:13px 14px; border-radius:var(--r12); font-size:13px; box-shadow:var(--shx);
+  opacity:0; transform:translateY(-14px); transition:all .3s var(--ease); pointer-events:auto;
+}
+.toast.show { opacity:1; transform:translateY(0); }
+.toast.hiding { opacity:0; transform:translateY(-14px); }
+.toast.e { background:var(--red); }
+.toast.w { background:#8A5A00; }
+.toast-x { cursor:pointer; opacity:.7; font-size:12px; }
+
+/* ================================================================
+   DESKTOP
+   ================================================================ */
+@media (min-width:768px) {
+  #btmnav { display:none; }
+  .fab-scan { display:flex; }
+  #topnav { height:68px; padding:0 clamp(24px,5%,80px); }
+  #desktopnav {
+    display:flex; gap:4px; position:fixed; top:68px; left:0; right:0; z-index:99;
+    background:var(--card); border-bottom:1px solid var(--bdr);
+    padding:0 clamp(24px,5%,80px);
+  }
+  .dn-item { padding:13px 14px; font-size:13px; font-weight:700; color:var(--mut); cursor:pointer; border-bottom:2.5px solid transparent; }
+  .dn-item.on { color:var(--gm); border-bottom-color:var(--g); }
+  .page { padding-top:114px; }
+  body { padding-bottom:0; }
+  .kpi-grid { grid-template-columns:repeat(6,1fr); max-width:1100px; margin:0 auto; padding-left:clamp(24px,5%,80px); padding-right:clamp(24px,5%,80px); }
+  .todo-wrap, .list-wrap, .form-wrap, .checklist, .recon-grid, .timeline, .search-sticky, .filter-row, .sec-hd, .page-hd { max-width:1100px; margin-left:auto; margin-right:auto; }
+  .search-sticky, .filter-row, .sec-hd, .page-hd { padding-left:clamp(24px,5%,80px); padding-right:clamp(24px,5%,80px); }
+  .list-wrap { grid-template-columns:repeat(2,1fr); display:grid; padding-left:clamp(24px,5%,80px); padding-right:clamp(24px,5%,80px); }
+  .sheet { left:50%; right:auto; bottom:auto; top:50%; transform:translate(-50%,-46%); width:min(560px,92vw); border-radius:var(--r24); max-height:85vh; opacity:0; visibility:hidden; pointer-events:none; }
+  .sheet.on { transform:translate(-50%,-50%); opacity:1; visibility:visible; pointer-events:auto; }
+  .search-sticky { top:114px; }
+}
+</style>
+</head>
+<body>
+
+<!-- TOP NAVBAR -->
+<header id="topnav" role="banner">
+  <div class="tn-logo" onclick="navigate('accueil')" style="cursor:pointer">
+    <div class="tn-ico" aria-hidden="true">📦</div>
+    <div>
+      <span class="tn-name">Sen<span>Link</span></span>
+      <div class="tn-org">Atlas Cargo — Transporteur</div>
+    </div>
+  </div>
+  <div class="tn-acts">
+    <button class="tn-btn" id="btnNotif" aria-label="Notifications">
+      🔔
+      <span class="tn-badge" id="notifBadge" aria-live="polite">0</span>
+    </button>
+    <button class="tn-btn" id="btnProfilNav" aria-label="Profil">👤</button>
+  </div>
+</header>
+
+<!-- NAVIGATION DESKTOP (masquée en mobile, la barre du bas suffit) -->
+<nav id="desktopnav" role="navigation" aria-label="Navigation principale (desktop)">
+  <div class="dn-item on" data-page="accueil">🏠 Accueil</div>
+  <div class="dn-item" data-page="colis">📦 Colis</div>
+  <div class="dn-item" data-page="lots">🚚 Lots</div>
+  <div class="dn-item" data-page="scanner">📷 Scanner</div>
+  <div class="dn-item" data-page="incidents">⚠️ Incidents</div>
+  <div class="dn-item" data-page="planning">📅 Planning</div>
+  <div class="dn-item" data-page="equipe">👥 Équipe</div>
+</nav>
+
+<!-- BOTTOM TAB BAR -->
+<nav id="btmnav" role="navigation" aria-label="Navigation principale">
+  <div class="tab on" id="tab-accueil" role="tab" aria-selected="true" aria-label="Accueil">
+    <div class="tab-ico" aria-hidden="true">🏠</div><div class="tab-lbl">Accueil</div>
+  </div>
+  <div class="tab" id="tab-colis" role="tab" aria-selected="false" aria-label="Colis">
+    <div class="tab-ico" aria-hidden="true">📦</div><div class="tab-lbl">Colis</div>
+  </div>
+  <div class="tab tab-scan" id="tab-scanner" role="tab" aria-selected="false" aria-label="Scanner">
+    <div class="tab-ico-w" aria-hidden="true">📷</div><div class="tab-lbl">Scanner</div>
+  </div>
+  <div class="tab" id="tab-lots" role="tab" aria-selected="false" aria-label="Lots">
+    <div class="tab-ico" aria-hidden="true">🚚</div><div class="tab-lbl">Lots</div>
+  </div>
+  <div class="tab" id="tab-incidents" role="tab" aria-selected="false" aria-label="Incidents">
+    <div class="tab-ico" aria-hidden="true">⚠️</div><div class="tab-lbl">Incidents</div>
+  </div>
+</nav>
+
+<button class="fab-scan" id="btnFabScan" aria-label="Scanner">📷</button>
+
+<!-- ================================================================
+     PAGE ACCUEIL
+     ================================================================ -->
+<main class="page on" id="page-accueil">
+  <div class="page-hd">
+    <div class="page-ttl">Vue d'ensemble</div>
+    <div class="page-sub">Qu'est-ce qui se passe aujourd'hui sur mon réseau ?</div>
+  </div>
+
+  <div class="kpi-grid" id="kpiGrid"></div>
+
+  <div class="todo-wrap">
+    <div class="todo-ttl">🎯 À faire maintenant</div>
+    <div id="todoList"></div>
+  </div>
+
+  <div class="sec-hd"><span class="sec-ttl">Lots en cours</span><span class="sec-link" onclick="navigate('lots')">Voir tout ›</span></div>
+  <div class="list-wrap" id="homeLotsList"></div>
+</main>
+
+<!-- ================================================================
+     PAGE COLIS
+     ================================================================ -->
+<section class="page" id="page-colis" aria-label="Colis">
+  <div class="page-hd">
+    <div class="page-ttl">Colis</div>
+    <div class="page-sub" id="colisCount">0 colis</div>
+  </div>
+  <div class="search-sticky">
+    <div class="search-inp-w">
+      <input class="search-inp" type="search" id="searchColis" placeholder="ID, référence, téléphone, lot..." autocomplete="off">
+      <span class="search-ico" aria-hidden="true">🔍</span>
+    </div>
+  </div>
+  <div class="filter-row" id="colisFilters"></div>
+  <div class="list-wrap" id="colisList"></div>
+</section>
+
+<!-- ================================================================
+     PAGE SCANNER
+     ================================================================ -->
+<section class="page" id="page-scanner" aria-label="Scanner SenLink">
+  <div class="page-hd">
+    <div class="page-ttl">📷 Scanner SenLink</div>
+    <div class="page-sub">Chaque scan crée un événement horodaté, attribué à vous, avec sa preuve.</div>
+  </div>
+  <div class="scan-target" id="scanEmptyState">
+    <div class="scan-target-ico">📷</div>
+    <div style="font-weight:700;font-size:13.5px;margin-bottom:4px">Sélectionnez un colis à traiter</div>
+    <div style="font-size:12px;color:var(--mut)">Recherchez un code ou choisissez ci-dessous parmi vos colis actionnables.</div>
+  </div>
+  <div class="scan-code-box">
+    <div class="search-inp-w" style="flex:1">
+      <input class="search-inp" type="search" id="scanCodeInput" placeholder="Ex : SL-MA-SN-847291" autocomplete="off">
+      <span class="search-ico" aria-hidden="true">🔍</span>
+    </div>
+    <button class="btn-go" id="btnScanGo" style="padding:0 18px;border-radius:var(--r12);background:var(--gd);color:#fff;font-weight:700;font-size:13.5px">Ouvrir</button>
+  </div>
+  <div class="sec-hd"><span class="sec-ttl">Colis actionnables</span></div>
+  <div class="scan-picker" id="scanPicker"></div>
+  <div id="scanStepWrap"></div>
+</section>
+
+<!-- ================================================================
+     PAGE LOTS
+     ================================================================ -->
+<section class="page" id="page-lots" aria-label="Lots">
+  <div class="page-hd">
+    <div class="page-ttl">Lots</div>
+    <div class="page-sub" id="lotsCount">0 lot</div>
+  </div>
+  <div class="filter-row" id="lotsFilters"></div>
+  <div style="padding:2px 16px 4px">
+    <button class="btn-primary" id="btnNewLot" style="margin-top:6px">+ Nouveau lot</button>
+  </div>
+  <div class="list-wrap" id="lotsList"></div>
+</section>
+
+<!-- ================================================================
+     PAGE INCIDENTS
+     ================================================================ -->
+<section class="page" id="page-incidents" aria-label="Incidents">
+  <div class="page-hd">
+    <div class="page-ttl">⚠️ Incidents</div>
+    <div class="page-sub" id="incidentsCount">0 incident</div>
+  </div>
+  <div class="filter-row" id="incidentsFilters"></div>
+  <div class="list-wrap" id="incidentsList"></div>
+</section>
+
+<!-- ================================================================
+     PAGE PLANNING
+     ================================================================ -->
+<section class="page" id="page-planning" aria-label="Planning">
+  <div class="page-hd">
+    <div class="page-ttl">📅 Planning</div>
+    <div class="page-sub">Agenda des créations, départs et arrivées de lots -- dérivé des données réelles des lots, aucune saisie manuelle indépendante n'existe encore dans le modèle.</div>
+  </div>
+  <div class="filter-row" id="planningFilters"></div>
+  <div id="planningList"></div>
+</section>
+
+<!-- ================================================================
+     PAGE ÉQUIPE
+     ================================================================ -->
+<section class="page" id="page-equipe" aria-label="Équipe">
+  <div class="page-hd">
+    <div class="page-ttl">👥 Équipe</div>
+    <div class="page-sub">Aperçu illustratif -- le modèle de rôles réel (user_roles.role) reste aujourd'hui un rôle unique "transporteur", pas les niveaux détaillés affichés ici. Voir la note en bas de page.</div>
+  </div>
+  <div id="teamList"></div>
+  <div class="form-wrap">
+    <button class="btn-secondary" id="btnInviteMember">+ Inviter un membre (démo)</button>
+    <div class="fieldset" style="margin-top:14px">
+      <div class="fieldset-lgd">Note de conception</div>
+      <p style="font-size:12px;color:var(--txt2);line-height:1.6">
+        Cette page anticipe une gestion d'équipe à plusieurs niveaux
+        (administrateur transporteur, manager, agent dépôt, agent
+        terrain, conducteur) évoquée dans la vision produit, mais
+        aucune décision de schéma ou de RLS n'a été prise pour ce
+        modèle -- Migration 2 ne couvre qu'un rôle "transporteur"
+        unique. Considérer cet écran comme une maquette, pas une
+        fonctionnalité backée.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================
+     PAGE PROFIL
+     ================================================================ -->
+<section class="page" id="page-profil" aria-label="Profil">
+  <div class="page-hd">
+    <div class="page-ttl">Atlas Cargo</div>
+    <div class="page-sub">Transporteur — Casablanca ↔ Dakar</div>
+  </div>
+  <div class="pcard">
+    <div class="pcard-ttl">Navigation</div>
+    <div class="pcard-item" id="btnMenuPlanning">
+      <div class="pi-ico" aria-hidden="true">📅</div>
+      <div class="pi-txt"><strong>Planning</strong><span>Agenda des lots</span></div>
+      <span class="pi-arr" aria-hidden="true">›</span>
+    </div>
+    <div class="pcard-item" id="btnMenuEquipe">
+      <div class="pi-ico" aria-hidden="true">👥</div>
+      <div class="pi-txt"><strong>Équipe</strong><span>Membres et rôles (maquette)</span></div>
+      <span class="pi-arr" aria-hidden="true">›</span>
+    </div>
+  </div>
+  <div class="form-wrap">
+    <div class="fieldset">
+      <div class="fieldset-lgd">À propos de ce prototype</div>
+      <p style="font-size:12.5px;color:var(--txt2);line-height:1.6">
+        Interface de démonstration du dashboard transporteur SenLink.
+        Les règles (transitions de colis, transitions de lot, contrôle
+        géographique, réconciliation) reproduisent Migration 1 et
+        Migration 2 telles que conçues, mais aucune donnée ici n'est
+        réelle et aucun appel réseau n'est effectué.
+      </p>
+    </div>
+    <button class="btn-secondary" id="btnResetDemo">Réinitialiser les données de démo</button>
+  </div>
+</section>
+
+<!-- SHEET -- Détail colis -->
+<div class="overlay" id="colisOverlay" onclick="closeSheet('colis')"></div>
+<div class="sheet" id="colisSheet" role="dialog" aria-modal="true" aria-label="Détail du colis">
+  <div class="sheet-hd">
+    <span class="sheet-ttl">Détail du colis</span>
+    <button class="sheet-x" onclick="closeSheet('colis')" aria-label="Fermer">✕</button>
+  </div>
+  <div class="sheet-bd" id="colisSheetBody"></div>
+</div>
+
+<!-- SHEET -- Détail / actions lot -->
+<div class="overlay" id="lotOverlay" onclick="closeSheet('lot')"></div>
+<div class="sheet" id="lotSheet" role="dialog" aria-modal="true" aria-label="Détail du lot">
+  <div class="sheet-hd">
+    <span class="sheet-ttl" id="lotSheetTtl">Lot</span>
+    <button class="sheet-x" onclick="closeSheet('lot')" aria-label="Fermer">✕</button>
+  </div>
+  <div class="sheet-bd" id="lotSheetBody"></div>
+</div>
+
+<!-- SHEET -- Nouveau lot -->
+<div class="overlay" id="newLotOverlay" onclick="closeSheet('newLot')"></div>
+<div class="sheet" id="newLotSheet" role="dialog" aria-modal="true" aria-label="Nouveau lot">
+  <div class="sheet-hd">
+    <span class="sheet-ttl">Nouveau lot</span>
+    <button class="sheet-x" onclick="closeSheet('newLot')" aria-label="Fermer">✕</button>
+  </div>
+  <div class="sheet-bd">
+    <form id="formNewLot" class="form-wrap" style="padding-top:0">
+      <div class="fieldset">
+        <div class="fieldset-lgd">Trajet</div>
+        <div class="field"><label for="newLotOrigin">Hub d'origine</label>
+          <select id="newLotOrigin"></select>
+        </div>
+        <div class="field"><label for="newLotDest">Hub de destination</label>
+          <select id="newLotDest"></select>
+        </div>
+        <div class="field-hint">create_shipment_lot() génère automatiquement le code du lot.</div>
+      </div>
+      <button class="btn-primary" type="submit">Créer le lot</button>
+    </form>
+  </div>
+</div>
+
+<!-- SHEET -- Manifeste (projection documentaire du lot, pas une entité séparée) -->
+<div class="overlay" id="manifestOverlay" onclick="closeSheet('manifest')"></div>
+<div class="sheet" id="manifestSheet" role="dialog" aria-modal="true" aria-label="Manifeste du lot">
+  <div class="sheet-hd">
+    <span class="sheet-ttl">Manifeste</span>
+    <button class="sheet-x" onclick="closeSheet('manifest')" aria-label="Fermer">✕</button>
+  </div>
+  <div class="sheet-bd" id="manifestSheetBody"></div>
+</div>
+
+<!-- SHEET -- Historique du trajet GPS (V1 démo, projection des positions simulées) -->
+<div class="overlay" id="gpsHistOverlay" onclick="closeSheet('gpsHist')"></div>
+<div class="sheet" id="gpsHistSheet" role="dialog" aria-modal="true" aria-label="Historique du trajet">
+  <div class="sheet-hd">
+    <span class="sheet-ttl">Historique du trajet</span>
+    <button class="sheet-x" onclick="closeSheet('gpsHist')" aria-label="Fermer">✕</button>
+  </div>
+  <div class="sheet-bd" id="gpsHistSheetBody"></div>
+</div>
+
+<!-- SHEET -- Détail incident -->
+<div class="overlay" id="incidentOverlay" onclick="closeSheet('incident')"></div>
+<div class="sheet" id="incidentSheet" role="dialog" aria-modal="true" aria-label="Détail de l'incident">
+  <div class="sheet-hd">
+    <span class="sheet-ttl">Incident</span>
+    <button class="sheet-x" onclick="closeSheet('incident')" aria-label="Fermer">✕</button>
+  </div>
+  <div class="sheet-bd" id="incidentSheetBody"></div>
+</div>
+
+<div id="toasts" role="status" aria-live="polite" aria-atomic="true"></div>
+
+<!-- ================================================================
+     JS -- données de démo + logique d'affichage (aucun appel réseau)
+     ================================================================ -->
+<script>
+(function() {
+'use strict';
+
+/* ----------------------------------------------------------------
+   HUBS (démo)
+   ---------------------------------------------------------------- */
+var HUBS = [
+  { id:'hub-casa', name:'Hub Casablanca', city:'Casablanca', country:'MA', lat:33.5731, lng:-7.5898 },
+  { id:'hub-tanger', name:'Hub Tanger', city:'Tanger', country:'MA', lat:35.7595, lng:-5.8340 },
+  { id:'hub-dakar', name:'Hub Dakar', city:'Dakar', country:'SN', lat:14.7167, lng:-17.4677 },
+  { id:'hub-thies', name:'Hub Thiès', city:'Thiès', country:'SN', lat:14.7910, lng:-16.9359 }
+];
+function hubById(id) { return HUBS.filter(function(h){ return h.id === id; })[0]; }
+
+/* ----------------------------------------------------------------
+   STATUTS COLIS (miroir de Migration 1 -- réservés au périmètre
+   transporteur : le Scanner ne propose que les statuts que la
+   matrice rôle × statut autorise au rôle transporteur)
+   ---------------------------------------------------------------- */
+var STATUS_META = {
+  created:                   { label:'Créé',                    cls:'st-neutre'  },
+  dropped_off:               { label:'Déposé au point relais',  cls:'st-neutre'  },
+  inspected:                 { label:'Contrôlé — prêt',          cls:'st-neutre'  },
+  departed_origin:           { label:'Départ',                   cls:'st-transit' },
+  in_transit_international:  { label:'Transit international',    cls:'st-transit' },
+  customs_clearance:         { label:'Contrôle douanier',        cls:'st-transit' },
+  arrived_destination:       { label:'Arrivé à destination',     cls:'st-arrive'  },
+  at_hub:                    { label:'Au hub (agent)',            cls:'st-arrive'  },
+  at_pickup_point:           { label:'Au point relais (agent)',   cls:'st-arrive'  },
+  out_for_delivery:          { label:'En cours de livraison',     cls:'st-arrive'  },
+  delivered:                 { label:'Livré',                     cls:'st-livre'   },
+  cancelled:                 { label:'Annulé',                    cls:'st-incident'}
+};
+var LOT_STATUS_META = {
+  open:       { label:'Ouvert',     cls:'st-neutre'  },
+  in_transit: { label:'En transit', cls:'st-transit' },
+  arrived:    { label:'Arrivé',     cls:'st-arrive'  },
+  closed:     { label:'Clôturé',    cls:'st-livre'   }
+};
+
+/* Transporteur uniquement : is_role_status_allowed('transporteur', ...) */
+var SHIPMENT_TRANSITIONS = {
+  inspected:                 ['departed_origin'],
+  departed_origin:           ['in_transit_international'],
+  in_transit_international:  ['customs_clearance', 'arrived_destination'],
+  customs_clearance:         ['arrived_destination']
+};
+var PROOF_REQUIRED = ['arrived_destination'];
+var RECEIVED_STATUSES = ['arrived_destination','at_hub','at_pickup_point','out_for_delivery','delivered'];
+var LOT_TRANSITIONS = { open:'in_transit', in_transit:'arrived', arrived:'closed' };
+
+/* ----------------------------------------------------------------
+   DONNÉES DE DÉMO
+   ---------------------------------------------------------------- */
+var SEED_SHIPMENTS = [
+  { code:'SL-MA-SN-847291', status:'inspected', originCity:'Casablanca', originCountry:'MA', destCity:'Dakar', destCountry:'SN', sender:'Youssef El Amrani', recipient:'Aissatou Diallo', weight:3.2, lotId:null,
+    timeline:[
+      { lbl:'Créé', loc:'Casablanca', actor:'Youssef (expéditeur)', time:'29 août, 09:14', proof:false },
+      { lbl:'Déposé au point relais', loc:'Point relais Maarif', actor:'Agent Karim B.', time:'29 août, 11:02', proof:true },
+      { lbl:'Contrôlé', loc:'Point relais Maarif', actor:'Agent Karim B.', time:'29 août, 11:05', proof:true }
+    ] },
+  { code:'SL-MA-SN-118420', status:'inspected', originCity:'Casablanca', originCountry:'MA', destCity:'Dakar', destCountry:'SN', sender:'Salma Bennis', recipient:'Cheikh Fall', weight:1.4, lotId:null,
+    timeline:[
+      { lbl:'Créé', loc:'Casablanca', actor:'Salma (expéditeur)', time:'29 août, 08:02', proof:false },
+      { lbl:'Déposé au point relais', loc:'Point relais Gauthier', actor:'Agent Rania S.', time:'29 août, 10:30', proof:true },
+      { lbl:'Contrôlé', loc:'Point relais Gauthier', actor:'Agent Rania S.', time:'29 août, 10:33', proof:true }
+    ] },
+  { code:'SL-MA-SN-556310', status:'inspected', originCity:'Casablanca', originCountry:'MA', destCity:'Dakar', destCountry:'SN', sender:'Hamza Idrissi', recipient:'Fatou Ndiaye', weight:0.4, lotId:null,
+    timeline:[
+      { lbl:'Créé', loc:'Casablanca', actor:'Hamza (expéditeur)', time:'29 août, 13:20', proof:false },
+      { lbl:'Déposé au point relais', loc:'Point relais Maarif', actor:'Agent Karim B.', time:'29 août, 15:10', proof:true },
+      { lbl:'Contrôlé', loc:'Point relais Maarif', actor:'Agent Karim B.', time:'29 août, 15:12', proof:true }
+    ] },
+  { code:'SL-MA-SN-902174', status:'inspected', originCity:'Casablanca', originCountry:'MA', destCity:'Dakar', destCountry:'SN', sender:'Nadia Alaoui', recipient:'Ousmane Sarr', weight:2.0, lotId:null,
+    timeline:[
+      { lbl:'Créé', loc:'Casablanca', actor:'Nadia (expéditeur)', time:'29 août, 17:40', proof:false },
+      { lbl:'Déposé au point relais', loc:'Point relais Ain Sebaa', actor:'Agent Youssra L.', time:'29 août, 18:05', proof:true },
+      { lbl:'Contrôlé', loc:'Point relais Ain Sebaa', actor:'Agent Youssra L.', time:'29 août, 18:08', proof:true }
+    ] },
+  { code:'SL-MA-SN-334187', status:'inspected', originCity:'Casablanca', originCountry:'MA', destCity:'Dakar', destCountry:'SN', sender:'Omar Benjelloun', recipient:'Mariama Sow', weight:1.8, lotId:'lot-a',
+    timeline:[
+      { lbl:'Créé', loc:'Casablanca', actor:'Omar (expéditeur)', time:'26 août, 10:05', proof:false },
+      { lbl:'Déposé au point relais', loc:'Point relais Ain Sebaa', actor:'Agent Youssra L.', time:'26 août, 12:40', proof:true },
+      { lbl:'Contrôlé', loc:'Point relais Ain Sebaa', actor:'Agent Youssra L.', time:'26 août, 12:42', proof:true }
+    ] },
+  { code:'SL-MA-SN-771002', status:'inspected', originCity:'Casablanca', originCountry:'MA', destCity:'Dakar', destCountry:'SN', sender:'Laila Ziani', recipient:'Ibrahima Ba', weight:2.6, lotId:'lot-a',
+    timeline:[
+      { lbl:'Créé', loc:'Casablanca', actor:'Laila (expéditeur)', time:'26 août, 09:00', proof:false },
+      { lbl:'Déposé au point relais', loc:'Point relais Ain Sebaa', actor:'Agent Youssra L.', time:'26 août, 11:15', proof:true },
+      { lbl:'Contrôlé', loc:'Point relais Ain Sebaa', actor:'Agent Youssra L.', time:'26 août, 11:17', proof:true }
+    ] },
+  { code:'SL-MA-SN-118932', status:'arrived_destination', originCity:'Casablanca', originCountry:'MA', destCity:'Dakar', destCountry:'SN', sender:'Adam Kabbaj', recipient:'Modou Diagne', weight:1.1, lotId:'lot-b',
+    timeline:[
+      { lbl:'Créé', loc:'Casablanca', actor:'Adam (expéditeur)', time:'20 août, 08:00', proof:false },
+      { lbl:'Déposé au point relais', loc:'Point relais Maarif', actor:'Agent Karim B.', time:'20 août, 10:00', proof:true },
+      { lbl:'Contrôlé', loc:'Point relais Maarif', actor:'Agent Karim B.', time:'20 août, 10:02', proof:true },
+      { lbl:'Départ', loc:'Hub Casablanca', actor:'Atlas Cargo', time:'21 août, 07:00', proof:false },
+      { lbl:'Transit international', loc:'En route', actor:'Atlas Cargo', time:'21 août, 20:00', proof:false },
+      { lbl:'Arrivé à destination', loc:'Hub Dakar', actor:'Atlas Cargo', time:'23 août, 09:00', proof:true }
+    ] },
+  { code:'SL-MA-SN-224561', status:'departed_origin', originCity:'Casablanca', originCountry:'MA', destCity:'Dakar', destCountry:'SN', sender:'Karim Fassi', recipient:'Astou Gueye', weight:0.9, lotId:'lot-b',
+    timeline:[
+      { lbl:'Créé', loc:'Casablanca', actor:'Karim (expéditeur)', time:'20 août, 08:30', proof:false },
+      { lbl:'Déposé au point relais', loc:'Point relais Maarif', actor:'Agent Karim B.', time:'20 août, 10:20', proof:true },
+      { lbl:'Contrôlé', loc:'Point relais Maarif', actor:'Agent Karim B.', time:'20 août, 10:22', proof:true },
+      { lbl:'Départ', loc:'Hub Casablanca', actor:'Atlas Cargo', time:'21 août, 07:00', proof:false }
+    ] },
+  { code:'SL-MA-SN-663019', status:'delivered', originCity:'Casablanca', originCountry:'MA', destCity:'Dakar', destCountry:'SN', sender:'Sophia Naciri', recipient:'Awa Sy', weight:3.0, lotId:'lot-c',
+    timeline:[
+      { lbl:'Créé', loc:'Casablanca', actor:'Sophia (expéditeur)', time:'10 août, 09:00', proof:false },
+      { lbl:'Livré', loc:'Point relais Sandaga', actor:'Agent Ndeye F.', time:'16 août, 10:47', proof:true }
+    ] }
+];
+
+var SEED_LOTS = [
+  { id:'lot-a', originHubId:'hub-casa', destHubId:'hub-dakar', status:'open', createdAt:'27 août, 06:50', departedAt:null, arrivedAt:null },
+  { id:'lot-b', originHubId:'hub-casa', destHubId:'hub-dakar', status:'in_transit', createdAt:'20 août, 07:30', departedAt:'21 août, 07:00', arrivedAt:null },
+  { id:'lot-c', originHubId:'hub-casa', destHubId:'hub-dakar', status:'closed', createdAt:'8 août, 08:00', departedAt:'9 août, 07:00', arrivedAt:'12 août, 09:15' }
+];
+
+var SEED_INCIDENTS = [
+  { id:'inc-1', shipmentCode:'SL-MA-SN-224561', type:'colis_manquant', status:'open',
+    description:'Écart de réconciliation du lot LOT-CASA-DKR-0812-041 (24 attendus, 23 reçus).',
+    time:'12 août, 09:15', reportedBy:'Vous (transporteur)', reportedRole:'transporteur',
+    resolutionNotes:null, resolvedAt:null },
+  { id:'inc-2', shipmentCode:'SL-MA-SN-118420', type:'retard', status:'resolved',
+    description:'Retard de contrôle douanier signalé par l\'agent hub, colis bloqué 6h de plus que prévu.',
+    time:'24 août, 16:40', reportedBy:'Agent Moussa T.', reportedRole:'agent_point_relais',
+    resolutionNotes:'Contrôle douanier terminé, colis remis en transit le jour même.', resolvedAt:'24 août, 22:10' }
+];
+
+/* ----------------------------------------------------------------
+   ÉTAT + PERSISTANCE (localStorage uniquement)
+   ---------------------------------------------------------------- */
+var ST = { page:'accueil', shipments:[], lots:[], incidents:[], colisFilter:'all', lotsFilter:'all', incidentsFilter:'all', planningFilter:'all', scanTarget:null, lotCodeSeq:41, _toastMap:{} };
+
+function lsGet(k) { try { return JSON.parse(localStorage.getItem(k)); } catch(e) { return null; } }
+function lsSet(k,v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {} }
+function h(s) { var d = document.createElement('div'); d.textContent = String(s == null ? '' : s); return d.innerHTML; }
+function saveAll() { lsSet('slt_shipments', ST.shipments); lsSet('slt_lots', ST.lots); lsSet('slt_incidents', ST.incidents); }
+
+function resetDemo() {
+  ST.shipments = JSON.parse(JSON.stringify(SEED_SHIPMENTS));
+  ST.lots = JSON.parse(JSON.stringify(SEED_LOTS));
+  ST.incidents = JSON.parse(JSON.stringify(SEED_INCIDENTS));
+  saveAll();
+  renderAll();
+  showToast('Données de démonstration réinitialisées', 'i');
+}
+
+function findShipment(code) {
+  var c = String(code || '').toLowerCase().trim();
+  for (var i = 0; i < ST.shipments.length; i++) {
+    if (ST.shipments[i].code.toLowerCase() === c) return ST.shipments[i];
+  }
+  return null;
+}
+function findLot(id) {
+  for (var i = 0; i < ST.lots.length; i++) if (ST.lots[i].id === id) return ST.lots[i];
+  return null;
+}
+function shipmentsOfLot(lotId) {
+  return ST.shipments.filter(function(s){ return s.lotId === lotId; });
+}
+
+/* ----------------------------------------------------------------
+   NAVIGATION
+   ---------------------------------------------------------------- */
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('on'); });
+  document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('on'); t.setAttribute('aria-selected','false'); });
+  document.querySelectorAll('.dn-item').forEach(function(d){ d.classList.remove('on'); });
+  var pg = document.getElementById('page-'+page);
+  var tab = document.getElementById('tab-'+page);
+  var dn = document.querySelector('.dn-item[data-page="'+page+'"]');
+  if (pg) pg.classList.add('on');
+  if (tab) { tab.classList.add('on'); tab.setAttribute('aria-selected','true'); }
+  if (dn) dn.classList.add('on');
+  ST.page = page;
+  window.scrollTo(0,0);
+  if (page === 'scanner') renderScanPicker();
+  if (page === 'planning') renderPlanning();
+}
+window.navigate = navigate;
+
+function bindNav() {
+  document.getElementById('btmnav').addEventListener('click', function(e){
+    var tab = e.target.closest('.tab');
+    if (!tab) return;
+    navigate(tab.id.replace('tab-',''));
+  });
+  document.getElementById('desktopnav').addEventListener('click', function(e){
+    var item = e.target.closest('.dn-item');
+    if (!item) return;
+    navigate(item.dataset.page);
+  });
+  document.getElementById('btnProfilNav').addEventListener('click', function(){ navigate('profil'); });
+  document.getElementById('btnNotif').addEventListener('click', function(){ showToast('Aucune nouvelle notification (démo)', 'i'); });
+  document.getElementById('btnFabScan').addEventListener('click', function(){ navigate('scanner'); });
+  document.getElementById('btnResetDemo').addEventListener('click', resetDemo);
+  document.getElementById('btnMenuPlanning').addEventListener('click', function(){ navigate('planning'); });
+  document.getElementById('btnMenuEquipe').addEventListener('click', function(){ navigate('equipe'); });
+}
+
+/* ----------------------------------------------------------------
+   SHEETS
+   ---------------------------------------------------------------- */
+function openSheet(id) {
+  document.getElementById(id+'Overlay').classList.add('on');
+  document.getElementById(id+'Sheet').classList.add('on');
+  document.body.style.overflow = 'hidden';
+}
+function closeSheet(id) {
+  if (id === 'lot') stopGpsMapRefresh();
+  if (id === 'incident') destroyIncidentMap();
+  if (id === 'colis') destroyColisMap();
+  document.getElementById(id+'Overlay').classList.remove('on');
+  document.getElementById(id+'Sheet').classList.remove('on');
+  document.body.style.overflow = '';
+}
+window.closeSheet = closeSheet;
+
+/* ----------------------------------------------------------------
+   TOASTS
+   ---------------------------------------------------------------- */
+function showToast(msg, type, dur) {
+  var key = msg + type;
+  if (ST._toastMap[key]) return;
+  ST._toastMap[key] = true;
+  setTimeout(function(){ delete ST._toastMap[key]; }, 1800);
+  var c = document.getElementById('toasts');
+  var t = document.createElement('div');
+  t.className = 'toast' + (type === 'e' ? ' e' : type === 'w' ? ' w' : '');
+  var icons = { s:'✅', e:'❌', w:'⚠️', i:'ℹ️' };
+  t.innerHTML = '<span>'+(icons[type]||'ℹ️')+'</span><span style="flex:1">'+h(msg)+'</span><span class="toast-x" role="button" tabindex="0" aria-label="Fermer">✕</span>';
+  t.querySelector('.toast-x').addEventListener('click', function(){ dismiss(t); });
+  c.appendChild(t);
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){ t.classList.add('show'); }); });
+  setTimeout(function(){ dismiss(t); }, dur || 3400);
+}
+function dismiss(t) {
+  if (!t.parentNode) return;
+  t.classList.add('hiding'); t.classList.remove('show');
+  setTimeout(function(){ if (t.parentNode) t.remove(); }, 380);
+}
+
+/* ----------------------------------------------------------------
+   BADGES / HELPERS
+   ---------------------------------------------------------------- */
+function statusBadge(status) {
+  var m = STATUS_META[status] || { label:status, cls:'st-neutre' };
+  return '<span class="badge '+m.cls+'">'+h(m.label)+'</span>';
+}
+function lotStatusBadge(status) {
+  var m = LOT_STATUS_META[status] || { label:status, cls:'st-neutre' };
+  return '<span class="badge '+m.cls+'">'+h(m.label)+'</span>';
+}
+function lotLabel(lot) {
+  return 'LOT-' + hubById(lot.originHubId).city.slice(0,3).toUpperCase() + '-' + hubById(lot.destHubId).city.slice(0,3).toUpperCase() + '-' + lot.id.slice(-3).toUpperCase();
+}
+
+/* ----------------------------------------------------------------
+   RENDU -- VUE D'ENSEMBLE
+   ---------------------------------------------------------------- */
+function computeKpis() {
+  var all = ST.shipments;
+  var enTransit = all.filter(function(s){ return ['departed_origin','in_transit_international','customs_clearance'].indexOf(s.status) > -1; }).length;
+  var aPrendre = all.filter(function(s){ return s.status === 'inspected' && !s.lotId; }).length;
+  var lotsTransport = ST.lots.filter(function(l){ return l.status === 'in_transit'; }).length;
+  var departsJour = ST.lots.filter(function(l){ return l.status === 'in_transit' || l.status === 'open'; }).length;
+  var arriveesPrevues = ST.lots.filter(function(l){ return l.status === 'in_transit'; }).length;
+  var incidentsOuverts = ST.incidents.filter(function(i){ return i.status === 'open'; }).length;
+  var livres = all.filter(function(s){ return s.status === 'delivered'; }).length;
+  var tauxLivraison = all.length ? Math.round(livres / all.length * 100) : 0;
+  return { enTransit:enTransit, aPrendre:aPrendre, lotsTransport:lotsTransport, departsJour:departsJour,
+    arriveesPrevues:arriveesPrevues, incidentsOuverts:incidentsOuverts, livres:livres, tauxLivraison:tauxLivraison };
+}
+function renderKpis() {
+  var k = computeKpis();
+  var cards = [
+    { ico:'📦', n:k.enTransit, l:'Colis en transit', cls:'' },
+    { ico:'🔄', n:k.aPrendre, l:'À prendre en charge', cls:k.aPrendre ? 'warn' : '' },
+    { ico:'🚚', n:k.lotsTransport, l:'Lots en transport', cls:'' },
+    { ico:'⚠️', n:k.incidentsOuverts, l:'Incidents ouverts', cls:k.incidentsOuverts ? 'warn' : 'good' },
+    { ico:'✅', n:k.livres, l:'Colis livrés', cls:'good' },
+    { ico:'📊', n:k.tauxLivraison + '%', l:'Taux de livraison', cls:'good' }
+  ];
+  document.getElementById('kpiGrid').innerHTML = cards.map(function(c){
+    return '<div class="kpi-card '+c.cls+'"><div class="kpi-ico">'+c.ico+'</div><div class="kpi-n">'+c.n+'</div><div class="kpi-l">'+h(c.l)+'</div></div>';
+  }).join('');
+}
+function renderTodo() {
+  var items = [];
+  var aPrendre = ST.shipments.filter(function(s){ return s.status === 'inspected' && !s.lotId; }).length;
+  var incidentsOuverts = ST.incidents.filter(function(i){ return i.status === 'open'; }).length;
+  var lotsOpen = ST.lots.filter(function(l){ return l.status === 'open'; });
+  var lotsArrived = ST.lots.filter(function(l){ return l.status === 'arrived'; });
+
+  if (aPrendre > 0) items.push({ dot:'r', txt:aPrendre + ' colis contrôlés attendent d\'être rattachés à un lot', action:function(){ navigate('colis'); } });
+  if (incidentsOuverts > 0) items.push({ dot:'o', txt:incidentsOuverts + ' incident(s) non traité(s)', action:function(){ navigate('incidents'); } });
+  lotsOpen.forEach(function(l){
+    var n = shipmentsOfLot(l.id).length;
+    items.push({ dot:'y', txt:'Lot ' + lotLabel(l) + ' ouvert — ' + n + ' colis rattaché(s)', action:function(){ openLotSheet(l.id); } });
+  });
+  lotsArrived.forEach(function(l){
+    items.push({ dot:'b', txt:'Lot ' + lotLabel(l) + ' arrivé — réconciliation à faire', action:function(){ openLotSheet(l.id); } });
+  });
+
+  var el = document.getElementById('todoList');
+  if (!items.length) {
+    el.innerHTML = '<div class="todo-empty">Rien de bloquant pour le moment.</div>';
+    return;
+  }
+  el.innerHTML = items.map(function(it, idx){
+    return '<div class="todo-item" data-idx="'+idx+'"><span class="todo-dot '+it.dot+'"></span><span>'+h(it.txt)+'</span></div>';
+  }).join('');
+  Array.prototype.forEach.call(el.querySelectorAll('.todo-item'), function(node){
+    node.addEventListener('click', function(){ items[+node.dataset.idx].action(); });
+  });
+}
+function renderHomeLots() {
+  var active = ST.lots.filter(function(l){ return l.status !== 'closed'; });
+  document.getElementById('homeLotsList').innerHTML = active.length
+    ? active.map(lotCardHtml).join('')
+    : '<div class="empty-state" style="grid-column:1/-1"><div class="es-ico">🚚</div><div class="es-ttl">Aucun lot actif</div><div class="es-sub">Créez un lot depuis l\'onglet Lots.</div></div>';
+  bindLotCards(document.getElementById('homeLotsList'));
+}
+
+/* ----------------------------------------------------------------
+   RENDU -- COLIS
+   ---------------------------------------------------------------- */
+var COLIS_FILTERS = [
+  { key:'all', lbl:'Tous' },
+  { key:'a_prendre', lbl:'À prendre en charge' },
+  { key:'en_transit', lbl:'En transit' },
+  { key:'arrives', lbl:'Arrivés' },
+  { key:'livres', lbl:'Livrés' }
+];
+function renderColisFilters() {
+  document.getElementById('colisFilters').innerHTML = COLIS_FILTERS.map(function(f){
+    return '<button class="filter-chip'+(ST.colisFilter===f.key?' on':'')+'" data-key="'+f.key+'">'+h(f.lbl)+'</button>';
+  }).join('');
+  Array.prototype.forEach.call(document.getElementById('colisFilters').querySelectorAll('.filter-chip'), function(btn){
+    btn.addEventListener('click', function(){ ST.colisFilter = btn.dataset.key; renderColisFilters(); renderColis(); });
+  });
+}
+function filteredColis() {
+  var q = (document.getElementById('searchColis').value || '').toLowerCase().trim();
+  return ST.shipments.filter(function(s){
+    if (ST.colisFilter === 'a_prendre' && !(s.status === 'inspected' && !s.lotId)) return false;
+    if (ST.colisFilter === 'en_transit' && ['departed_origin','in_transit_international','customs_clearance'].indexOf(s.status) === -1) return false;
+    if (ST.colisFilter === 'arrives' && s.status !== 'arrived_destination') return false;
+    if (ST.colisFilter === 'livres' && s.status !== 'delivered') return false;
+    if (!q) return true;
+    var lot = s.lotId ? findLot(s.lotId) : null;
+    var hay = [s.code, s.sender, s.recipient, s.destCity, lot ? lotLabel(lot) : ''].join(' ').toLowerCase();
+    return hay.indexOf(q) > -1;
+  });
+}
+function renderColis() {
+  var list = filteredColis();
+  document.getElementById('colisCount').textContent = list.length + (list.length > 1 ? ' colis' : ' colis');
+  var el = document.getElementById('colisList');
+  if (!list.length) {
+    el.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="es-ico">📦</div><div class="es-ttl">Aucun colis</div><div class="es-sub">Aucun résultat pour ce filtre.</div></div>';
+    return;
+  }
+  el.innerHTML = list.map(function(s){
+    var lot = s.lotId ? findLot(s.lotId) : null;
+    return '<div class="row-card" data-code="'+h(s.code)+'">'
+      + '<div class="row-top"><span class="row-code">'+h(s.code)+'</span>'+statusBadge(s.status)+'</div>'
+      + '<div class="row-route">'+h(s.originCity)+' → '+h(s.destCity)+' · '+h(s.recipient)+'</div>'
+      + '<div class="row-meta">'
+      +   '<span>'+s.weight+' kg</span>'
+      +   (lot ? '<span>🚚 '+h(lotLabel(lot))+'</span>' : '<span>Non rattaché</span>')
+      + '</div></div>';
+  }).join('');
+  Array.prototype.forEach.call(el.querySelectorAll('.row-card'), function(card){
+    card.addEventListener('click', function(){ openColisSheet(card.dataset.code); });
+  });
+}
+
+function timelineHtml(shipment) {
+  var items = shipment.timeline.map(function(ev){
+    return '<li class="tl-item">'
+      + '<div class="tl-dot" aria-hidden="true">✅</div>'
+      + '<div class="tl-body">'
+      +   '<div class="tl-lbl">'+h(ev.lbl)+'</div>'
+      +   '<div class="tl-loc">'+h(ev.loc)+' — '+h(ev.actor)+'</div>'
+      +   '<div class="tl-meta">'+h(ev.time)+'</div>'
+      +   (ev.proof ? '<div class="tl-proof">📷 Preuve enregistrée</div>' : '')
+      + '</div></li>';
+  }).join('');
+  return '<ul class="timeline">'+items+'</ul>';
+}
+/* ----------------------------------------------------------------
+   POSITION GPS SUR LE DÉTAIL D'UN COLIS -- même logique et même
+   fonction de rendu que sur l'écran Incidents (gpsMapCanvasHtml),
+   même noyau Leaflet partagé (mountRouteOnMap) que Lots/Incidents.
+   // DEMO ONLY -- réutilise GPS_DEMO du lot, jamais une donnée propre
+   // au colis ; aucun appel Supabase.
+   ---------------------------------------------------------------- */
+var colisLeafletMap = null;
+function destroyColisMap() {
+  if (colisLeafletMap) { colisLeafletMap.remove(); colisLeafletMap = null; }
+}
+function colisGpsHtml(s, lot) {
+  var reason = null;
+  if (!lot) reason = 'Colis non rattaché à un lot suivi -- aucune position GPS disponible.';
+  else if (lot.status === 'open') reason = 'Le lot ' + lotLabel(lot) + ' n\'est pas encore en transit.';
+  else if (lot.status !== 'in_transit' && !GPS_DEMO[lot.id]) reason = 'Aucune position GPS simulée disponible pour le lot ' + lotLabel(lot) + ' dans cette session de démonstration.';
+
+  if (reason) {
+    return '<div class="sec-hd" style="padding-top:8px"><span class="sec-ttl">Position GPS</span></div>'
+      + '<p style="padding:0 16px 12px;font-size:12.5px;color:var(--mut)">' + h(reason) + '</p>';
+  }
+  var st = gpsDemoState(lot.id); // in_transit -> crée si besoin ; arrived/closed -> déjà garanti présent
+  var canvasId = 'colis-' + s.code;
+  return '<div class="sec-hd" style="padding-top:8px"><span class="sec-ttl">Position GPS</span></div>'
+    + '<div class="gps-map" style="margin:0 16px 14px">'
+    +   gpsMapCanvasHtml({ id: canvasId }, st.progress, true)
+    +   '<div class="gps-cities"><span>' + h(hubById(lot.originHubId).city) + '</span><span>' + h(hubById(lot.destHubId).city) + '</span></div>'
+    +   '<div class="gps-note">Lot ' + h(lotLabel(lot)) + '</div>'
+    +   '<div class="gps-demo-badge">🧪 MODE DÉMO · Position simulée</div>'
+    + '</div>';
+}
+function mountColisGpsMapIfReady(s, lot) {
+  destroyColisMap();
+  if (!lot || lot.status === 'open' || (lot.status !== 'in_transit' && !GPS_DEMO[lot.id]) || !canUseRealGpsMap()) return;
+  var oh = hubById(lot.originHubId), dh = hubById(lot.destHubId);
+  var oc = [oh.lat, oh.lng], dc = [dh.lat, dh.lng];
+  var progress = gpsDemoState(lot.id).progress;
+  colisLeafletMap = mountRouteOnMap('gpsMapCanvas-colis-' + s.code, oc, dc, progress, true, function () { return colisLeafletMap; });
+}
+
+function openColisSheet(code) {
+  var s = findShipment(code);
+  if (!s) return;
+  var lot = s.lotId ? findLot(s.lotId) : null;
+  document.getElementById('colisSheetBody').innerHTML =
+    '<div style="padding:0 16px 12px">'
+    + '<div class="row-top" style="margin-bottom:6px"><span class="row-code" style="font-size:16px">'+h(s.code)+'</span>'+statusBadge(s.status)+'</div>'
+    + '<div class="row-route">'+h(s.originCity)+' → '+h(s.destCity)+'</div>'
+    + '<div class="row-meta">'
+    +   '<span>Expéditeur : '+h(s.sender)+'</span>'
+    +   '<span>Destinataire : '+h(s.recipient)+'</span>'
+    +   '<span>'+s.weight+' kg</span>'
+    +   (lot ? '<span>🚚 '+h(lotLabel(lot))+'</span>' : '<span>Non rattaché à un lot</span>')
+    + '</div></div>'
+    + colisGpsHtml(s, lot)
+    + '<div class="sec-hd" style="padding-top:8px"><span class="sec-ttl">Historique et preuves</span></div>'
+    + timelineHtml(s);
+  openSheet('colis');
+  mountColisGpsMapIfReady(s, lot);
+}
+
+/* ----------------------------------------------------------------
+   RENDU -- LOTS
+   ---------------------------------------------------------------- */
+var LOTS_FILTERS = [
+  { key:'all', lbl:'Tous' },
+  { key:'open', lbl:'Ouverts' },
+  { key:'in_transit', lbl:'En transit' },
+  { key:'arrived', lbl:'Arrivés' },
+  { key:'closed', lbl:'Clôturés' }
+];
+function renderLotsFilters() {
+  document.getElementById('lotsFilters').innerHTML = LOTS_FILTERS.map(function(f){
+    return '<button class="filter-chip'+(ST.lotsFilter===f.key?' on':'')+'" data-key="'+f.key+'">'+h(f.lbl)+'</button>';
+  }).join('');
+  Array.prototype.forEach.call(document.getElementById('lotsFilters').querySelectorAll('.filter-chip'), function(btn){
+    btn.addEventListener('click', function(){ ST.lotsFilter = btn.dataset.key; renderLotsFilters(); renderLots(); });
+  });
+}
+function lotCardHtml(l) {
+  var ships = shipmentsOfLot(l.id);
+  var weight = ships.reduce(function(sum,s){ return sum + s.weight; }, 0);
+  return '<div class="row-card" data-lot="'+l.id+'">'
+    + '<div class="row-top"><span class="row-code">'+h(lotLabel(l))+'</span>'+lotStatusBadge(l.status)+'</div>'
+    + '<div class="row-route">'+h(hubById(l.originHubId).city)+' → '+h(hubById(l.destHubId).city)+'</div>'
+    + '<div class="row-meta"><span>📦 '+ships.length+' colis</span><span>⚖️ '+weight.toFixed(1)+' kg</span></div>'
+    + '</div>';
+}
+function bindLotCards(container) {
+  Array.prototype.forEach.call(container.querySelectorAll('.row-card[data-lot]'), function(card){
+    card.addEventListener('click', function(){ openLotSheet(card.dataset.lot); });
+  });
+}
+function renderLots() {
+  var list = ST.lots.filter(function(l){ return ST.lotsFilter === 'all' || l.status === ST.lotsFilter; });
+  document.getElementById('lotsCount').textContent = list.length + (list.length > 1 ? ' lots' : ' lot');
+  var el = document.getElementById('lotsList');
+  el.innerHTML = list.length
+    ? list.map(lotCardHtml).join('')
+    : '<div class="empty-state" style="grid-column:1/-1"><div class="es-ico">🚚</div><div class="es-ttl">Aucun lot</div><div class="es-sub">Aucun résultat pour ce filtre.</div></div>';
+  bindLotCards(el);
+}
+
+/* ----------------------------------------------------------------
+   CARTE GPS DU LOT -- Map + GPS temps réel, V1 démo.
+   Rendu par une vraie carte Leaflet/OpenStreetMap quand la librairie a
+   pu se charger (voir <head>) ; repli automatique sur une barre de
+   trajet stylisée sinon (réseau restreint).
+   // DEMO ONLY -- position/vitesse/précision GPS simulées localement.
+   // Aucun appel Supabase / record_lot_location() / get_lot_last_location().
+   Le GPS Core (Migration 3) alimentera cette même vue plus tard sans
+   changer sa structure (lot_id reste l'ancrage).
+   ---------------------------------------------------------------- */
+var GPS_DEMO = {};        // état de simulation par lot.id
+var gpsMapInterval = null;
+var gpsLeafletMap = null;
+
+function gpsDemoState(lotId) {
+  if (!GPS_DEMO[lotId]) {
+    GPS_DEMO[lotId] = {
+      progress: 10 + Math.random() * 15,
+      speed: 60 + Math.round(Math.random() * 40),
+      accuracy: 5 + Math.round(Math.random() * 15),
+      lastPos: Date.now(),
+      history: []
+    };
+  }
+  return GPS_DEMO[lotId];
+}
+function tickGpsDemo(lotId) {
+  var st = gpsDemoState(lotId);
+  st.progress = Math.min(94, st.progress + 2 + Math.random() * 3);
+  st.speed = Math.max(30, Math.min(110, st.speed + Math.round((Math.random() - 0.5) * 16)));
+  st.accuracy = Math.max(3, Math.min(30, st.accuracy + Math.round((Math.random() - 0.5) * 4)));
+  st.lastPos = Date.now();
+  st.history.unshift({ progress: st.progress, speed: st.speed, accuracy: st.accuracy, at: st.lastPos });
+  if (st.history.length > 20) st.history.pop();
+  return st;
+}
+function timeAgoShort(ts) {
+  var s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+  if (s < 60) return 'il y a ' + s + ' s';
+  return 'il y a ' + Math.round(s / 60) + ' min';
+}
+function leafletAvailable() { return typeof window.L !== 'undefined'; }
+function canUseRealGpsMap() { return leafletAvailable(); } // HUBS a toujours lat/lng
+function lerpLatLng(a, b, t) {
+  return [ a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t ];
+}
+function destroyGpsMap() {
+  if (gpsLeafletMap) { gpsLeafletMap.remove(); gpsLeafletMap = null; }
+}
+/* ----------------------------------------------------------------
+   mountRouteOnMap() -- coeur Leaflet partagé par les 3 cartes GPS du
+   prototype (Lots, Incidents, Colis). Chaque appelant garde sa propre
+   instance trackée (gpsLeafletMap / incidentLeafletMap / colisLeafletMap)
+   et sa propre logique de rafraîchissement -- seule l'initialisation
+   de la carte (tuiles, marqueurs origine/destination, ligne, camion,
+   cadrage différé) est mutualisée, pour ne jamais la réécrire une
+   quatrième fois avec un risque de divergence.
+   getCurrentFn() doit renvoyer l'instance actuellement trackée par
+   l'appelant, pour que le fitBounds différé ne s'applique pas à une
+   carte déjà remplacée entre-temps.
+   ---------------------------------------------------------------- */
+function mountRouteOnMap(canvasId, oc, dc, markerProgress, markerMuted, getCurrentFn) {
+  var el = document.getElementById(canvasId);
+  if (!el) return null;
+  var map = L.map(el, { zoomControl:false, scrollWheelZoom:false, dragging:false, tap:false, attributionControl:true });
+  // Fond de carte CartoDB Positron (clair, épuré) plutôt que le style OSM par défaut
+  // (trop chargé en couleurs/routes secondaires pour une petite carte de statut) --
+  // même service de tuiles, double attribution requise (OSM + CARTO).
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    minZoom: 2, maxZoom: 12, subdomains: 'abcd',
+    attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+  }).addTo(map);
+  L.circleMarker(oc, { radius:7, color:'#fff', weight:2, fillColor:'#0A1A0F', fillOpacity:1 }).addTo(map);
+  L.circleMarker(dc, { radius:7, color:'#fff', weight:2, fillColor:'#D4A017', fillOpacity:1 }).addTo(map);
+  L.polyline([oc, dc], { color:'#00C96B', weight:3, opacity:.75, dashArray:'1,9', lineCap:'round' }).addTo(map);
+  if (markerProgress != null) {
+    var truckIcon = L.divIcon({ html:'<div class="map-truck-ico" style="' + (markerMuted ? 'opacity:.55' : '') + '">🚚</div>', className:'', iconSize:[24,24], iconAnchor:[12,12] });
+    map._truckMarker = L.marker(lerpLatLng(oc, dc, markerProgress / 100), { icon: truckIcon }).addTo(map);
+  }
+  map.setView(oc, 4); // vue provisoire -- le conteneur peut ne pas encore avoir sa taille
+                       // finale ici (sheet en cours de transition), donc fitBounds() est
+                       // recalculé plus bas une fois la mise en page stabilisée, sinon
+                       // Leaflet peut se caler sur maxZoom au lieu du bon niveau de zoom.
+  setTimeout(function () {
+    if (getCurrentFn() !== map) return;
+    map.invalidateSize();
+    map.fitBounds(L.latLngBounds([oc, dc]), { padding:[32,32] });
+  }, 350);
+  return map;
+}
+function mountGpsMap(lot, mode) {
+  // mode : 'planned' (pas de marqueur), 'live' (camion animé), 'frozen' (dernière position figée)
+  var oh = hubById(lot.originHubId), dh = hubById(lot.destHubId);
+  var oc = [oh.lat, oh.lng], dc = [dh.lat, dh.lng];
+  destroyGpsMap();
+  var progress = null;
+  if (mode === 'live' || mode === 'frozen') progress = gpsDemoState(lot.id).progress;
+  gpsLeafletMap = mountRouteOnMap('gpsMapCanvas-' + lot.id, oc, dc, progress, mode === 'frozen', function () { return gpsLeafletMap; });
+}
+function stopGpsMapRefresh() {
+  if (gpsMapInterval) { clearInterval(gpsMapInterval); gpsMapInterval = null; }
+  destroyGpsMap();
+}
+function startGpsMapRefresh(lot) {
+  stopGpsMapRefresh();
+  var useMap = canUseRealGpsMap();
+  if (useMap) mountGpsMap(lot, lot.status === 'in_transit' ? 'live' : (GPS_DEMO[lot.id] ? 'frozen' : 'planned'));
+  if (lot.status !== 'in_transit') return;
+  gpsMapInterval = setInterval(function () {
+    var el = document.getElementById('gpsMap-' + lot.id);
+    if (!el) { stopGpsMapRefresh(); return; }
+    var st = tickGpsDemo(lot.id);
+    var speedEl = el.querySelector('.gps-stat-speed'), accEl = el.querySelector('.gps-stat-accuracy'), updEl = el.querySelector('.gps-stat-lastupd');
+    if (speedEl) speedEl.textContent = st.speed + ' km/h';
+    if (accEl) accEl.textContent = st.accuracy + ' m';
+    if (updEl) updEl.textContent = timeAgoShort(st.lastPos);
+    if (gpsLeafletMap && gpsLeafletMap._truckMarker) {
+      var oh = hubById(lot.originHubId), dh = hubById(lot.destHubId);
+      gpsLeafletMap._truckMarker.setLatLng(lerpLatLng([oh.lat, oh.lng], [dh.lat, dh.lng], st.progress / 100));
+    } else {
+      var fill = el.querySelector('.gps-track-fill'), truck = el.querySelector('.gps-truck');
+      if (fill) fill.style.width = st.progress + '%';
+      if (truck) truck.style.left = st.progress + '%';
+    }
+  }, 10000);
+}
+function gpsMapCanvasHtml(lot, progressPct, showTruck) {
+  if (canUseRealGpsMap()) return '<div class="gps-map-canvas" id="gpsMapCanvas-' + h(lot.id) + '"></div>';
+  return '<div class="gps-track"><div class="gps-track-fill" style="width:' + progressPct + '%"></div>'
+    + (showTruck ? '<div class="gps-truck" style="left:' + progressPct + '%">🚚</div>' : '') + '</div>';
+}
+function gpsMapHtml(lot) {
+  var oh = hubById(lot.originHubId), dh = hubById(lot.destHubId);
+  if (lot.status === 'open') {
+    return '<div class="gps-map">'
+      + '<div class="gps-hd"><span class="gps-dot"></span>Trajet prévu</div>'
+      + gpsMapCanvasHtml(lot, 0, false)
+      + '<div class="gps-cities"><span>' + h(oh.city) + '</span><span>' + h(dh.city) + '</span></div>'
+      + '<div class="gps-note">Le tracking GPS démarrera au départ du lot.</div>'
+      + '</div>';
+  }
+  if (lot.status === 'in_transit') {
+    var st = gpsDemoState(lot.id);
+    return '<div class="gps-map gps-map--live" id="gpsMap-' + h(lot.id) + '">'
+      + '<div class="gps-hd live"><span class="gps-dot"></span>GPS actif</div>'
+      + gpsMapCanvasHtml(lot, st.progress, true)
+      + '<div class="gps-cities"><span>' + h(oh.city) + '</span><span>' + h(dh.city) + '</span></div>'
+      + '<div class="gps-stats">'
+      +   '<div class="gps-stat"><div class="gps-stat-n gps-stat-speed">' + st.speed + ' km/h</div><div class="gps-stat-l">Vitesse</div></div>'
+      +   '<div class="gps-stat"><div class="gps-stat-n gps-stat-accuracy">' + st.accuracy + ' m</div><div class="gps-stat-l">Précision</div></div>'
+      +   '<div class="gps-stat"><div class="gps-stat-n gps-stat-lastupd">' + timeAgoShort(st.lastPos) + '</div><div class="gps-stat-l">Dernière maj</div></div>'
+      + '</div>'
+      + '<button class="btn-secondary" id="btnGpsHistory" data-lot="' + h(lot.id) + '" style="margin-top:12px">📜 Historique du trajet</button>'
+      + '<div class="gps-demo-badge">🧪 MODE DÉMO · Position simulée</div>'
+      + '</div>';
+  }
+  if (lot.status === 'arrived' || lot.status === 'closed') {
+    var stF = GPS_DEMO[lot.id];
+    if (!stF) {
+      return '<div class="gps-map">'
+        + '<div class="gps-hd"><span class="gps-dot"></span>Historique GPS</div>'
+        + '<div class="gps-note">Aucune position GPS simulée disponible pour ce lot dans cette session de démonstration.</div>'
+        + '</div>';
+    }
+    return '<div class="gps-map">'
+      + '<div class="gps-hd"><span class="gps-dot"></span>Historique figé</div>'
+      + gpsMapCanvasHtml(lot, stF.progress, true)
+      + '<div class="gps-cities"><span>' + h(oh.city) + '</span><span>' + h(dh.city) + '</span></div>'
+      + '<div class="gps-note">Dernière position connue : ' + timeAgoShort(stF.lastPos) + '. Aucun tracking actif.</div>'
+      + '<button class="btn-secondary" id="btnGpsHistory" data-lot="' + h(lot.id) + '" style="margin-top:12px">📜 Historique du trajet</button>'
+      + '</div>';
+  }
+  return '';
+}
+function openGpsHistorySheet(lotId) {
+  var lot = findLot(lotId);
+  if (!lot) return;
+  closeSheet('lot');
+  var st = GPS_DEMO[lotId];
+  var body = document.getElementById('gpsHistSheetBody');
+  var html = '<p style="padding:0 16px 10px;font-size:11.5px;color:var(--mut)">🧪 Positions simulées localement pour cette démonstration -- aucune n\'est issue de shipment_lot_locations.</p>';
+  if (!st || !st.history.length) {
+    html += '<div class="empty-state"><div class="es-ico">📡</div><div class="es-ttl">Aucune position enregistrée</div><div class="es-sub">Le tracking n\'a pas encore produit de point pour ce lot.</div></div>';
+  } else {
+    html += st.history.map(function (p) {
+      return '<div class="gps-hist-item">'
+        + '<span>' + Math.round(p.progress) + '% du trajet · ' + p.speed + ' km/h · ' + p.accuracy + ' m</span>'
+        + '<span class="gps-hist-time">' + timeAgoShort(p.at) + '</span>'
+        + '</div>';
+    }).join('');
+  }
+  body.innerHTML = html;
+  openSheet('gpsHist');
+}
+
+function openLotSheet(lotId) {
+  var lot = findLot(lotId);
+  if (!lot) return;
+  document.getElementById('lotSheetTtl').textContent = lotLabel(lot);
+  renderLotSheetBody(lot);
+  openSheet('lot');
+  startGpsMapRefresh(lot);
+}
+
+function renderLotSheetBody(lot) {
+  var ships = shipmentsOfLot(lot.id);
+  var weight = ships.reduce(function(sum,s){ return sum + s.weight; }, 0);
+  var body = document.getElementById('lotSheetBody');
+  var html = '<div style="padding:0 16px 10px">'
+    + lotStatusBadge(lot.status)
+    + '<div class="row-route" style="margin-top:8px">'+h(hubById(lot.originHubId).city)+' → '+h(hubById(lot.destHubId).city)+'</div>'
+    + '<div class="row-meta"><span>📦 '+ships.length+' colis</span><span>⚖️ '+weight.toFixed(1)+' kg</span>'
+    + (lot.departedAt ? '<span>Départ : '+h(lot.departedAt)+'</span>' : '')
+    + (lot.arrivedAt ? '<span>Arrivée : '+h(lot.arrivedAt)+'</span>' : '')
+    + '</div></div>'
+    + '<div class="form-wrap" style="padding:0 16px 4px"><button class="btn-secondary" id="btnViewManifest" style="margin-top:0">📋 Voir le manifeste</button></div>'
+    + gpsMapHtml(lot);
+
+  if (lot.status === 'open') {
+    html += lotOpenChecklistHtml(lot, ships);
+    html += '<div class="sec-hd"><span class="sec-ttl">Colis rattachés</span></div>';
+    html += lotShipmentListHtml(ships, lot, true);
+    html += eligibleShipmentsPickerHtml(lot);
+    html += '<div class="form-wrap" style="padding-top:0">'
+      + '<button class="btn-primary" id="btnDeclareDeparture" data-lot="'+lot.id+'">🚚 Confirmer le départ</button>'
+      + (ships.length === 0 ? '<button class="btn-secondary" id="btnCancelLot" data-lot="'+lot.id+'">Annuler ce lot vide</button>' : '')
+      + '</div>';
+  } else if (lot.status === 'in_transit') {
+    html += '<div class="sec-hd"><span class="sec-ttl">Colis du lot</span></div>';
+    html += lotShipmentListHtml(ships, lot, false);
+    html += '<div class="form-wrap" style="padding-top:0">'
+      + '<button class="btn-primary" id="btnDeclareArrival" data-lot="'+lot.id+'">🛬 Déclarer l\'arrivée</button>'
+      + '</div>';
+  } else if (lot.status === 'arrived') {
+    html += reconciliationHtml(lot, ships);
+  } else {
+    html += '<div class="sec-hd"><span class="sec-ttl">Colis du lot</span></div>';
+    html += lotShipmentListHtml(ships, lot, false);
+    html += '<p style="padding:8px 16px;font-size:12px;color:var(--mut)">Lot clôturé — cycle opérationnel terminé.</p>';
+  }
+  body.innerHTML = html;
+  bindLotSheetActions(lot);
+}
+
+function lotOpenChecklistHtml(lot, ships) {
+  var notInspected = ships.filter(function(s){ return s.status !== 'inspected'; }).length;
+  var openIncident = ships.some(function(s){
+    return ST.incidents.some(function(i){ return i.shipmentCode === s.code && i.status === 'open'; });
+  });
+  var ok = ships.length > 0 && notInspected === 0 && !openIncident;
+  var pct = ships.length ? Math.round((ships.length - notInspected) / ships.length * 100) : 0;
+  return '<div class="checklist">'
+    + '<div class="fieldset-lgd" style="margin-bottom:8px">Checklist de départ</div>'
+    + chkRow(ships.length > 0, ships.length + ' colis rattaché(s)')
+    + chkRow(notInspected === 0, notInspected === 0 ? 'Tous les colis sont contrôlés' : notInspected + ' colis non contrôlés')
+    + chkRow(!openIncident, !openIncident ? 'Aucun incident bloquant' : 'Incident ouvert bloquant')
+    + '<div class="chk-progress"><div class="chk-progress-fill" style="width:'+pct+'%"></div></div>'
+    + '<div class="chk-progress-lbl">'+(ships.length - notInspected)+' / '+ships.length+' colis prêts</div>'
+    + '</div>';
+}
+function chkRow(ok, txt) {
+  return '<div class="chk-item"><span class="chk-ico '+(ok?'ok':'ko')+'">'+(ok?'✓':'✕')+'</span>'+h(txt)+'</div>';
+}
+function lotShipmentListHtml(ships, lot, removable) {
+  if (!ships.length) return '<div class="empty-state"><div class="es-ico">📦</div><div class="es-ttl">Aucun colis rattaché</div></div>';
+  return '<div class="list-wrap">' + ships.map(function(s){
+    return '<div class="row-card" data-code="'+h(s.code)+'" style="cursor:default">'
+      + '<div class="row-top"><span class="row-code">'+h(s.code)+'</span>'+statusBadge(s.status)+'</div>'
+      + '<div class="row-route">'+h(s.destCity)+' · '+h(s.recipient)+'</div>'
+      + (removable ? '<button class="btn-secondary" data-remove="'+h(s.code)+'" style="margin-top:8px;padding:8px;font-size:12px">Retirer du lot</button>' : '')
+      + '</div>';
+  }).join('') + '</div>';
+}
+function eligibleShipmentsPickerHtml(lot) {
+  var eligible = ST.shipments.filter(function(s){
+    return s.status === 'inspected' && !s.lotId
+      && s.originCountry === hubById(lot.originHubId).country
+      && s.destCountry === hubById(lot.destHubId).country;
+  });
+  if (!eligible.length) return '';
+  return '<div class="sec-hd"><span class="sec-ttl">Ajouter un colis éligible</span></div>'
+    + '<div class="list-wrap">' + eligible.map(function(s){
+      return '<div class="row-card" style="cursor:default">'
+        + '<div class="row-top"><span class="row-code">'+h(s.code)+'</span>'+statusBadge(s.status)+'</div>'
+        + '<div class="row-route">'+h(s.destCity)+' · '+h(s.recipient)+' · '+s.weight+' kg</div>'
+        + '<button class="btn-primary" data-add="'+h(s.code)+'" style="margin-top:8px;padding:9px;font-size:12.5px">+ Ajouter au lot</button>'
+        + '</div>';
+    }).join('') + '</div>';
+}
+function reconciliationHtml(lot, ships) {
+  var reconEvent = lot._reconciled;
+  var attendu = ships.length;
+  var recu = ships.filter(function(s){ return RECEIVED_STATUSES.indexOf(s.status) > -1; }).length;
+  var ecart = attendu - recu;
+  var html = '<div class="sec-hd"><span class="sec-ttl">Réconciliation</span></div>'
+    + '<div class="recon-grid">'
+    +   '<div class="recon-card"><div class="recon-n">'+attendu+'</div><div class="recon-l">Attendu</div></div>'
+    +   '<div class="recon-card '+(ecart>0?'':'ok')+'"><div class="recon-n">'+recu+'</div><div class="recon-l">Reçu</div></div>'
+    +   '<div class="recon-card '+(ecart>0?'ecart':'ok')+'"><div class="recon-n">'+ecart+'</div><div class="recon-l">Écart</div></div>'
+    + '</div>';
+  if (!reconEvent) {
+    html += '<p style="padding:0 16px 10px;font-size:12px;color:var(--mut)">⚠️ Réconciliation définitive — vérifiez que tous les colis reçus ont bien été scannés (page Scanner) avant de continuer.</p>';
+    html += '<div class="form-wrap" style="padding-top:0"><button class="btn-primary" id="btnReconcile" data-lot="'+lot.id+'">Enregistrer la réconciliation</button></div>';
+  } else {
+    html += '<p style="padding:0 16px 10px;font-size:12px;color:var(--mut)">Réconciliation enregistrée'+(ecart>0?' — '+ecart+' incident(s) « colis manquant » créé(s).':'.')+'</p>';
+    html += '<div class="form-wrap" style="padding-top:0"><button class="btn-primary" id="btnCloseLot" data-lot="'+lot.id+'">Clôturer le lot</button></div>';
+  }
+  html += reconEvent ? reconciledShipmentListHtml(ships) : ('<div class="sec-hd"><span class="sec-ttl">Colis du lot</span></div>' + lotShipmentListHtml(ships, lot, false));
+  return html;
+}
+/* ----------------------------------------------------------------
+   RÉCONCILIATION DÉTAILLÉE -- une fois record_lot_reconciliation()
+   enregistrée, distingue visuellement les colis reçus des colis
+   manquants dans "Colis du lot" (au lieu de la liste générique
+   identique à avant la réconciliation).
+   ---------------------------------------------------------------- */
+function reconciledShipmentListHtml(ships) {
+  var manquants = ships.filter(function(s){ return RECEIVED_STATUSES.indexOf(s.status) === -1; });
+  var recus = ships.filter(function(s){ return RECEIVED_STATUSES.indexOf(s.status) > -1; });
+  var html = '';
+  if (manquants.length) {
+    html += '<div class="sec-hd"><span class="sec-ttl">⚠️ Colis manquants (' + manquants.length + ')</span></div>'
+      + '<div class="list-wrap">' + manquants.map(function(s){
+        return '<div class="row-card recon-row recon-row--missing">'
+          + '<div class="row-top"><span class="row-code">' + h(s.code) + '</span>' + statusBadge(s.status) + '</div>'
+          + '<div class="row-route">' + h(s.destCity) + ' · ' + h(s.recipient) + '</div>'
+          + '</div>';
+      }).join('') + '</div>';
+  }
+  html += '<div class="sec-hd"><span class="sec-ttl">✅ Colis reçus (' + recus.length + ')</span></div>';
+  html += recus.length
+    ? '<div class="list-wrap">' + recus.map(function(s){
+        return '<div class="row-card recon-row recon-row--received">'
+          + '<div class="row-top"><span class="row-code">' + h(s.code) + '</span>' + statusBadge(s.status) + '</div>'
+          + '<div class="row-route">' + h(s.destCity) + ' · ' + h(s.recipient) + '</div>'
+          + '</div>';
+      }).join('') + '</div>'
+    : '<div class="empty-state"><div class="es-ico">📦</div><div class="es-ttl">Aucun colis reçu</div></div>';
+  return html;
+}
+
+function bindLotSheetActions(lot) {
+  var body = document.getElementById('lotSheetBody');
+  Array.prototype.forEach.call(body.querySelectorAll('[data-add]'), function(btn){
+    btn.addEventListener('click', function(){ addShipmentToLot(lot.id, btn.dataset.add); });
+  });
+  Array.prototype.forEach.call(body.querySelectorAll('[data-remove]'), function(btn){
+    btn.addEventListener('click', function(){ removeShipmentFromLot(lot.id, btn.dataset.remove); });
+  });
+  var btnDep = body.querySelector('#btnDeclareDeparture');
+  if (btnDep) btnDep.addEventListener('click', function(){ declareLotDeparture(lot.id); });
+  var btnArr = body.querySelector('#btnDeclareArrival');
+  if (btnArr) btnArr.addEventListener('click', function(){ declareLotArrival(lot.id); });
+  var btnRec = body.querySelector('#btnReconcile');
+  if (btnRec) btnRec.addEventListener('click', function(){ recordLotReconciliation(lot.id); });
+  var btnClose = body.querySelector('#btnCloseLot');
+  if (btnClose) btnClose.addEventListener('click', function(){ closeLot(lot.id); });
+  var btnCancel = body.querySelector('#btnCancelLot');
+  if (btnCancel) btnCancel.addEventListener('click', function(){ cancelEmptyLot(lot.id); });
+  var btnManifest = body.querySelector('#btnViewManifest');
+  if (btnManifest) btnManifest.addEventListener('click', function(){ openManifestSheet(lot.id); });
+  var btnGpsHist = body.querySelector('#btnGpsHistory');
+  if (btnGpsHist) btnGpsHist.addEventListener('click', function(){ openGpsHistorySheet(lot.id); });
+}
+
+/* ----------------------------------------------------------------
+   MANIFESTE -- projection documentaire du lot (pas une entité
+   séparée en base, conformément à la décision "pas de table
+   manifestes dans Migration 2, sauf besoin structurel réel").
+   ---------------------------------------------------------------- */
+function openManifestSheet(lotId) {
+  var lot = findLot(lotId);
+  if (!lot) return;
+  closeSheet('lot');
+  var ships = shipmentsOfLot(lotId);
+  var weight = ships.reduce(function(sum,s){ return sum + s.weight; }, 0);
+  var scanned = ships.filter(function(s){ return s.status !== 'inspected' || lot.status !== 'open'; }).length;
+  var complete = lot.status !== 'open' || ships.every(function(s){ return s.status === 'inspected'; });
+
+  var html = '<div class="manifest-doc">'
+    + '<div class="manifest-hd"><div class="m-ttl">MANIFESTE '+h(lotLabel(lot))+'</div>'
+    +   '<div class="m-sub">'+h(hubById(lot.originHubId).name)+' → '+h(hubById(lot.destHubId).name)+'</div></div>'
+    + '<table class="manifest-tbl">'
+    +   '<tr><td>Transporteur</td><td>Atlas Cargo</td></tr>'
+    +   '<tr><td>Statut</td><td>'+(LOT_STATUS_META[lot.status]?LOT_STATUS_META[lot.status].label:lot.status)+'</td></tr>'
+    +   '<tr><td>Colis</td><td>'+ships.length+'</td></tr>'
+    +   '<tr><td>Poids total</td><td>'+weight.toFixed(1)+' kg</td></tr>'
+    +   '<tr><td>Créé le</td><td>'+h(lot.createdAt)+'</td></tr>'
+    +   (lot.departedAt ? '<tr><td>Départ</td><td>'+h(lot.departedAt)+'</td></tr>' : '')
+    +   (lot.arrivedAt ? '<tr><td>Arrivée</td><td>'+h(lot.arrivedAt)+'</td></tr>' : '')
+    + '</table>'
+    + '<div class="manifest-items-hd">Colis (' + ships.length + ')</div>'
+    + (ships.length ? ships.map(function(s){
+        return '<div class="manifest-item"><span class="mi-code">'+h(s.code)+'</span>'
+          + '<span class="mi-meta">'+h(s.recipient)+' · '+s.weight+' kg · '+(STATUS_META[s.status]?STATUS_META[s.status].label:s.status)+'</span></div>';
+      }).join('') : '<div class="manifest-item"><span class="mi-meta">Aucun colis rattaché</span></div>')
+    + '</div>';
+
+  if (lot.status === 'open') {
+    html += '<div style="padding:0 16px 14px;font-size:12px;color:var(--mut)">'
+      + (complete ? '🟢 Manifeste complet — tous les colis sont contrôlés.' : '🔴 ' + (ships.length - scanned) + ' colis manquant(s) avant clôture du manifeste.')
+      + '</div>';
+  }
+  html += '<div class="form-wrap" style="padding-top:0"><button class="btn-secondary" id="btnPrintManifest">🖨️ Imprimer / exporter en PDF</button></div>';
+
+  document.getElementById('manifestSheetBody').innerHTML = html;
+  var btnPrint = document.getElementById('btnPrintManifest');
+  if (btnPrint) btnPrint.addEventListener('click', function(){ window.print(); });
+  openSheet('manifest');
+}
+
+/* ----------------------------------------------------------------
+   PLANNING -- agenda dérivé des dates réelles des lots (création,
+   départ, arrivée). Aucune entité de calendrier indépendante
+   n'existe dans le modèle -- pas de saisie manuelle ici.
+   ---------------------------------------------------------------- */
+function agendaSortKey(timeStr) {
+  if (timeStr === 'à l\'instant') return 999999;
+  var m = timeStr.match(/(\d+)\s+\S+,\s+(\d+):(\d+)/);
+  if (!m) return 0;
+  return parseInt(m[1],10) * 10000 + parseInt(m[2],10) * 100 + parseInt(m[3],10);
+}
+var PLANNING_FILTERS = [
+  { key:'all', lbl:'Tous' },
+  { key:'created', lbl:'Créations' },
+  { key:'departed', lbl:'Départs' },
+  { key:'arrived', lbl:'Arrivées' }
+];
+function renderPlanningFilters() {
+  document.getElementById('planningFilters').innerHTML = PLANNING_FILTERS.map(function(f){
+    return '<button class="filter-chip'+(ST.planningFilter===f.key?' on':'')+'" data-key="'+f.key+'">'+h(f.lbl)+'</button>';
+  }).join('');
+  Array.prototype.forEach.call(document.getElementById('planningFilters').querySelectorAll('.filter-chip'), function(btn){
+    btn.addEventListener('click', function(){ ST.planningFilter = btn.dataset.key; renderPlanningFilters(); renderPlanning(); });
+  });
+}
+function renderPlanning() {
+  var entries = [];
+  ST.lots.forEach(function(lot){
+    entries.push({ time:lot.createdAt, ico:'📥', lbl:'Lot ' + lotLabel(lot) + ' créé', sub:hubById(lot.originHubId).city + ' → ' + hubById(lot.destHubId).city, lotId:lot.id, type:'created' });
+    if (lot.departedAt) entries.push({ time:lot.departedAt, ico:'🚚', lbl:'Départ du lot ' + lotLabel(lot), sub:shipmentsOfLot(lot.id).length + ' colis', lotId:lot.id, type:'departed' });
+    if (lot.arrivedAt) entries.push({ time:lot.arrivedAt, ico:'🛬', lbl:'Arrivée du lot ' + lotLabel(lot), sub:hubById(lot.destHubId).name, lotId:lot.id, type:'arrived' });
+  });
+  if (ST.planningFilter !== 'all') entries = entries.filter(function(e){ return e.type === ST.planningFilter; });
+  var el = document.getElementById('planningList');
+  if (!entries.length) {
+    el.innerHTML = '<div class="empty-state"><div class="es-ico">📅</div><div class="es-ttl">Rien à planifier</div><div class="es-sub">Aucun résultat pour ce filtre.</div></div>';
+    return;
+  }
+  entries.sort(function(a,b){ return agendaSortKey(b.time) - agendaSortKey(a.time); });
+  var lastDay = null, html = '';
+  entries.forEach(function(e){
+    var day = e.time === 'à l\'instant' ? 'À l\'instant' : (e.time.split(',')[0] || e.time);
+    if (day !== lastDay) { html += '<div class="agenda-day">'+h(day)+'</div>'; lastDay = day; }
+    html += '<div class="agenda-item" data-lot="'+e.lotId+'" style="cursor:pointer">'
+      + '<div class="agenda-time">'+h(e.time.split(',')[1] ? e.time.split(',')[1].trim() : '')+'</div>'
+      + '<div class="agenda-ico" aria-hidden="true">'+e.ico+'</div>'
+      + '<div class="agenda-body"><div class="agenda-lbl">'+h(e.lbl)+'</div><div class="agenda-sub">'+h(e.sub)+'</div></div>'
+      + '</div>';
+  });
+  el.innerHTML = html;
+  Array.prototype.forEach.call(el.querySelectorAll('.agenda-item'), function(item){
+    item.addEventListener('click', function(){ openLotSheet(item.dataset.lot); });
+  });
+}
+
+/* ----------------------------------------------------------------
+   ÉQUIPE -- ⚠️ maquette illustrative uniquement, voir la note sur la
+   page. Le schéma réel n'a qu'un rôle "transporteur" unique
+   (user_roles.role), pas les niveaux affichés ici.
+   ---------------------------------------------------------------- */
+var SEED_TEAM = [
+  { name:'Hicham Bennani', role:'Administrateur transporteur', status:'active' },
+  { name:'Nawal Chraibi', role:'Manager opérationnel', status:'active' },
+  { name:'Youssef Amine', role:'Agent dépôt — Hub Casablanca', status:'active' },
+  { name:'Fatima Zahra Idrissi', role:'Agent terrain — Hub Dakar', status:'active' },
+  { name:'Rachid El Fassi', role:'Conducteur — Casablanca ↔ Dakar', status:'invited' }
+];
+function initials(name) {
+  return name.split(' ').map(function(p){ return p[0]; }).slice(0,2).join('').toUpperCase();
+}
+function renderEquipe() {
+  var el = document.getElementById('teamList');
+  el.innerHTML = SEED_TEAM.map(function(m){
+    return '<div class="team-row">'
+      + '<div class="team-av">'+initials(m.name)+'</div>'
+      + '<div class="team-body"><div class="team-name">'+h(m.name)+'</div><div class="team-role">'+h(m.role)+'</div></div>'
+      + '<span class="team-status '+m.status+'">'+(m.status==='active'?'Actif':'Invité')+'</span>'
+      + '</div>';
+  }).join('');
+}
+function bindEquipe() {
+  document.getElementById('btnInviteMember').addEventListener('click', function(){
+    showToast('Invitation envoyée (démo — aucun envoi réel)', 'i');
+  });
+}
+
+/* ----------------------------------------------------------------
+   RPC (SIMULÉES) -- LOTS SECURITY CORE (Migration 2, jamais appliquée)
+   Chaque fonction reproduit les préconditions du contrat conçu :
+   titularité transporteur, statut du lot, cohérence géographique,
+   verrous logiques (ici : cohérence d'état, pas de vrais verrous SQL).
+   ---------------------------------------------------------------- */
+function addShipmentToLot(lotId, code) {
+  var lot = findLot(lotId);
+  var s = findShipment(code);
+  if (!lot || !s) return;
+  if (lot.status !== 'open') { showToast('Lot non modifiable (statut différent de open)', 'e'); return; }
+  if (s.status !== 'inspected') { showToast('Colis pas encore inspecté', 'e'); return; }
+  if (s.lotId) { showToast('Colis déjà rattaché à un lot', 'e'); return; }
+  var oh = hubById(lot.originHubId), dh = hubById(lot.destHubId);
+  if (s.originCountry !== oh.country || s.destCountry !== dh.country) {
+    showToast('Incohérence géographique entre le colis et le lot', 'e'); return;
+  }
+  s.lotId = lotId;
+  saveAll();
+  renderAll();
+  openLotSheet(lotId);
+  showToast('Colis ' + s.code + ' ajouté au lot', 's');
+}
+function removeShipmentFromLot(lotId, code) {
+  var lot = findLot(lotId);
+  var s = findShipment(code);
+  if (!lot || !s) return;
+  if (lot.status !== 'open') { showToast('Lot non modifiable (statut différent de open)', 'e'); return; }
+  if (s.lotId !== lotId) { showToast('Ce colis n\'est pas rattaché à ce lot', 'e'); return; }
+  s.lotId = null;
+  saveAll();
+  renderAll();
+  openLotSheet(lotId);
+  showToast('Colis ' + s.code + ' retiré du lot', 's');
+}
+function declareLotDeparture(lotId) {
+  var lot = findLot(lotId);
+  if (!lot) return;
+  var ships = shipmentsOfLot(lotId);
+  if (ships.length === 0) { showToast('Aucun colis rattaché à ce lot', 'e'); return; }
+  var notInspected = ships.filter(function(s){ return s.status !== 'inspected'; });
+  if (notInspected.length) { showToast(notInspected.length + ' colis non inspectés dans ce lot', 'e'); return; }
+  var blocking = ships.some(function(s){ return ST.incidents.some(function(i){ return i.shipmentCode === s.code && i.status === 'open'; }); });
+  if (blocking) { showToast('Incident ouvert bloquant sur au moins un colis de ce lot', 'e'); return; }
+
+  ships.forEach(function(s){
+    s.status = 'departed_origin';
+    s.timeline.push({ lbl:'Départ', loc:hubById(lot.originHubId).name, actor:'Atlas Cargo', time:'à l\'instant', proof:false });
+  });
+  lot.status = 'in_transit';
+  lot.departedAt = 'à l\'instant';
+  saveAll();
+  renderAll();
+  openLotSheet(lotId);
+  showToast('Départ confirmé — ' + ships.length + ' colis en transit', 's');
+}
+function declareLotArrival(lotId) {
+  var lot = findLot(lotId);
+  if (!lot) return;
+  if (lot.status !== 'in_transit') { showToast('Lot pas encore en transit', 'e'); return; }
+  lot.status = 'arrived';
+  lot.arrivedAt = 'à l\'instant';
+  saveAll();
+  renderAll();
+  openLotSheet(lotId);
+  showToast('Arrivée déclarée — scannez chaque colis à réception (page Scanner)', 'i');
+}
+function recordLotReconciliation(lotId) {
+  var lot = findLot(lotId);
+  if (!lot) return;
+  if (lot.status !== 'arrived') { showToast('Lot pas encore arrivé', 'e'); return; }
+  if (lot._reconciled) { showToast('Réconciliation déjà enregistrée pour ce lot', 'e'); return; }
+  var ships = shipmentsOfLot(lotId);
+  var missing = ships.filter(function(s){ return RECEIVED_STATUSES.indexOf(s.status) === -1; });
+  missing.forEach(function(s){
+    ST.incidents.unshift({
+      id:'inc-' + Date.now() + '-' + Math.floor(Math.random()*1000),
+      shipmentCode:s.code, type:'colis_manquant', status:'open',
+      description:'Écart de réconciliation du lot ' + lotLabel(lot) + ' (' + ships.length + ' attendus, ' + (ships.length - missing.length) + ' reçus).',
+      time:'à l\'instant', reportedBy:'Vous (transporteur)', reportedRole:'transporteur',
+      resolutionNotes:null, resolvedAt:null
+    });
+  });
+  lot._reconciled = true;
+  saveAll();
+  renderAll();
+  openLotSheet(lotId);
+  if (missing.length) {
+    showToast(missing.length + ' colis manquant(s) — incident(s) créé(s)', 'w');
+  } else {
+    showToast('Réconciliation enregistrée — aucun écart', 's');
+  }
+}
+function closeLot(lotId) {
+  var lot = findLot(lotId);
+  if (!lot) return;
+  if (lot.status !== 'arrived') { showToast('Lot pas encore arrivé', 'e'); return; }
+  if (!lot._reconciled) { showToast('Réconciliation non exécutée — impossible de clôturer', 'e'); return; }
+  lot.status = 'closed';
+  saveAll();
+  renderAll();
+  closeSheet('lot');
+  showToast('Lot ' + lotLabel(lot) + ' clôturé', 's');
+}
+function cancelEmptyLot(lotId) {
+  var lot = findLot(lotId);
+  if (!lot) return;
+  if (lot.status !== 'open') { showToast('Lot non modifiable (statut différent de open)', 'e'); return; }
+  if (shipmentsOfLot(lotId).length > 0) { showToast('Lot non vide — suppression refusée', 'e'); return; }
+  ST.lots = ST.lots.filter(function(l){ return l.id !== lotId; });
+  saveAll();
+  renderAll();
+  closeSheet('lot');
+  showToast('Lot annulé', 's');
+}
+function createShipmentLot(originHubId, destHubId) {
+  if (originHubId === destHubId) { showToast('Hub d\'origine et de destination identiques', 'e'); return; }
+  ST.lotCodeSeq += 1;
+  var id = 'lot-' + Date.now();
+  ST.lots.unshift({ id:id, originHubId:originHubId, destHubId:destHubId, status:'open', createdAt:'à l\'instant', departedAt:null, arrivedAt:null });
+  saveAll();
+  renderAll();
+  showToast('Lot créé', 's');
+  return id;
+}
+
+/* ----------------------------------------------------------------
+   FORMULAIRE -- NOUVEAU LOT
+   ---------------------------------------------------------------- */
+function renderHubSelects() {
+  var opts = HUBS.map(function(hb){ return '<option value="'+hb.id+'">'+h(hb.name)+' ('+hb.country+')</option>'; }).join('');
+  document.getElementById('newLotOrigin').innerHTML = opts;
+  document.getElementById('newLotDest').innerHTML = opts;
+  document.getElementById('newLotDest').value = 'hub-dakar';
+}
+function bindNewLotForm() {
+  document.getElementById('btnNewLot').addEventListener('click', function(){ openSheet('newLot'); });
+  document.getElementById('formNewLot').addEventListener('submit', function(e){
+    e.preventDefault();
+    var origin = document.getElementById('newLotOrigin').value;
+    var dest = document.getElementById('newLotDest').value;
+    var id = createShipmentLot(origin, dest);
+    closeSheet('newLot');
+    if (id) openLotSheet(id);
+  });
+}
+
+/* ----------------------------------------------------------------
+   SCANNER -- interface de record_shipment_event() (Migration 1),
+   restreinte aux statuts que la matrice rôle × statut autorise au
+   rôle transporteur.
+   ---------------------------------------------------------------- */
+function renderScanPicker() {
+  var eligible = ST.shipments.filter(function(s){ return SHIPMENT_TRANSITIONS[s.status]; });
+  var el = document.getElementById('scanPicker');
+  el.innerHTML = eligible.length
+    ? eligible.map(function(s){
+        return '<div class="row-card" data-code="'+h(s.code)+'">'
+          + '<div class="row-top"><span class="row-code">'+h(s.code)+'</span>'+statusBadge(s.status)+'</div>'
+          + '<div class="row-route">'+h(s.originCity)+' → '+h(s.destCity)+'</div></div>';
+      }).join('')
+    : '<div class="empty-state"><div class="es-ico">✅</div><div class="es-ttl">Rien à scanner</div><div class="es-sub">Aucun colis en attente d\'action transporteur.</div></div>';
+  Array.prototype.forEach.call(el.querySelectorAll('.row-card'), function(card){
+    card.addEventListener('click', function(){ openScanStep(card.dataset.code); });
+  });
+}
+function openScanStep(code) {
+  var s = findShipment(code);
+  var wrap = document.getElementById('scanStepWrap');
+  var empty = document.getElementById('scanEmptyState');
+  if (!s) { showToast('Code introuvable', 'e'); return; }
+  var next = SHIPMENT_TRANSITIONS[s.status];
+  if (!next) {
+    wrap.innerHTML = '<div class="form-wrap">' + '<p style="text-align:center;color:var(--mut);padding:16px 0;font-size:13px">Ce colis n\'est pas actionnable par le rôle transporteur dans son statut actuel.</p></div>';
+    empty.style.display = 'none';
+    return;
+  }
+  empty.style.display = 'none';
+  var opts = next.map(function(st){ return '<option value="'+st+'">'+h(STATUS_META[st].label)+'</option>'; }).join('');
+  wrap.innerHTML = '<div class="form-wrap">'
+    + '<div class="fieldset">'
+    +   '<div class="row-top" style="margin-bottom:4px"><span class="row-code">'+h(s.code)+'</span>'+statusBadge(s.status)+'</div>'
+    +   '<div class="row-route">'+h(s.originCity)+' → '+h(s.destCity)+'</div>'
+    + '</div>'
+    + '<div class="fieldset">'
+    +   '<div class="fieldset-lgd">Action</div>'
+    +   '<div class="field"><label for="scanNextStatus">Statut à enregistrer</label><select id="scanNextStatus">'+opts+'</select></div>'
+    +   '<div class="field" id="scanPhotoField"></div>'
+    + '</div>'
+    + '<button class="btn-primary" id="btnScanConfirm">Valider ce scan</button>'
+    + '</div>';
+  updateScanFields();
+  document.getElementById('scanNextStatus').addEventListener('change', updateScanFields);
+  document.getElementById('btnScanConfirm').addEventListener('click', function(){ confirmScanStep(code); });
+}
+function updateScanFields() {
+  var sel = document.getElementById('scanNextStatus');
+  if (!sel) return;
+  var status = sel.value;
+  var photoField = document.getElementById('scanPhotoField');
+  photoField.innerHTML = PROOF_REQUIRED.indexOf(status) > -1
+    ? '<label class="field-check"><input type="checkbox" id="scanPhotoTaken"> 📷 Photo prise (preuve obligatoire pour ce statut)</label>'
+    : '<div class="field-hint">Aucune preuve requise pour ce statut (transit déclaratif).</div>';
+}
+function confirmScanStep(code) {
+  var s = findShipment(code);
+  if (!s) return;
+  var status = document.getElementById('scanNextStatus').value;
+  if (PROOF_REQUIRED.indexOf(status) > -1) {
+    var chk = document.getElementById('scanPhotoTaken');
+    if (!chk || !chk.checked) { showToast('Preuve photo requise pour ce statut', 'e'); return; }
+  }
+  s.status = status;
+  s.timeline.push({ lbl:STATUS_META[status].label, loc:s.destCity, actor:'Atlas Cargo', time:'à l\'instant', proof:PROOF_REQUIRED.indexOf(status) > -1 });
+  saveAll();
+  renderAll();
+  document.getElementById('scanStepWrap').innerHTML = '';
+  document.getElementById('scanEmptyState').style.display = '';
+  document.getElementById('scanCodeInput').value = '';
+  renderScanPicker();
+  showToast('Événement enregistré : ' + STATUS_META[status].label, 's');
+}
+function bindScanner() {
+  document.getElementById('btnScanGo').addEventListener('click', function(){
+    openScanStep(document.getElementById('scanCodeInput').value);
+  });
+  document.getElementById('scanCodeInput').addEventListener('keydown', function(e){
+    if (e.key === 'Enter') openScanStep(e.target.value);
+  });
+}
+
+/* ----------------------------------------------------------------
+   RENDU -- INCIDENTS
+   ---------------------------------------------------------------- */
+var INCIDENT_TYPE_LABELS = {
+  colis_manquant:'Colis manquant', colis_endommage:'Colis endommagé', colis_ouvert:'Colis ouvert',
+  mauvaise_destination:'Mauvaise destination', retard:'Retard', probleme_documentaire:'Problème documentaire',
+  refus_reception:'Refus de réception', probleme_douane:'Problème douane', probleme_transport:'Problème transport',
+  probleme_point_relais:'Problème point relais', autre:'Autre'
+};
+var INCIDENTS_FILTERS = [
+  { key:'all', lbl:'Tous' },
+  { key:'open', lbl:'Ouverts' },
+  { key:'resolved', lbl:'Résolus' }
+];
+function renderIncidentsFilters() {
+  document.getElementById('incidentsFilters').innerHTML = INCIDENTS_FILTERS.map(function(f){
+    return '<button class="filter-chip'+(ST.incidentsFilter===f.key?' on':'')+'" data-key="'+f.key+'">'+h(f.lbl)+'</button>';
+  }).join('');
+  Array.prototype.forEach.call(document.getElementById('incidentsFilters').querySelectorAll('.filter-chip'), function(btn){
+    btn.addEventListener('click', function(){ ST.incidentsFilter = btn.dataset.key; renderIncidentsFilters(); renderIncidents(); });
+  });
+}
+function filteredIncidents() {
+  return ST.incidents.filter(function(i){
+    if (ST.incidentsFilter === 'open') return i.status === 'open';
+    if (ST.incidentsFilter === 'resolved') return i.status === 'resolved';
+    return true;
+  });
+}
+function renderIncidents() {
+  var list = filteredIncidents();
+  document.getElementById('incidentsCount').textContent = ST.incidents.length + (ST.incidents.length > 1 ? ' incidents' : ' incident');
+  var el = document.getElementById('incidentsList');
+  el.innerHTML = list.length
+    ? list.map(function(i){
+        return '<div class="row-card" data-id="'+i.id+'">'
+          + '<div class="row-top"><span class="row-code">'+h(i.shipmentCode)+'</span>'
+          +   '<span class="badge '+(i.status==='open'?'st-incident':'st-livre')+'">'+(i.status==='open'?'Ouvert':'Résolu')+'</span></div>'
+          + '<div class="row-route">'+h(INCIDENT_TYPE_LABELS[i.type] || i.type)+'</div>'
+          + '<div class="row-meta"><span>'+h(i.time)+'</span><span>Signalé par '+h(i.reportedBy)+'</span></div>'
+          + '<p style="font-size:12px;color:var(--txt2);margin-top:8px;line-height:1.5">'+h(i.description)+'</p>'
+          + '</div>';
+      }).join('')
+    : '<div class="empty-state" style="grid-column:1/-1"><div class="es-ico">✅</div><div class="es-ttl">Aucun incident</div><div class="es-sub">Rien à signaler pour ce filtre.</div></div>';
+  Array.prototype.forEach.call(el.querySelectorAll('.row-card'), function(card){
+    card.addEventListener('click', function(){ openIncidentSheet(card.dataset.id); });
+  });
+}
+
+/* ----------------------------------------------------------------
+   DÉTAIL + RÉSOLUTION D'INCIDENT
+   ⚠️ Illustratif : dans le schéma réel (thduksfosaylbjimrgrn), la
+   policy incidents_admin_update ne permet AUJOURD'HUI la résolution
+   qu'à un administrateur -- un transporteur ne peut pas encore clore
+   ses propres incidents. Ce bouton anticipe un futur "Incidents V2"
+   (RLS/RPC dédiées) explicitement hors périmètre de Migration 2 --
+   ne pas considérer cette action comme déjà backée par une vraie RPC.
+   ---------------------------------------------------------------- */
+function findIncident(id) {
+  for (var i = 0; i < ST.incidents.length; i++) if (ST.incidents[i].id === id) return ST.incidents[i];
+  return null;
+}
+var INCIDENT_ROLE_LABELS = { transporteur:'Transporteur', agent_point_relais:'Agent point relais', admin:'Administrateur' };
+
+/* ----------------------------------------------------------------
+   POSITION GPS SUR UN INCIDENT -- V1 démo, réutilise le GPS Core
+   simulé des lots (GPS_DEMO), jamais une donnée séparée.
+   // DEMO ONLY -- aucune colonne location_lat/lng réelle sur
+   // incidents n'est supposée exister ; illustratif comme le reste
+   // de la résolution d'incident (voir commentaire ci-dessus).
+   La position affichée est celle, simulée, du lot au moment de la
+   consultation -- pas un horodatage réel capturé à la déclaration de
+   l'incident (aucun historique GPS par incident n'est modélisé ici).
+   ---------------------------------------------------------------- */
+var incidentLeafletMap = null;
+function destroyIncidentMap() {
+  if (incidentLeafletMap) { incidentLeafletMap.remove(); incidentLeafletMap = null; }
+}
+function incidentGpsHtml(inc) {
+  var s = findShipment(inc.shipmentCode);
+  var lot = (s && s.lotId) ? findLot(s.lotId) : null;
+  var reason = null;
+  if (!lot) reason = 'Colis non rattaché à un lot suivi -- aucune position GPS disponible pour cet incident.';
+  else if (lot.status === 'open') reason = 'Le lot ' + lotLabel(lot) + ' n\'était pas encore en transit à cette date.';
+  else if (lot.status !== 'in_transit' && !GPS_DEMO[lot.id]) reason = 'Aucune position GPS simulée disponible pour le lot ' + lotLabel(lot) + ' dans cette session de démonstration.';
+
+  if (reason) {
+    return '<div class="sec-hd"><span class="sec-ttl">Position GPS</span></div>'
+      + '<p style="padding:0 16px 12px;font-size:12.5px;color:var(--mut)">' + h(reason) + '</p>';
+  }
+  // in_transit -> crée l'état de démo s'il n'existe pas encore (le lot est réellement
+  // en transit, seule l'initialisation paresseuse de la démo manquait) ; arrived/closed
+  // -> déjà garanti présent par la condition ci-dessus, jamais inventé rétroactivement.
+  var st = gpsDemoState(lot.id);
+  var canvasId = 'inc-' + inc.id;
+  return '<div class="sec-hd"><span class="sec-ttl">Position GPS (simulée, au moment de la consultation)</span></div>'
+    + '<div class="gps-map" style="margin:0 16px 14px">'
+    +   gpsMapCanvasHtml({ id: canvasId }, st.progress, true)
+    +   '<div class="gps-cities"><span>' + h(hubById(lot.originHubId).city) + '</span><span>' + h(hubById(lot.destHubId).city) + '</span></div>'
+    +   '<div class="gps-note">Lot ' + h(lotLabel(lot)) + '</div>'
+    +   '<div class="gps-demo-badge">🧪 MODE DÉMO · Position simulée</div>'
+    + '</div>';
+}
+function mountIncidentGpsMapIfReady(inc) {
+  destroyIncidentMap();
+  var s = findShipment(inc.shipmentCode);
+  var lot = (s && s.lotId) ? findLot(s.lotId) : null;
+  if (!lot || lot.status === 'open' || (lot.status !== 'in_transit' && !GPS_DEMO[lot.id]) || !canUseRealGpsMap()) return;
+  var oh = hubById(lot.originHubId), dh = hubById(lot.destHubId);
+  var oc = [oh.lat, oh.lng], dc = [dh.lat, dh.lng];
+  var progress = gpsDemoState(lot.id).progress;
+  incidentLeafletMap = mountRouteOnMap('gpsMapCanvas-inc-' + inc.id, oc, dc, progress, true, function () { return incidentLeafletMap; });
+}
+
+function openIncidentSheet(id) {
+  var inc = findIncident(id);
+  if (!inc) return;
+  var s = findShipment(inc.shipmentCode);
+  var body = document.getElementById('incidentSheetBody');
+  var html = '<div style="padding:0 16px 12px">'
+    + '<div class="row-top" style="margin-bottom:6px"><span class="row-code" style="font-size:15px">'+h(inc.shipmentCode)+'</span>'
+    +   '<span class="badge '+(inc.status==='open'?'st-incident':'st-livre')+'">'+(inc.status==='open'?'Ouvert':'Résolu')+'</span></div>'
+    + '<div class="row-route">'+h(INCIDENT_TYPE_LABELS[inc.type] || inc.type)+'</div>'
+    + '<div class="row-meta">'
+    +   '<span>'+h(inc.time)+'</span>'
+    +   '<span>Signalé par '+h(inc.reportedBy)+' ('+h(INCIDENT_ROLE_LABELS[inc.reportedRole] || inc.reportedRole)+')</span>'
+    +   (s ? '<span>'+h(s.originCity)+' → '+h(s.destCity)+'</span>' : '')
+    + '</div></div>'
+    + '<div class="sec-hd"><span class="sec-ttl">Description</span></div>'
+    + '<p style="padding:0 16px 6px;font-size:13px;color:var(--txt2);line-height:1.6">'+h(inc.description)+'</p>'
+    + '<div class="sec-hd"><span class="sec-ttl">Preuves</span></div>'
+    + '<div class="row-meta" style="padding:0 16px 6px">'
+    +   '<span>📷 Photo : '+(inc.photoUrl ? 'jointe' : 'non fournie')+'</span>'
+    + '</div>'
+    + incidentGpsHtml(inc);
+
+  if (inc.status === 'resolved') {
+    html += '<div class="sec-hd"><span class="sec-ttl">Résolution</span></div>'
+      + '<p style="padding:0 16px 4px;font-size:13px;color:var(--txt2);line-height:1.6">'+h(inc.resolutionNotes || '—')+'</p>'
+      + '<div class="row-meta" style="padding:0 16px 12px"><span>Résolu le '+h(inc.resolvedAt)+'</span></div>';
+  } else {
+    html += '<div class="form-wrap" style="padding-top:4px">'
+      + '<div class="fieldset">'
+      +   '<div class="fieldset-lgd">Résoudre l\'incident</div>'
+      +   '<div class="field"><label for="incResNotes">Notes de résolution</label>'
+      +     '<textarea id="incResNotes" rows="3" placeholder="Ex : colis retrouvé au hub, remis en transit le..."></textarea></div>'
+      + '</div>'
+      + '<button class="btn-primary" id="btnResolveIncident" data-id="'+inc.id+'">✓ Marquer comme résolu</button>'
+      + '</div>';
+  }
+  body.innerHTML = html;
+  var btn = body.querySelector('#btnResolveIncident');
+  if (btn) btn.addEventListener('click', function(){ resolveIncident(inc.id); });
+  openSheet('incident');
+  mountIncidentGpsMapIfReady(inc);
+}
+function resolveIncident(id) {
+  var inc = findIncident(id);
+  if (!inc) return;
+  var notes = (document.getElementById('incResNotes').value || '').trim();
+  if (!notes) { showToast('Notes de résolution requises', 'e'); return; }
+  inc.status = 'resolved';
+  inc.resolutionNotes = notes;
+  inc.resolvedAt = 'à l\'instant';
+  saveAll();
+  renderAll();
+  closeSheet('incident');
+  showToast('Incident ' + inc.shipmentCode + ' marqué comme résolu', 's');
+}
+
+/* ----------------------------------------------------------------
+   RENDU GLOBAL
+   ---------------------------------------------------------------- */
+function renderAll() {
+  renderKpis();
+  renderTodo();
+  renderHomeLots();
+  renderColis();
+  renderLots();
+  renderIncidents();
+}
+
+/* ----------------------------------------------------------------
+   INIT
+   ---------------------------------------------------------------- */
+document.addEventListener('DOMContentLoaded', function() {
+  ST.shipments = lsGet('slt_shipments') || JSON.parse(JSON.stringify(SEED_SHIPMENTS));
+  ST.lots = lsGet('slt_lots') || JSON.parse(JSON.stringify(SEED_LOTS));
+  ST.incidents = lsGet('slt_incidents') || JSON.parse(JSON.stringify(SEED_INCIDENTS));
+
+  renderHubSelects();
+  renderColisFilters();
+  renderLotsFilters();
+  renderIncidentsFilters();
+  renderPlanningFilters();
+  renderAll();
+  renderEquipe();
+
+  bindNav();
+  bindNewLotForm();
+  bindScanner();
+  bindEquipe();
+  document.getElementById('searchColis').addEventListener('input', renderColis);
+
+  window.addEventListener('scroll', function(){
+    document.getElementById('topnav').classList.toggle('shadow', window.scrollY > 20);
+  });
+});
+
+})(); /* end IIFE */
+</script>
+
+</body>
+</html>

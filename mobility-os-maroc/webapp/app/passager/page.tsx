@@ -21,11 +21,19 @@ const POINT_ARRIVEE_DEFAUT = { lat: 33.5885, lng: -7.5719 }
 // direct au navigateur ne pouvait pas identifier l'application aupres de
 // Nominatim comme sa politique d'usage l'exige, et envoyait chaque adresse
 // tapee par un passager directement a un tiers sans passer par l'app).
-async function geocoder(adresse: string): Promise<{ lat: number; lng: number } | null> {
+// Foundation V1 : ville/pays de biais desormais derives de l'operateur
+// (operateurs.ville, countries.name via la relation country_id) plutot que
+// "Casablanca, Maroc" force en dur cote serveur pour toute adresse -- voir
+// app/api/geocoder/route.ts. Optionnels : le proxy applique le meme repli
+// Casablanca/Maroc si absents.
+async function geocoder(adresse: string, ville?: string | null, pays?: string | null): Promise<{ lat: number; lng: number } | null> {
   const requete = adresse.trim()
   if (requete.length < 3) return null
   try {
-    const reponse = await fetch(`/api/geocoder?q=${encodeURIComponent(requete)}`)
+    const params = new URLSearchParams({ q: requete })
+    if (ville) params.set('ville', ville)
+    if (pays) params.set('pays', pays)
+    const reponse = await fetch(`/api/geocoder?${params.toString()}`)
     const point = await reponse.json()
     if (point.lat == null || point.lng == null) return null
     return { lat: point.lat, lng: point.lng }
@@ -34,7 +42,7 @@ async function geocoder(adresse: string): Promise<{ lat: number; lng: number } |
   }
 }
 
-type Operateur = { id: string; nom: string; couleur_primaire: string; couleur_secondaire: string; logo_url: string | null }
+type Operateur = { id: string; nom: string; couleur_primaire: string; couleur_secondaire: string; logo_url: string | null; ville: string | null; countries: { name: string } | null }
 type Zone = { id: string; nom: string; tarif_base: number; tarif_km: number }
 type Course = {
   id: string
@@ -214,8 +222,8 @@ export default function PassagerPage() {
 
   useEffect(() => {
     if (!OPERATEUR_ID) return
-    supabase.from('operateurs').select('id,nom,couleur_primaire,couleur_secondaire,logo_url').eq('id', OPERATEUR_ID).single()
-      .then(({ data }) => setOperateur(data))
+    supabase.from('operateurs').select('id,nom,couleur_primaire,couleur_secondaire,logo_url,ville,countries(name)').eq('id', OPERATEUR_ID).single()
+      .then(({ data }) => setOperateur(data as unknown as Operateur))
     supabase.from('zones_operateur').select('id,nom,tarif_base,tarif_km').eq('operateur_id', OPERATEUR_ID).order('nom')
       .then(({ data }) => {
         setZones(data || [])
@@ -234,7 +242,7 @@ export default function PassagerPage() {
     if (departDepuisPickerRef.current) { departDepuisPickerRef.current = false; return }
     setRepereEnCours(true)
     const delai = setTimeout(() => {
-      geocoder(depart).then((point) => { if (point) setPointDepart(point) }).finally(() => setRepereEnCours(false))
+      geocoder(depart, operateur?.ville, operateur?.countries?.name).then((point) => { if (point) setPointDepart(point) }).finally(() => setRepereEnCours(false))
     }, 700)
     return () => clearTimeout(delai)
   }, [depart])
@@ -243,7 +251,7 @@ export default function PassagerPage() {
     if (arriveeDepuisPickerRef.current) { arriveeDepuisPickerRef.current = false; return }
     setRepereEnCours(true)
     const delai = setTimeout(() => {
-      geocoder(arrivee).then((point) => { if (point) setPointArrivee(point) }).finally(() => setRepereEnCours(false))
+      geocoder(arrivee, operateur?.ville, operateur?.countries?.name).then((point) => { if (point) setPointArrivee(point) }).finally(() => setRepereEnCours(false))
     }, 700)
     return () => clearTimeout(delai)
   }, [arrivee])

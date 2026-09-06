@@ -77,13 +77,23 @@ export async function GET(request: Request) {
     return Response.json({ lat: null, lng: null })
   }
 
-  const cle = adresse.toLowerCase()
+  // Foundation V1 : la ville/le pays de biais viennent desormais de
+  // l'operateur appelant (operateurs.ville, countries.name), passes en
+  // parametres par le client -- auparavant "Casablanca, Maroc" etait force
+  // pour absolument toute adresse, ce qui cassait deja le geocodage pour
+  // tout operateur marocain hors agglomeration de Casablanca. Repli
+  // strictement identique au comportement precedent si un appelant ne les
+  // fournit pas encore.
+  const ville = (searchParams.get('ville') || '').trim() || 'Casablanca'
+  const pays = (searchParams.get('pays') || '').trim() || 'Maroc'
+
+  const cle = `${ville.toLowerCase()}|${pays.toLowerCase()}|${adresse.toLowerCase()}`
   const enCache = cache.get(cle)
   if (enCache && Date.now() - enCache.at < CACHE_TTL_MS) {
     return Response.json(enCache.resultat ?? { lat: null, lng: null })
   }
 
-  const params = new URLSearchParams({ q: `${adresse}, Casablanca, Maroc`, format: 'json', limit: '1' })
+  const params = new URLSearchParams({ q: `${adresse}, ${ville}, ${pays}`, format: 'json', limit: '1' })
 
   try {
     const reponse = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {

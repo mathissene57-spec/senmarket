@@ -8,7 +8,7 @@ import { useOperateurId } from '@/lib/useOperateurId'
 
 const Carte = dynamic(() => import('@/components/Carte'), { ssr: false })
 
-type Operateur = { id: string; nom: string; couleur_primaire: string; couleur_secondaire: string; ville: string | null; owner_user_id: string | null }
+type Operateur = { id: string; nom: string; couleur_primaire: string; couleur_secondaire: string; ville: string | null; owner_user_id: string | null; logo_url: string | null }
 type ChauffeurRow = { id: string; nom: string; telephone: string; vehicule: string | null; plaque: string | null; note_moyenne: number; statut: string; position_lat: number | null; position_lng: number | null; position_recente: boolean; type_vehicule: string }
 type TrajetInterville = { id: string; ville_depart: string; ville_arrivee: string; prix: number; actif: boolean }
 type CourseRow = { id: string; statut: string; adresse_depart: string; adresse_arrivee: string; prix_estime: number; prix_final: number | null; created_at: string; chauffeur_id: string | null; depart_lat: number | null; depart_lng: number | null; bloquee: boolean }
@@ -42,6 +42,17 @@ function acteurAffiche(acteur: string | null): { label: string; systeme: boolean
   if (role === 'passager') return { label: `Passager · ${valeur}`, systeme: false }
   if (role === 'operateur') return { label: 'Clôturée manuellement (vous)', systeme: false }
   return { label: acteur, systeme: false }
+}
+
+// Voir app/chauffeur/page.tsx pour l'explication (logo_url deja present en
+// base mais jamais affiche ni editable). Repli sur l'initiale si aucun logo,
+// ou en cas d'echec de chargement de l'image (URL cassee).
+function Marque({ nom, logoUrl }: { nom?: string | null; logoUrl?: string | null }) {
+  const [enErreur, setEnErreur] = useState(false)
+  if (logoUrl && !enErreur) {
+    return <img src={logoUrl} alt={nom || ''} className="brand-mark" style={{ objectFit: 'cover' }} onError={() => setEnErreur(true)} />
+  }
+  return <span className="brand-mark">{nom?.[0] || 'M'}</span>
 }
 
 export default function DashboardPage() {
@@ -82,6 +93,7 @@ export default function DashboardPage() {
   const [ajoutZoneEnCours, setAjoutZoneEnCours] = useState(false)
   const [nomEdit, setNomEdit] = useState('')
   const [villeEdit, setVilleEdit] = useState('')
+  const [logoUrlEdit, setLogoUrlEdit] = useState('')
   const [couleurPrimaireEdit, setCouleurPrimaireEdit] = useState('#101B3D')
   const [couleurSecondaireEdit, setCouleurSecondaireEdit] = useState('#FF7A28')
   const [parametresEnCours, setParametresEnCours] = useState(false)
@@ -124,6 +136,7 @@ export default function DashboardPage() {
     if (!operateur) return
     setNomEdit(operateur.nom)
     setVilleEdit(operateur.ville || '')
+    setLogoUrlEdit(operateur.logo_url || '')
     setCouleurPrimaireEdit(operateur.couleur_primaire)
     setCouleurSecondaireEdit(operateur.couleur_secondaire)
   }, [operateur])
@@ -140,13 +153,13 @@ export default function DashboardPage() {
   }, [operateur?.id])
 
   async function resoudreOperateur() {
-    const { data } = await supabase.from('operateurs').select('id,nom,couleur_primaire,couleur_secondaire,ville,owner_user_id').eq('id', OPERATEUR_ID).single()
+    const { data } = await supabase.from('operateurs').select('id,nom,couleur_primaire,couleur_secondaire,ville,owner_user_id,logo_url').eq('id', OPERATEUR_ID).single()
     if (!data) return
     if (data.owner_user_id === session.user.id) { setOperateur(data); return }
     if (data.owner_user_id === null) {
       const { data: ok } = await supabase.rpc('reclamer_operateur', { p_operateur_id: OPERATEUR_ID })
       if (ok) {
-        const { data: refetched } = await supabase.from('operateurs').select('id,nom,couleur_primaire,couleur_secondaire,ville,owner_user_id').eq('id', OPERATEUR_ID).single()
+        const { data: refetched } = await supabase.from('operateurs').select('id,nom,couleur_primaire,couleur_secondaire,ville,owner_user_id,logo_url').eq('id', OPERATEUR_ID).single()
         setOperateur(refetched)
         return
       }
@@ -409,12 +422,13 @@ export default function DashboardPage() {
     const { error } = await supabase.from('operateurs').update({
       nom: nomEdit.trim(),
       ville: villeEdit.trim() || null,
+      logo_url: logoUrlEdit.trim() || null,
       couleur_primaire: couleurPrimaireEdit,
       couleur_secondaire: couleurSecondaireEdit,
     }).eq('id', operateur.id)
     setParametresEnCours(false)
     if (error) { setParametresErreur(error.message); return }
-    setOperateur({ ...operateur, nom: nomEdit.trim(), ville: villeEdit.trim() || null, couleur_primaire: couleurPrimaireEdit, couleur_secondaire: couleurSecondaireEdit })
+    setOperateur({ ...operateur, nom: nomEdit.trim(), ville: villeEdit.trim() || null, logo_url: logoUrlEdit.trim() || null, couleur_primaire: couleurPrimaireEdit, couleur_secondaire: couleurSecondaireEdit })
     setParametresSucces(true)
   }
 
@@ -510,7 +524,7 @@ export default function DashboardPage() {
   return (
     <div className="dashboard" style={{ ['--primary' as any]: primary }}>
       <div className="sidebar">
-        <div className="brand"><span className="brand-mark">{operateur.nom[0]}</span><span className="brand-label">{operateur.nom}</span></div>
+        <div className="brand"><Marque nom={operateur.nom} logoUrl={operateur.logo_url} /><span className="brand-label">{operateur.nom}</span></div>
         <button className="nav-item" style={{ marginTop: 12 }} onClick={() => router.push('/')}>← Retour à l&apos;accueil</button>
         <nav style={{ marginTop: 28 }}>
           <button className={`nav-item${onglet === 'apercu' ? ' active' : ''}`} onClick={() => setOnglet('apercu')}>Vue d&apos;ensemble</button>
@@ -829,6 +843,12 @@ export default function DashboardPage() {
               <input type="text" value={nomEdit} onChange={(e) => setNomEdit(e.target.value)} />
               <label className="field-label">Ville</label>
               <input type="text" value={villeEdit} onChange={(e) => setVilleEdit(e.target.value)} placeholder="Ex : Casablanca" />
+              <label className="field-label">Logo (URL de l&apos;image)</label>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <Marque nom={nomEdit} logoUrl={logoUrlEdit} />
+                <input type="text" value={logoUrlEdit} onChange={(e) => setLogoUrlEdit(e.target.value)} placeholder="https://…" style={{ flex: 1 }} />
+              </div>
+              <p className="muted" style={{ marginTop: -8 }}>Laissez vide pour revenir à l&apos;initiale sur fond coloré.</p>
               <div style={{ display: 'flex', gap: 12 }}>
                 <div style={{ flex: 1 }}>
                   <label className="field-label">Couleur principale</label>

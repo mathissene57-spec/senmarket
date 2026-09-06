@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { distanceHaversineKm } from '@/lib/geo'
 import { useOperateurId } from '@/lib/useOperateurId'
@@ -10,7 +11,7 @@ import { useAppelInterne } from '@/lib/useAppelInterne'
 
 const Carte = dynamic(() => import('@/components/Carte'), { ssr: false })
 
-type Operateur = { id: string; nom: string; couleur_primaire: string; couleur_secondaire: string }
+type Operateur = { id: string; nom: string; couleur_primaire: string; couleur_secondaire: string; logo_url: string | null }
 type ChauffeurRow = { id: string; nom: string; telephone: string; statut: string; type_vehicule: string }
 type CourseNotif = {
   id: string
@@ -42,8 +43,21 @@ function couleurTexteContrastee(hex: string): string {
   return luminance > 150 ? '#101B3D' : '#FFFFFF'
 }
 
+// Marque (logo_url deja present en base mais jamais affiche -- seule
+// l'initiale du nom sur fond colore existait). Repli sur l'initiale si aucun
+// logo n'est renseigne, ou si l'image echoue a charger (URL cassee).
+function Marque({ nom, logoUrl, grande }: { nom?: string | null; logoUrl?: string | null; grande?: boolean }) {
+  const [enErreur, setEnErreur] = useState(false)
+  const classe = `brand-mark${grande ? ' brand-mark-lg' : ''}`
+  if (logoUrl && !enErreur) {
+    return <img src={logoUrl} alt={nom || ''} className={classe} style={{ objectFit: 'cover' }} onError={() => setEnErreur(true)} />
+  }
+  return <span className={classe}>{nom?.[0] || 'M'}</span>
+}
+
 export default function ChauffeurPage() {
   const supabase = createClient()
+  const router = useRouter()
   const { operateurId: OPERATEUR_ID, chargement: chargementOperateur, erreur: erreurResolution } = useOperateurId()
   const [operateur, setOperateur] = useState<Operateur | null>(null)
   const [ecran, setEcran] = useState<'connexion' | 'accueil' | 'demande' | 'navigation' | 'encours' | 'fin' | 'historique' | 'messages'>('connexion')
@@ -112,7 +126,7 @@ export default function ChauffeurPage() {
 
   useEffect(() => {
     if (!OPERATEUR_ID) return
-    supabase.from('operateurs').select('id,nom,couleur_primaire,couleur_secondaire').eq('id', OPERATEUR_ID).single()
+    supabase.from('operateurs').select('id,nom,couleur_primaire,couleur_secondaire,logo_url').eq('id', OPERATEUR_ID).single()
       .then(({ data }) => setOperateur(data))
   }, [OPERATEUR_ID])
 
@@ -458,7 +472,7 @@ export default function ChauffeurPage() {
       <div key={ecran} className="screen-fade">
         {ecran === 'connexion' && (
           <div className="screen-body center" style={{ justifyContent: 'center', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ margin: '0 auto 24px' }}><span className="brand-mark brand-mark-lg">{operateur?.nom?.[0] || 'M'}</span></div>
+            <div style={{ margin: '0 auto 24px' }}><Marque nom={operateur?.nom} logoUrl={operateur?.logo_url} grande /></div>
             <h2 style={{ marginBottom: 4 }}>{operateur?.nom} Chauffeur</h2>
             <p className="muted">Espace réservé aux chauffeurs de la flotte</p>
             <div style={{ marginTop: 24, textAlign: 'left' }}>
@@ -486,13 +500,14 @@ export default function ChauffeurPage() {
                 </button>
               </>
             )}
+            <button className="btn ghost" style={{ marginTop: 8 }} onClick={() => router.push('/')}>← Retour à l&apos;accueil</button>
           </div>
         )}
 
         {ecran === 'accueil' && chauffeur && (
           <>
             <div className="screen-header">
-              <span className="brand"><span className="brand-mark">{operateur?.nom?.[0] || 'M'}</span><span className="brand-label">{operateur?.nom}</span></span>
+              <span className="brand"><Marque nom={operateur?.nom} logoUrl={operateur?.logo_url} /><span className="brand-label">{operateur?.nom}</span></span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span className="muted">{chauffeur.statut === 'disponible' ? 'Disponible' : chauffeur.statut === 'en_course' ? 'En course' : 'Indisponible'}{position ? ' · 📍' : ''}</span>
                 <button className={`toggle${chauffeur.statut === 'disponible' ? ' on' : ''}`} onClick={toggleDispo} disabled={chauffeur.statut === 'en_course'} />

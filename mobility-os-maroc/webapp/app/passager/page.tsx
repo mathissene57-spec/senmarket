@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { distanceHaversineKm } from '@/lib/geo'
 import { useOperateurId } from '@/lib/useOperateurId'
@@ -33,7 +34,7 @@ async function geocoder(adresse: string): Promise<{ lat: number; lng: number } |
   }
 }
 
-type Operateur = { id: string; nom: string; couleur_primaire: string; couleur_secondaire: string }
+type Operateur = { id: string; nom: string; couleur_primaire: string; couleur_secondaire: string; logo_url: string | null }
 type Zone = { id: string; nom: string; tarif_base: number; tarif_km: number }
 type Course = {
   id: string
@@ -78,8 +79,21 @@ function couleurTexteContrastee(hex: string): string {
   return luminance > 150 ? '#101B3D' : '#FFFFFF'
 }
 
+// Voir app/chauffeur/page.tsx pour l'explication (logo_url deja present en
+// base mais jamais affiche). Repli sur l'initiale si aucun logo, ou en cas
+// d'echec de chargement de l'image (URL cassee).
+function Marque({ nom, logoUrl, grande }: { nom?: string | null; logoUrl?: string | null; grande?: boolean }) {
+  const [enErreur, setEnErreur] = useState(false)
+  const classe = `brand-mark${grande ? ' brand-mark-lg' : ''}`
+  if (logoUrl && !enErreur) {
+    return <img src={logoUrl} alt={nom || ''} className={classe} style={{ objectFit: 'cover' }} onError={() => setEnErreur(true)} />
+  }
+  return <span className={classe}>{nom?.[0] || 'M'}</span>
+}
+
 export default function PassagerPage() {
   const supabase = createClient()
+  const router = useRouter()
   const { operateurId: OPERATEUR_ID, chargement: chargementOperateur, erreur: erreurResolution } = useOperateurId()
   const [operateur, setOperateur] = useState<Operateur | null>(null)
   const [zones, setZones] = useState<Zone[]>([])
@@ -176,7 +190,7 @@ export default function PassagerPage() {
 
   useEffect(() => {
     if (!OPERATEUR_ID) return
-    supabase.from('operateurs').select('id,nom,couleur_primaire,couleur_secondaire').eq('id', OPERATEUR_ID).single()
+    supabase.from('operateurs').select('id,nom,couleur_primaire,couleur_secondaire,logo_url').eq('id', OPERATEUR_ID).single()
       .then(({ data }) => setOperateur(data))
     supabase.from('zones_operateur').select('id,nom,tarif_base,tarif_km').eq('operateur_id', OPERATEUR_ID).order('nom')
       .then(({ data }) => {
@@ -498,7 +512,7 @@ export default function PassagerPage() {
       <div key={ecran} className="screen-fade">
         {ecran === 'connexion' && (
           <div className="screen-body center" style={{ justifyContent: 'center', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ margin: '0 auto 24px' }}><span className="brand-mark brand-mark-lg">{operateur?.nom?.[0] || 'M'}</span></div>
+            <div style={{ margin: '0 auto 24px' }}><Marque nom={operateur?.nom} logoUrl={operateur?.logo_url} grande /></div>
             <h2 style={{ marginBottom: 4 }}>{operateur?.nom || 'Mobility OS'}</h2>
             <p className="muted">Réservez une course en quelques secondes</p>
             <div style={{ marginTop: 24, textAlign: 'left' }}>
@@ -532,6 +546,7 @@ export default function PassagerPage() {
                 </button>
               </>
             )}
+            <button className="btn ghost" style={{ marginTop: 8 }} onClick={() => router.push('/')}>← Retour à l&apos;accueil</button>
           </div>
         )}
 
@@ -546,7 +561,7 @@ export default function PassagerPage() {
               <Carte points={[{ ...pointDepart, couleur: primary }, { ...pointArrivee, couleur: accent }]} zoom={13} />
             </div>
             <div className="map-overlay-top">
-              <span className="brand"><span className="brand-mark">{operateur?.nom?.[0] || 'M'}</span><span className="brand-label">{operateur?.nom}</span></span>
+              <span className="brand"><Marque nom={operateur?.nom} logoUrl={operateur?.logo_url} /><span className="brand-label">{operateur?.nom}</span></span>
               <span className="badge ok">En ligne</span>
             </div>
             <div className="map-sheet">

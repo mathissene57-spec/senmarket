@@ -83,6 +83,9 @@ export default function OnboardingPage() {
 
   return (
     <div style={{ maxWidth: 520, margin: '0 auto', padding: '48px 24px', fontFamily: 'inherit' }}>
+      <Link href="/" className="btn ghost" style={{ display: 'inline-block', width: 'auto', padding: '8px 14px', textDecoration: 'none', marginBottom: 16 }}>
+        ← Retour à l&apos;accueil
+      </Link>
       <h1>Créer mon opérateur</h1>
       <p className="muted">Onboarding self-service — votre plateforme de mobilité en marque blanche, prête en une minute.</p>
 

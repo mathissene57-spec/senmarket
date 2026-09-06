@@ -662,18 +662,23 @@ export default function ChauffeurPage() {
         )}
 
         {ecran === 'accueil' && chauffeur && (
-          <>
-            <div className="screen-header">
+          // Carte plein ecran en fond, comme l'ecran "accueil" cote passager
+          // (.map-fullscreen) : la carte remplit tout l'espace disponible,
+          // le statut/bouton disponibilite flotte en haut et le reste du
+          // contenu (gains, historique...) dans une feuille ancree en bas --
+          // remplace l'ancien bandeau fixe .map-placeholder.
+          <div className="map-fullscreen">
+            <div className="map-layer">
+              {position && <Carte points={[{ ...position, couleur: primary }]} zoom={15} />}
+            </div>
+            <div className="map-overlay-top">
               <span className="brand"><Marque nom={operateur?.nom} logoUrl={operateur?.logo_url} /><span className="brand-label">{operateur?.nom}</span></span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span className="muted">{chauffeur.statut === 'disponible' ? 'Disponible' : chauffeur.statut === 'en_course' ? 'En course' : 'Indisponible'}{position ? ' · 📍' : ''}</span>
                 <button className={`toggle${chauffeur.statut === 'disponible' ? ' on' : ''}`} onClick={toggleDispo} disabled={chauffeur.statut === 'en_course'} />
               </div>
             </div>
-            <div className="screen-body">
-              <div className="map-placeholder">
-                {position && <Carte points={[{ ...position, couleur: primary }]} zoom={15} />}
-              </div>
+            <div className="map-sheet">
               <div className="kpi-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div className="card"><div className="muted">Gains aujourd&apos;hui</div><div className="price" style={{ fontSize: 20 }}>{gainsJour} DH</div></div>
                 <div className="card"><div className="muted">Courses</div><div className="price" style={{ fontSize: 20 }}>{historique.length}</div></div>
@@ -695,7 +700,7 @@ export default function ChauffeurPage() {
                 Changer de chauffeur
               </button>
             </div>
-          </>
+          </div>
         )}
 
         {ecran === 'demande' && demande && (

@@ -43,7 +43,7 @@ async function geocoder(adresse: string, ville?: string | null, pays?: string | 
 }
 
 type Operateur = { id: string; nom: string; couleur_primaire: string; couleur_secondaire: string; logo_url: string | null; ville: string | null; countries: { name: string } | null }
-type Zone = { id: string; nom: string; tarif_base: number; tarif_km: number }
+type Zone = { id: string; nom: string; tarif_base: number; tarif_km: number; currency: string }
 type Course = {
   id: string
   statut: string
@@ -51,12 +51,13 @@ type Course = {
   adresse_arrivee: string
   prix_estime: number
   prix_final: number | null
+  currency: string
   chauffeur_id: string | null
 }
 type Chauffeur = { id: string; nom: string; vehicule: string | null; plaque: string | null; note_moyenne: number; nb_courses: number }
 type Contact = { nom: string; telephone: string }
 type Avis = { note: number; commentaire: string | null; created_at: string }
-type TrajetInterville = { id: string; ville_depart: string; ville_arrivee: string; prix: number }
+type TrajetInterville = { id: string; ville_depart: string; ville_arrivee: string; prix: number; currency: string }
 type Message = { id: string; expediteur: 'passager' | 'chauffeur'; contenu: string | null; type: 'texte' | 'image' | 'audio'; media_path: string | null; created_at: string }
 
 // Voir app/chauffeur/page.tsx pour l'explication (bucket public, pas de
@@ -224,12 +225,12 @@ export default function PassagerPage() {
     if (!OPERATEUR_ID) return
     supabase.from('operateurs').select('id,nom,couleur_primaire,couleur_secondaire,logo_url,ville,countries(name)').eq('id', OPERATEUR_ID).single()
       .then(({ data }) => setOperateur(data as unknown as Operateur))
-    supabase.from('zones_operateur').select('id,nom,tarif_base,tarif_km').eq('operateur_id', OPERATEUR_ID).order('nom')
+    supabase.from('zones_operateur').select('id,nom,tarif_base,tarif_km,currency').eq('operateur_id', OPERATEUR_ID).order('nom')
       .then(({ data }) => {
         setZones(data || [])
         if (data && data.length > 0) setZoneId(data[0].id)
       })
-    supabase.from('trajets_intervilles').select('id,ville_depart,ville_arrivee,prix').eq('operateur_id', OPERATEUR_ID).eq('actif', true).order('ville_depart')
+    supabase.from('trajets_intervilles').select('id,ville_depart,ville_arrivee,prix,currency').eq('operateur_id', OPERATEUR_ID).eq('actif', true).order('ville_depart')
       .then(({ data }) => {
         setTrajetsIntervilles(data || [])
         if (data && data.length > 0) setTrajetIntervilleId(data[0].id)
@@ -336,7 +337,7 @@ export default function PassagerPage() {
   }, [course?.id])
 
   function reverifierCourse(courseId: string) {
-    supabase.from('courses').select('id,statut,adresse_depart,adresse_arrivee,prix_estime,prix_final,chauffeur_id')
+    supabase.from('courses').select('id,statut,adresse_depart,adresse_arrivee,prix_estime,prix_final,currency,chauffeur_id')
       .eq('id', courseId).single()
       .then(({ data }) => { if (data) appliquerMiseAJourCourse(data as Course) })
   }
@@ -506,6 +507,7 @@ export default function PassagerPage() {
   const distanceEstimeeKm = distanceHaversineKm(pointDepart, pointArrivee)
   const prixEstimeVille = zone ? Math.round((Number(zone.tarif_base) + Number(zone.tarif_km) * distanceEstimeeKm) * (typeVehicule === 'moto' ? 0.65 : 1) * 100) / 100 : 0
   const prixEstime = modeCourse === 'intervilles' ? (trajetInterville?.prix ?? 0) : prixEstimeVille
+  const deviseEstimee = (modeCourse === 'intervilles' ? trajetInterville?.currency : zone?.currency) ?? 'MAD'
 
   async function commander() {
     if (!OPERATEUR_ID) return
@@ -537,7 +539,7 @@ export default function PassagerPage() {
     setContactChauffeur(null)
     setMessages([])
     setMessagesVues(0)
-    setCourse({ id: cree.id, statut: 'en_recherche', adresse_depart: depart, adresse_arrivee: arrivee, prix_estime: cree.prix_estime, prix_final: null, chauffeur_id: null })
+    setCourse({ id: cree.id, statut: 'en_recherche', adresse_depart: depart, adresse_arrivee: arrivee, prix_estime: cree.prix_estime, prix_final: null, currency: deviseEstimee, chauffeur_id: null })
     setEcran('recherche')
   }
 
@@ -774,7 +776,7 @@ export default function PassagerPage() {
                       <label className="field-label">Trajet</label>
                       <select value={trajetIntervilleId} onChange={(e) => setTrajetIntervilleId(e.target.value)} style={{ width: '100%', padding: '13px 14px', borderRadius: 12, border: '1px solid #D9C9B5', fontSize: 15, marginBottom: 12, fontFamily: 'inherit' }}>
                         {trajetsIntervilles.map((t) => (
-                          <option key={t.id} value={t.id}>{t.ville_depart} → {t.ville_arrivee} · {t.prix} DH</option>
+                          <option key={t.id} value={t.id}>{t.ville_depart} → {t.ville_arrivee} · {t.prix} {t.currency}</option>
                         ))}
                       </select>
                     </>
@@ -783,7 +785,7 @@ export default function PassagerPage() {
               )}
 
               {(modeCourse === 'ville' ? zone : trajetInterville) && (
-                <div className="card card-row"><span>Prix estimé</span><span className="price">{prixEstime} DH</span></div>
+                <div className="card card-row"><span>Prix estimé</span><span className="price">{prixEstime} {deviseEstimee}</span></div>
               )}
               {permissionNotif === 'default' && (
                 <button className="btn ghost" style={{ marginTop: 4 }} onClick={activerNotifications}>
@@ -876,7 +878,7 @@ export default function PassagerPage() {
             <div className="screen-header"><strong>Course terminée</strong></div>
             <div className="screen-body center">
               <p className="muted" style={{ marginTop: 16 }}>Montant à régler en espèces</p>
-              <div className="price">{course.prix_final ?? course.prix_estime} DH</div>
+              <div className="price">{course.prix_final ?? course.prix_estime} {course.currency}</div>
               <div className="card" style={{ marginTop: 24, textAlign: 'left' }}>
                 <div className="muted center" style={{ marginBottom: 8 }}>Notez votre chauffeur</div>
                 <div className="stars center">
@@ -1015,7 +1017,7 @@ export default function PassagerPage() {
               {historique.map((c) => (
                 <div key={c.id} className="card card-row">
                   <span>{c.adresse_depart} → {c.adresse_arrivee}</span>
-                  <span>{c.prix_final ?? c.prix_estime} DH</span>
+                  <span>{c.prix_final ?? c.prix_estime} {c.currency}</span>
                 </div>
               ))}
             </div>

@@ -19,6 +19,7 @@ type OperateurAdmin = {
   nb_courses: number
   nb_courses_terminees: number
   ca_total: number
+  devise: string
   derniere_course_at: string | null
 }
 type StatsGlobales = {
@@ -123,6 +124,13 @@ export default function AdminPage() {
           <div className="kpi-card"><div className="muted">Opérateurs</div><div className="value">{stats.nb_operateurs_actifs} / {stats.nb_operateurs}</div></div>
           <div className="kpi-card"><div className="muted">Chauffeurs</div><div className="value">{stats.nb_chauffeurs}</div></div>
           <div className="kpi-card"><div className="muted">Courses (terminées)</div><div className="value">{stats.nb_courses} ({stats.nb_courses_terminees})</div></div>
+          {/* "DH" volontairement laisse en dur ici : admin_stats_globales agrege
+              le CA de TOUS les operateurs (donc potentiellement plusieurs pays/
+              devises a la fois), contrairement aux autres montants de cette page
+              qui restent chacun scopes a un seul operateur/une seule devise.
+              Un vrai second pays actif rendra cette somme fausse quelle que soit
+              l'etiquette -- decision produit a prendre a ce moment-la (repartition
+              par devise, ou conversion), pas une simple substitution de texte. */}
           <div className="kpi-card"><div className="muted">CA plateforme</div><div className="value">{stats.ca_total} DH</div></div>
         </div>
       )}
@@ -140,7 +148,7 @@ export default function AdminPage() {
               <td>{o.ville || '—'}</td>
               <td>{o.nb_chauffeurs}</td>
               <td>{o.nb_courses} ({o.nb_courses_terminees})</td>
-              <td>{o.ca_total} DH</td>
+              <td>{o.ca_total} {o.devise}</td>
               <td>{o.derniere_course_at ? new Date(o.derniere_course_at).toLocaleString('fr-FR') : '—'}</td>
               <td><span className={`badge ${o.actif ? 'ok' : 'off'}`}>{o.actif ? 'actif' : 'suspendu'}</span></td>
               <td>

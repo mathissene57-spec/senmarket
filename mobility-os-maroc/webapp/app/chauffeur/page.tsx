@@ -18,6 +18,7 @@ type CourseNotif = {
   adresse_depart: string
   adresse_arrivee: string
   prix_estime: number
+  currency?: string
   statut: string
   distance_km?: number
   depart_lat?: number | null
@@ -27,7 +28,7 @@ type CourseNotif = {
   type_vehicule?: string
   type_course?: string
 }
-type CourseTerminee = { id: string; adresse_depart: string; adresse_arrivee: string; prix_final: number | null; created_at: string }
+type CourseTerminee = { id: string; adresse_depart: string; adresse_arrivee: string; prix_final: number | null; currency: string; created_at: string }
 type Contact = { nom: string; telephone: string }
 type Message = { id: string; expediteur: 'passager' | 'chauffeur'; contenu: string | null; type: 'texte' | 'image' | 'audio'; media_path: string | null; created_at: string }
 
@@ -75,6 +76,7 @@ export default function ChauffeurPage() {
   const [courseActive, setCourseActive] = useState<CourseNotif | null>(null)
   const [contactPassager, setContactPassager] = useState<Contact | null>(null)
   const [prixTermine, setPrixTermine] = useState<number | null>(null)
+  const [deviseTermine, setDeviseTermine] = useState('MAD')
   // Qui a cloture la course active : distingue l'ecran "fin" normal (le
   // chauffeur a lui-meme termine) du cas ou le passager a mis fin a la
   // course a distance, a n'importe quelle etape -- l'affichage et le
@@ -227,6 +229,7 @@ export default function ChauffeurPage() {
           adresse_depart: c.adresse_depart,
           adresse_arrivee: c.adresse_arrivee,
           prix_estime: c.prix_estime,
+          currency: c.currency,
           statut: c.statut,
           distance_km: distance ?? undefined,
           depart_lat: c.depart_lat,
@@ -237,7 +240,7 @@ export default function ChauffeurPage() {
           type_course: c.type_course,
         })
         setEcran('demande')
-        notifier('Nouvelle course !', `${c.adresse_depart} → ${c.adresse_arrivee} · ${c.prix_estime} DH`)
+        notifier('Nouvelle course !', `${c.adresse_depart} → ${c.adresse_arrivee} · ${c.prix_estime} ${c.currency || 'MAD'}`)
         // P1 (course_events) : journalise la proposition — n'affecte jamais
         // le dispatch lui-meme, purement pour l'audit trail.
         supabase.rpc('proposer_course', { p_course_id: c.id, p_chauffeur_id: prev.id, p_telephone: prev.telephone })
@@ -261,6 +264,7 @@ export default function ChauffeurPage() {
     if (!['navigation', 'encours', 'messages'].includes(ecranRef.current)) return
     setFinRaison(c.statut === 'terminee' ? 'passager_terminee' : 'passager_annulee')
     setPrixTermine(c.statut === 'terminee' ? (c.prix_final ?? c.prix_estime ?? active.prix_estime) : 0)
+    setDeviseTermine(c.currency ?? active.currency ?? 'MAD')
     setChauffeur((prev) => (prev ? { ...prev, statut: 'disponible' } : prev))
     setContactPassager(null)
     setMessages([])
@@ -298,7 +302,7 @@ export default function ChauffeurPage() {
   function rechercherCoursesEnAttente() {
     if (!chauffeur || !OPERATEUR_ID || chauffeur.statut !== 'disponible') return
     supabase.from('courses')
-      .select('id,statut,adresse_depart,adresse_arrivee,prix_estime,depart_lat,depart_lng,arrivee_lat,arrivee_lng,rayon_recherche_km,type_vehicule,type_course')
+      .select('id,statut,adresse_depart,adresse_arrivee,prix_estime,currency,depart_lat,depart_lng,arrivee_lat,arrivee_lng,rayon_recherche_km,type_vehicule,type_course')
       .eq('operateur_id', OPERATEUR_ID)
       .eq('statut', 'en_recherche')
       .then(({ data }) => { (data || []).forEach(evaluerCandidateCourse) })
@@ -319,7 +323,7 @@ export default function ChauffeurPage() {
   function verifierCourseActive() {
     const active = courseActiveRef.current
     if (!active || !['navigation', 'encours', 'messages'].includes(ecranRef.current)) return
-    supabase.from('courses').select('id,statut,prix_estime,prix_final').eq('id', active.id).maybeSingle()
+    supabase.from('courses').select('id,statut,prix_estime,prix_final,currency').eq('id', active.id).maybeSingle()
       .then(({ data }) => { if (data) evaluerClotureCourseActive(data) })
   }
 
@@ -568,6 +572,7 @@ export default function ChauffeurPage() {
     await supabase.rpc('avancer_course', { p_course_id: courseActive.id, p_nouveau_statut: 'terminee', p_telephone: chauffeur.telephone })
     setFinRaison('chauffeur')
     setPrixTermine(courseActive.prix_estime)
+    setDeviseTermine(courseActive.currency ?? 'MAD')
     setChauffeur({ ...chauffeur, statut: 'disponible' })
     setContactPassager(null)
     setMessages([])
@@ -601,6 +606,11 @@ export default function ChauffeurPage() {
   const gainsJour = historique
     .filter((c) => new Date(c.created_at).toDateString() === new Date().toDateString())
     .reduce((acc, c) => acc + Number(c.prix_final || 0), 0)
+  // Simplification assumee : toutes les courses d'un meme chauffeur partagent
+  // la meme devise aujourd'hui (un seul pays actif) -- agreger des montants
+  // de devises differentes redeviendra une vraie question le jour ou un
+  // chauffeur aura reellement des courses en plusieurs devises.
+  const deviseGains = historique[0]?.currency ?? 'MAD'
 
   const primary = operateur?.couleur_primaire || '#7A3B1E'
   const accent = operateur?.couleur_secondaire || '#E0A526'
@@ -680,7 +690,7 @@ export default function ChauffeurPage() {
             </div>
             <div className="map-sheet">
               <div className="kpi-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <div className="card"><div className="muted">Gains aujourd&apos;hui</div><div className="price" style={{ fontSize: 20 }}>{gainsJour} DH</div></div>
+                <div className="card"><div className="muted">Gains aujourd&apos;hui</div><div className="price" style={{ fontSize: 20 }}>{gainsJour} {deviseGains}</div></div>
                 <div className="card"><div className="muted">Courses</div><div className="price" style={{ fontSize: 20 }}>{historique.length}</div></div>
               </div>
               {message && <p className="muted">{message}</p>}
@@ -714,7 +724,7 @@ export default function ChauffeurPage() {
                 <div className="card-row"><span className="muted">Départ</span><span>{demande.adresse_depart}</span></div>
                 <div className="card-row"><span className="muted">Arrivée</span><span>{demande.adresse_arrivee}</span></div>
               </div>
-              <div className="card card-row"><span>Vous gagnez</span><span className="price">{demande.prix_estime} DH</span></div>
+              <div className="card card-row"><span>Vous gagnez</span><span className="price">{demande.prix_estime} {demande.currency ?? 'MAD'}</span></div>
               {demande.distance_km != null && <p className="muted">Départ à {demande.distance_km.toFixed(1)} km de vous</p>}
             </div>
             <div className="screen-footer">
@@ -817,7 +827,7 @@ export default function ChauffeurPage() {
             <div className="screen-header"><strong>Course terminée</strong></div>
             <div className="screen-body center">
               <p className="muted" style={{ marginTop: 16 }}>Montant encaissé (espèces)</p>
-              <div className="price">{prixTermine} DH</div>
+              <div className="price">{prixTermine} {deviseTermine}</div>
               <p className="muted" style={{ marginTop: 16 }}>Ajouté à vos gains du jour</p>
             </div>
             <div className="screen-footer"><button className="btn" onClick={() => { setCourseActive(null); chauffeur && chargerHistorique(chauffeur.id, chauffeur.telephone); setEcran('accueil') }}>Retour à l&apos;accueil</button></div>
@@ -833,7 +843,7 @@ export default function ChauffeurPage() {
                   ? 'Le passager a mis fin à la course.'
                   : 'Le passager a annulé la course.'}
               </p>
-              {finRaison === 'passager_terminee' && prixTermine ? <div className="price">{prixTermine} DH</div> : null}
+              {finRaison === 'passager_terminee' && prixTermine ? <div className="price">{prixTermine} {deviseTermine}</div> : null}
               <p className="muted" style={{ marginTop: 16 }}>Vous êtes de nouveau disponible pour une nouvelle course.</p>
             </div>
             <div className="screen-footer"><button className="btn" onClick={() => { setCourseActive(null); chauffeur && chargerHistorique(chauffeur.id, chauffeur.telephone); setEcran('accueil') }}>Retour à l&apos;accueil</button></div>
@@ -898,9 +908,9 @@ export default function ChauffeurPage() {
             <div className="screen-body">
               {historique.length === 0 && <p className="muted">Aucune course terminée pour l&apos;instant.</p>}
               {historique.map((c) => (
-                <div key={c.id} className="card card-row"><span>{c.adresse_depart} → {c.adresse_arrivee}</span><span>{c.prix_final} DH</span></div>
+                <div key={c.id} className="card card-row"><span>{c.adresse_depart} → {c.adresse_arrivee}</span><span>{c.prix_final} {c.currency}</span></div>
               ))}
-              <div className="card card-row"><span className="muted">Total du jour</span><strong>{gainsJour} DH</strong></div>
+              <div className="card card-row"><span className="muted">Total du jour</span><strong>{gainsJour} {deviseGains}</strong></div>
             </div>
           </>
         )}

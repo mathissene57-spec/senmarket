@@ -8,12 +8,12 @@ import { useOperateurId } from '@/lib/useOperateurId'
 
 const Carte = dynamic(() => import('@/components/Carte'), { ssr: false })
 
-type Operateur = { id: string; nom: string; couleur_primaire: string; couleur_secondaire: string; ville: string | null; owner_user_id: string | null; logo_url: string | null }
+type Operateur = { id: string; nom: string; couleur_primaire: string; couleur_secondaire: string; ville: string | null; owner_user_id: string | null; logo_url: string | null; countries: { currency: string } | null }
 type ChauffeurRow = { id: string; nom: string; telephone: string; vehicule: string | null; plaque: string | null; note_moyenne: number; statut: string; position_lat: number | null; position_lng: number | null; position_recente: boolean; type_vehicule: string }
-type TrajetInterville = { id: string; ville_depart: string; ville_arrivee: string; prix: number; actif: boolean }
-type CourseRow = { id: string; statut: string; adresse_depart: string; adresse_arrivee: string; prix_estime: number; prix_final: number | null; created_at: string; chauffeur_id: string | null; depart_lat: number | null; depart_lng: number | null; bloquee: boolean }
+type TrajetInterville = { id: string; ville_depart: string; ville_arrivee: string; prix: number; currency: string; actif: boolean }
+type CourseRow = { id: string; statut: string; adresse_depart: string; adresse_arrivee: string; prix_estime: number; prix_final: number | null; currency: string; created_at: string; chauffeur_id: string | null; depart_lat: number | null; depart_lng: number | null; bloquee: boolean }
 type CourseEvent = { id: string; type: string; chauffeur_id: string | null; acteur: string | null; details: Record<string, any> | null; created_at: string }
-type Zone = { id: string; nom: string; tarif_base: number; tarif_km: number }
+type Zone = { id: string; nom: string; tarif_base: number; tarif_km: number; currency: string }
 
 const LIBELLES_EVENEMENT: Record<string, string> = {
   creee: 'Course créée',
@@ -30,7 +30,7 @@ const LIBELLES_EVENEMENT: Record<string, string> = {
 function libelleEvenement(ev: CourseEvent): string {
   const base = LIBELLES_EVENEMENT[ev.type] || ev.type
   if (ev.type === 'notee' && ev.details?.note != null) return `${base} (${ev.details.note}★)`
-  if (ev.type === 'creee' && ev.details?.prix_estime != null) return `${base} (estimé ${ev.details.prix_estime} DH)`
+  if (ev.type === 'creee' && ev.details?.prix_estime != null) return `${base} (estimé ${ev.details.prix_estime} ${ev.details.currency ?? 'MAD'})`
   return base
 }
 
@@ -153,14 +153,14 @@ export default function DashboardPage() {
   }, [operateur?.id])
 
   async function resoudreOperateur() {
-    const { data } = await supabase.from('operateurs').select('id,nom,couleur_primaire,couleur_secondaire,ville,owner_user_id,logo_url').eq('id', OPERATEUR_ID).single()
+    const { data } = await supabase.from('operateurs').select('id,nom,couleur_primaire,couleur_secondaire,ville,owner_user_id,logo_url,countries(currency)').eq('id', OPERATEUR_ID).single()
     if (!data) return
-    if (data.owner_user_id === session.user.id) { setOperateur(data); return }
+    if (data.owner_user_id === session.user.id) { setOperateur(data as unknown as Operateur); return }
     if (data.owner_user_id === null) {
       const { data: ok } = await supabase.rpc('reclamer_operateur', { p_operateur_id: OPERATEUR_ID })
       if (ok) {
-        const { data: refetched } = await supabase.from('operateurs').select('id,nom,couleur_primaire,couleur_secondaire,ville,owner_user_id,logo_url').eq('id', OPERATEUR_ID).single()
-        setOperateur(refetched)
+        const { data: refetched } = await supabase.from('operateurs').select('id,nom,couleur_primaire,couleur_secondaire,ville,owner_user_id,logo_url,countries(currency)').eq('id', OPERATEUR_ID).single()
+        setOperateur(refetched as unknown as Operateur)
         return
       }
     }
@@ -173,10 +173,10 @@ export default function DashboardPage() {
     setChauffeurs(ch || [])
     const { data: co } = await supabase.rpc('courses_operateur', { p_operateur_id: operateur.id })
     setCourses(co || [])
-    const { data: zo } = await supabase.from('zones_operateur').select('id,nom,tarif_base,tarif_km').eq('operateur_id', operateur.id).order('nom')
+    const { data: zo } = await supabase.from('zones_operateur').select('id,nom,tarif_base,tarif_km,currency').eq('operateur_id', operateur.id).order('nom')
     setZones(zo || [])
     setZonesEdit(Object.fromEntries((zo || []).map((z) => [z.id, { tarif_base: String(z.tarif_base), tarif_km: String(z.tarif_km) }])))
-    const { data: ti } = await supabase.from('trajets_intervilles').select('id,ville_depart,ville_arrivee,prix,actif').eq('operateur_id', operateur.id).order('created_at')
+    const { data: ti } = await supabase.from('trajets_intervilles').select('id,ville_depart,ville_arrivee,prix,currency,actif').eq('operateur_id', operateur.id).order('created_at')
     setTrajetsIntervilles(ti || [])
   }
 
@@ -480,6 +480,7 @@ export default function DashboardPage() {
   const aujourdHui = new Date().toDateString()
   const coursesAujourdhui = courses.filter((c) => new Date(c.created_at).toDateString() === aujourdHui)
   const caJour = coursesAujourdhui.filter((c) => c.statut === 'terminee').reduce((acc, c) => acc + Number(c.prix_final || 0), 0)
+  const deviseOperateur = operateur.countries?.currency ?? 'MAD'
   const chauffeursActifs = chauffeurs.filter((c) => c.statut !== 'indisponible').length
   const coursesEnCours = courses.filter((c) => ['en_recherche', 'assignee', 'en_cours'].includes(c.statut))
 
@@ -542,7 +543,7 @@ export default function DashboardPage() {
             <h1>Vue d&apos;ensemble</h1>
             <div className="kpi-grid">
               <div className="kpi-card"><div className="muted">Courses aujourd&apos;hui</div><div className="value">{coursesAujourdhui.length}</div></div>
-              <div className="kpi-card"><div className="muted">Chiffre d&apos;affaires (jour)</div><div className="value">{caJour} DH</div></div>
+              <div className="kpi-card"><div className="muted">Chiffre d&apos;affaires (jour)</div><div className="value">{caJour} {deviseOperateur}</div></div>
               <div className="kpi-card"><div className="muted">Chauffeurs actifs</div><div className="value">{chauffeursActifs} / {chauffeurs.length}</div></div>
             </div>
 
@@ -576,7 +577,7 @@ export default function DashboardPage() {
                     <td>{c.adresse_depart} → {c.adresse_arrivee} {c.bloquee && <span className="badge danger" title="Assignée depuis plus de 20 min sans progression">⚠️ bloquée</span>}</td>
                     <td>{nomChauffeur(c.chauffeur_id)}</td>
                     <td><span className={`badge ${c.statut === 'en_recherche' ? 'off' : 'warn'}`}>{c.statut}</span></td>
-                    <td>{c.prix_estime} DH</td>
+                    <td>{c.prix_estime} {c.currency}</td>
                     <td>
                       <button className="btn outline" style={{ width: 'auto', padding: '6px 12px', fontSize: 13 }} disabled={clotureEnCoursId === c.id} onClick={() => cloturerCourse(c.id, 'terminee')}>
                         {clotureEnCoursId === c.id ? '…' : 'Clôturer'}
@@ -704,7 +705,7 @@ export default function DashboardPage() {
                     <td>{c.adresse_depart} → {c.adresse_arrivee} {c.bloquee && <span className="badge danger" title="Assignée depuis plus de 20 min sans progression">⚠️ bloquée</span>}</td>
                     <td>{nomChauffeur(c.chauffeur_id)}</td>
                     <td><span className={`badge ${c.statut === 'terminee' ? 'ok' : c.statut === 'annulee' || c.statut === 'sans_chauffeur' ? 'danger' : 'warn'}`}>{c.statut}</span></td>
-                    <td>{c.prix_final ?? c.prix_estime} DH</td>
+                    <td>{c.prix_final ?? c.prix_estime} {c.currency}</td>
                     <td>
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button className="btn outline" style={{ width: 'auto', padding: '6px 10px', fontSize: 13 }} onClick={() => ouvrirTimeline(c)}>
@@ -735,7 +736,7 @@ export default function DashboardPage() {
             {zoneErreur && <p className="error-text">{zoneErreur}</p>}
             <table>
               <tbody>
-                <tr><th>Zone</th><th>Prix de base (DH)</th><th>Prix / km (DH)</th><th></th></tr>
+                <tr><th>Zone</th><th>Prix de base ({deviseOperateur})</th><th>Prix / km ({deviseOperateur})</th><th></th></tr>
                 {zones.map((z) => (
                   <tr key={z.id}>
                     <td>{z.nom}</td>
@@ -779,11 +780,11 @@ export default function DashboardPage() {
               <input type="text" value={nouvelleZoneNom} onChange={(e) => setNouvelleZoneNom(e.target.value)} placeholder="Ex : Aéroport" />
               <div style={{ display: 'flex', gap: 12 }}>
                 <div style={{ flex: 1 }}>
-                  <label className="field-label">Prix de base (DH)</label>
+                  <label className="field-label">Prix de base ({deviseOperateur})</label>
                   <input type="number" min="0" step="0.5" value={nouvelleZoneTarifBase} onChange={(e) => setNouvelleZoneTarifBase(parseFloat(e.target.value) || 0)} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label className="field-label">Prix / km (DH)</label>
+                  <label className="field-label">Prix / km ({deviseOperateur})</label>
                   <input type="number" min="0" step="0.1" value={nouvelleZoneTarifKm} onChange={(e) => setNouvelleZoneTarifKm(parseFloat(e.target.value) || 0)} />
                 </div>
               </div>
@@ -797,13 +798,13 @@ export default function DashboardPage() {
             {trajetErreur && <p className="error-text">{trajetErreur}</p>}
             <table>
               <tbody>
-                <tr><th>Départ</th><th>Arrivée</th><th>Prix (DH)</th><th>Statut</th><th></th></tr>
+                <tr><th>Départ</th><th>Arrivée</th><th>Prix ({deviseOperateur})</th><th>Statut</th><th></th></tr>
                 {trajetsIntervilles.length === 0 && <tr><td colSpan={5} className="muted">Aucun trajet intervilles.</td></tr>}
                 {trajetsIntervilles.map((t) => (
                   <tr key={t.id}>
                     <td>{t.ville_depart}</td>
                     <td>{t.ville_arrivee}</td>
-                    <td>{t.prix} DH</td>
+                    <td>{t.prix} {t.currency}</td>
                     <td><span className={`badge ${t.actif ? 'ok' : 'off'}`}>{t.actif ? 'actif' : 'suspendu'}</span></td>
                     <td>
                       <div style={{ display: 'flex', gap: 6 }}>
@@ -826,7 +827,7 @@ export default function DashboardPage() {
               <input type="text" value={nouvelleVilleDepart} onChange={(e) => setNouvelleVilleDepart(e.target.value)} placeholder="Ex : Casablanca" />
               <label className="field-label">Ville d’arrivée</label>
               <input type="text" value={nouvelleVilleArrivee} onChange={(e) => setNouvelleVilleArrivee(e.target.value)} placeholder="Ex : Marrakech" />
-              <label className="field-label">Prix fixe (DH)</label>
+              <label className="field-label">Prix fixe ({deviseOperateur})</label>
               <input type="number" min="0" step="10" value={nouveauPrixTrajet} onChange={(e) => setNouveauPrixTrajet(parseFloat(e.target.value) || 0)} />
               <button className="btn accent" onClick={ajouterTrajetInterville} disabled={ajoutTrajetEnCours} style={{ marginTop: 12 }}>
                 {ajoutTrajetEnCours ? 'Ajout…' : 'Ajouter le trajet'}

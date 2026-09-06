@@ -442,7 +442,13 @@ export default function ChauffeurPage() {
         envoyerMedia(new File([blob], `note-vocale.${extension}`, { type: typeBlob }), 'audio')
       }
       enregistreurVocalRef.current = enregistreur
-      enregistreur.start()
+      // Safari/iOS declenche parfois onstop avant que le dernier
+      // ondataavailable n'ait livre les donnees quand start() n'a pas de
+      // timeslice -- resultat observe en test reel : des notes vocales
+      // enregistrees en 0 octet malgre un message cree normalement. Un
+      // timeslice force des flux intermediaires reguliers pendant
+      // l'enregistrement, qui ne dependent plus uniquement du flush final.
+      enregistreur.start(1000)
       setEnregistrementVocal(true)
       setDureeEnregistrement(0)
       minuteurVocalRef.current = setInterval(() => setDureeEnregistrement((d) => d + 1), 1000)

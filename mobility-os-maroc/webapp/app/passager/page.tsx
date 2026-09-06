@@ -431,7 +431,9 @@ export default function PassagerPage() {
         envoyerMedia(new File([blob], `note-vocale.${extension}`, { type: typeBlob }), 'audio')
       }
       enregistreurVocalRef.current = enregistreur
-      enregistreur.start()
+      // Voir app/chauffeur/page.tsx pour l'explication (timeslice requis
+      // contre le risque de note vocale enregistree en 0 octet sur Safari/iOS).
+      enregistreur.start(1000)
       setEnregistrementVocal(true)
       setDureeEnregistrement(0)
       minuteurVocalRef.current = setInterval(() => setDureeEnregistrement((d) => d + 1), 1000)

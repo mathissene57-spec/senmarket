@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -49,7 +49,11 @@ type Chauffeur = { id: string; nom: string; vehicule: string | null; plaque: str
 type Contact = { nom: string; telephone: string }
 type Avis = { note: number; commentaire: string | null; created_at: string }
 type TrajetInterville = { id: string; ville_depart: string; ville_arrivee: string; prix: number }
-type Message = { id: string; expediteur: 'passager' | 'chauffeur'; contenu: string; created_at: string }
+type Message = { id: string; expediteur: 'passager' | 'chauffeur'; contenu: string | null; type: 'texte' | 'image' | 'audio'; media_path: string | null; created_at: string }
+
+// Voir app/chauffeur/page.tsx pour l'explication (bucket public, pas de
+// signature d'URL necessaire).
+const URL_BASE_MEDIA = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/messages-media`
 
 // Confiance passager (demande produit) : au-dela de la simple moyenne, un
 // badge textuel resume d'un coup d'oeil le niveau de confiance -- absent
@@ -125,6 +129,10 @@ export default function PassagerPage() {
   const [messagesVues, setMessagesVues] = useState(0)
   const [messageTexte, setMessageTexte] = useState('')
   const [envoiMessageEnCours, setEnvoiMessageEnCours] = useState(false)
+  const [envoiMediaEnCours, setEnvoiMediaEnCours] = useState(false)
+  const [enregistrementVocal, setEnregistrementVocal] = useState(false)
+  const [dureeEnregistrement, setDureeEnregistrement] = useState(0)
+  const [erreurMedia, setErreurMedia] = useState<string | null>(null)
   const [historique, setHistorique] = useState<Course[]>([])
   const [erreur, setErreur] = useState<string | null>(null)
   const [chargement, setChargement] = useState(false)
@@ -154,6 +162,10 @@ export default function PassagerPage() {
   const courseRef = useRef<Course | null>(null)
   const ecranRef = useRef(ecran)
   const messagesRef = useRef<Message[]>([])
+  const fichierPhotoRef = useRef<HTMLInputElement>(null)
+  const enregistreurVocalRef = useRef<MediaRecorder | null>(null)
+  const morceauxVocalRef = useRef<BlobPart[]>([])
+  const minuteurVocalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     registerServiceWorker()
@@ -328,7 +340,8 @@ export default function PassagerPage() {
           // (onglet au premier plan) -- seulement en arriere-plan ou ailleurs
           // dans l'appli, comme une vraie messagerie.
           if (dernierMessage.expediteur === 'chauffeur' && (ecranRef.current !== 'messages' || document.hidden)) {
-            notifier(chauffeur?.nom ? `Message de ${chauffeur.nom}` : 'Nouveau message', dernierMessage.contenu)
+            const apercu = dernierMessage.type === 'image' ? '📷 Photo' : dernierMessage.type === 'audio' ? '🎤 Note vocale' : dernierMessage.contenu || ''
+            notifier(chauffeur?.nom ? `Message de ${chauffeur.nom}` : 'Nouveau message', apercu)
           }
         }
         setMessages(data)
@@ -359,6 +372,67 @@ export default function PassagerPage() {
     await supabase.rpc('envoyer_message_course', { p_course_id: course.id, p_telephone: telephone, p_contenu: texte })
     chargerMessages(course.id)
     setEnvoiMessageEnCours(false)
+  }
+
+  // Voir app/chauffeur/page.tsx pour l'explication (photo + note vocale,
+  // meme mecanisme d'upload + RPC).
+  async function envoyerMedia(fichier: File, type: 'image' | 'audio') {
+    if (!course || envoiMediaEnCours) return
+    setErreurMedia(null)
+    setEnvoiMediaEnCours(true)
+    const extension = fichier.name.split('.').pop() || (type === 'image' ? 'jpg' : 'webm')
+    const chemin = `${course.id}/${crypto.randomUUID()}.${extension}`
+    const { error: erreurUpload } = await supabase.storage.from('messages-media').upload(chemin, fichier, {
+      contentType: fichier.type || undefined,
+    })
+    if (erreurUpload) {
+      setErreurMedia("Envoi du fichier impossible. Reessayez.")
+      setEnvoiMediaEnCours(false)
+      return
+    }
+    await supabase.rpc('envoyer_message_course', {
+      p_course_id: course.id, p_telephone: telephone, p_contenu: null, p_type: type, p_media_path: chemin,
+    })
+    chargerMessages(course.id)
+    setEnvoiMediaEnCours(false)
+  }
+
+  function choisirPhoto(e: ChangeEvent<HTMLInputElement>) {
+    const fichier = e.target.files?.[0]
+    e.target.value = ''
+    if (fichier) envoyerMedia(fichier, 'image')
+  }
+
+  async function toggleEnregistrementVocal() {
+    if (enregistrementVocal) {
+      enregistreurVocalRef.current?.stop()
+      return
+    }
+    setErreurMedia(null)
+    try {
+      const flux = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mimeType = typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : undefined
+      const enregistreur = new MediaRecorder(flux, mimeType ? { mimeType } : undefined)
+      morceauxVocalRef.current = []
+      enregistreur.ondataavailable = (e) => { if (e.data.size > 0) morceauxVocalRef.current.push(e.data) }
+      enregistreur.onstop = () => {
+        flux.getTracks().forEach((t) => t.stop())
+        if (minuteurVocalRef.current) { clearInterval(minuteurVocalRef.current); minuteurVocalRef.current = null }
+        setEnregistrementVocal(false)
+        setDureeEnregistrement(0)
+        const typeBlob = enregistreur.mimeType || 'audio/webm'
+        const blob = new Blob(morceauxVocalRef.current, { type: typeBlob })
+        const extension = typeBlob.includes('mp4') ? 'm4a' : 'webm'
+        envoyerMedia(new File([blob], `note-vocale.${extension}`, { type: typeBlob }), 'audio')
+      }
+      enregistreurVocalRef.current = enregistreur
+      enregistreur.start()
+      setEnregistrementVocal(true)
+      setDureeEnregistrement(0)
+      minuteurVocalRef.current = setInterval(() => setDureeEnregistrement((d) => d + 1), 1000)
+    } catch {
+      setErreurMedia("Micro indisponible ou acces refuse.")
+    }
   }
 
   const zone = zones.find((z) => z.id === zoneId) || null
@@ -787,7 +861,13 @@ export default function PassagerPage() {
                     padding: '8px 12px',
                   }}
                 >
-                  <div style={{ fontSize: 14 }}>{m.contenu}</div>
+                  {m.type === 'image' && m.media_path && (
+                    <img src={`${URL_BASE_MEDIA}/${m.media_path}`} alt="Photo" style={{ maxWidth: 200, borderRadius: 10, display: 'block' }} />
+                  )}
+                  {m.type === 'audio' && m.media_path && (
+                    <audio controls src={`${URL_BASE_MEDIA}/${m.media_path}`} style={{ maxWidth: 220, display: 'block' }} />
+                  )}
+                  {m.type === 'texte' && <div style={{ fontSize: 14 }}>{m.contenu}</div>}
                   <div style={{ fontSize: 10, opacity: 0.7, marginTop: 2 }}>
                     {new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                   </div>
@@ -795,6 +875,16 @@ export default function PassagerPage() {
               ))}
             </div>
             <div className="screen-footer">
+              {erreurMedia && <p className="error-text" style={{ marginTop: 0 }}>{erreurMedia}</p>}
+              <div className="btn-row" style={{ marginBottom: 8 }}>
+                <button className="btn outline" style={{ width: 'auto', padding: '8px 14px' }} onClick={() => fichierPhotoRef.current?.click()} disabled={envoiMediaEnCours || enregistrementVocal}>
+                  📷 Photo
+                </button>
+                <button className={`btn ${enregistrementVocal ? 'danger' : 'outline'}`} style={{ width: 'auto', padding: '8px 14px' }} onClick={toggleEnregistrementVocal} disabled={envoiMediaEnCours}>
+                  {enregistrementVocal ? `⏹ ${dureeEnregistrement}s` : '🎤 Vocal'}
+                </button>
+                <input ref={fichierPhotoRef} type="file" accept="image/*" capture="environment" hidden onChange={choisirPhoto} />
+              </div>
               <div className="btn-row">
                 <input
                   type="text"

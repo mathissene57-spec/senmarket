@@ -258,6 +258,7 @@ export default function ChauffeurPage() {
 
   useEffect(() => {
     if (!chauffeur || chauffeur.statut !== 'disponible') return
+    rechercherCoursesEnAttente()
     const intervalle = setInterval(rechercherCoursesEnAttente, 4000)
     return () => clearInterval(intervalle)
   }, [chauffeur?.id, chauffeur?.statut])

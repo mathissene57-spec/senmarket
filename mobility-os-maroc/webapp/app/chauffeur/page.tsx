@@ -75,6 +75,11 @@ export default function ChauffeurPage() {
   const [courseActive, setCourseActive] = useState<CourseNotif | null>(null)
   const [contactPassager, setContactPassager] = useState<Contact | null>(null)
   const [prixTermine, setPrixTermine] = useState<number | null>(null)
+  // Qui a cloture la course active : distingue l'ecran "fin" normal (le
+  // chauffeur a lui-meme termine) du cas ou le passager a mis fin a la
+  // course a distance, a n'importe quelle etape -- l'affichage et le
+  // message different, meme si le retour a l'accueil est identique.
+  const [finRaison, setFinRaison] = useState<'chauffeur' | 'passager_terminee' | 'passager_annulee'>('chauffeur')
   const [historique, setHistorique] = useState<CourseTerminee[]>([])
   const [message, setMessage] = useState<string | null>(null)
   // Position reelle du chauffeur (pas seulement un booleen "connue") --
@@ -113,6 +118,7 @@ export default function ChauffeurPage() {
   const appel = useAppelInterne(supabase, courseActive?.id, chauffeur?.nom || 'Chauffeur')
   const positionRef = useRef<{ lat: number; lng: number } | null>(null)
   const ecranRef = useRef(ecran)
+  const courseActiveRef = useRef(courseActive)
   const messagesRef = useRef<Message[]>([])
   // P1.6 : courses deja refusees ou en cours d'evaluation par CE chauffeur —
   // ne doivent jamais reapparaitre, meme quand le rayon de recherche
@@ -124,6 +130,7 @@ export default function ChauffeurPage() {
   const minuteurVocalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => { ecranRef.current = ecran }, [ecran])
+  useEffect(() => { courseActiveRef.current = courseActive }, [courseActive])
   useEffect(() => { messagesRef.current = messages }, [messages])
 
   useEffect(() => {
@@ -239,6 +246,32 @@ export default function ChauffeurPage() {
     })
   }
 
+  // Detecte la cloture a distance de la course active du chauffeur : le
+  // passager peut mettre fin a la course a n'importe quelle etape
+  // (en_recherche/assignee/en_cours -> annulee, ou en_cours -> terminee via
+  // passager_terminer_course/annuler_course cote serveur). Le serveur libere
+  // deja chauffeurs.statut a ce moment-la, mais sans ceci l'ecran du
+  // chauffeur restait bloque indefiniment sur navigation/encours, sans le
+  // moindre signal, et sans jamais redevenir disponible pour une nouvelle
+  // course cote UI.
+  function evaluerClotureCourseActive(c: any) {
+    const active = courseActiveRef.current
+    if (!active || c.id !== active.id) return
+    if (c.statut !== 'terminee' && c.statut !== 'annulee') return
+    if (!['navigation', 'encours', 'messages'].includes(ecranRef.current)) return
+    setFinRaison(c.statut === 'terminee' ? 'passager_terminee' : 'passager_annulee')
+    setPrixTermine(c.statut === 'terminee' ? (c.prix_final ?? c.prix_estime ?? active.prix_estime) : 0)
+    setChauffeur((prev) => (prev ? { ...prev, statut: 'disponible' } : prev))
+    setContactPassager(null)
+    setMessages([])
+    setMessagesVues(0)
+    setEcran('fin')
+    notifier(
+      c.statut === 'terminee' ? 'Course terminée' : 'Course annulée',
+      'Le passager a mis fin à la course. Vous êtes de nouveau disponible.'
+    )
+  }
+
   // P1.6 : ecoute aussi bien la creation que les mises a jour d'une course —
   // le rayon de recherche s'elargit avec le temps (voir expirer_courses_en_
   // recherche cote serveur), donc une demande d'abord hors de portee peut
@@ -249,6 +282,7 @@ export default function ChauffeurPage() {
       .channel('chauffeur-' + chauffeur.id)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'courses', filter: `operateur_id=eq.${OPERATEUR_ID}` }, (payload) => {
         evaluerCandidateCourse(payload.new as any)
+        evaluerClotureCourseActive(payload.new as any)
       })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
@@ -277,10 +311,29 @@ export default function ChauffeurPage() {
     return () => clearInterval(intervalle)
   }, [chauffeur?.id, chauffeur?.statut])
 
+  // Meme filet de securite que rechercherCoursesEnAttente ci-dessus, mais
+  // pour la course active elle-meme : si le passager la cloture pendant
+  // que l'onglet est en arriere-plan (websocket Realtime suspendu par le
+  // navigateur mobile), le seul canal Realtime ne suffit pas -- un sondage
+  // direct comble le meme trou que pour la reception des nouvelles courses.
+  function verifierCourseActive() {
+    const active = courseActiveRef.current
+    if (!active || !['navigation', 'encours', 'messages'].includes(ecranRef.current)) return
+    supabase.from('courses').select('id,statut,prix_estime,prix_final').eq('id', active.id).maybeSingle()
+      .then(({ data }) => { if (data) evaluerClotureCourseActive(data) })
+  }
+
+  useEffect(() => {
+    if (!courseActive) return
+    verifierCourseActive()
+    const intervalle = setInterval(verifierCourseActive, 4000)
+    return () => clearInterval(intervalle)
+  }, [courseActive?.id])
+
   useEffect(() => {
     if (!chauffeur) return
     function surRetourAuPremierPlan() {
-      if (document.visibilityState === 'visible') rechercherCoursesEnAttente()
+      if (document.visibilityState === 'visible') { rechercherCoursesEnAttente(); verifierCourseActive() }
     }
     document.addEventListener('visibilitychange', surRetourAuPremierPlan)
     window.addEventListener('focus', surRetourAuPremierPlan)
@@ -502,6 +555,7 @@ export default function ChauffeurPage() {
   async function terminerCourse() {
     if (!courseActive || !chauffeur) return
     await supabase.rpc('avancer_course', { p_course_id: courseActive.id, p_nouveau_statut: 'terminee', p_telephone: chauffeur.telephone })
+    setFinRaison('chauffeur')
     setPrixTermine(courseActive.prix_estime)
     setChauffeur({ ...chauffeur, statut: 'disponible' })
     setContactPassager(null)
@@ -735,13 +789,29 @@ export default function ChauffeurPage() {
           </>
         )}
 
-        {ecran === 'fin' && (
+        {ecran === 'fin' && finRaison === 'chauffeur' && (
           <>
             <div className="screen-header"><strong>Course terminée</strong></div>
             <div className="screen-body center">
               <p className="muted" style={{ marginTop: 16 }}>Montant encaissé (espèces)</p>
               <div className="price">{prixTermine} DH</div>
               <p className="muted" style={{ marginTop: 16 }}>Ajouté à vos gains du jour</p>
+            </div>
+            <div className="screen-footer"><button className="btn" onClick={() => { setCourseActive(null); chauffeur && chargerHistorique(chauffeur.id, chauffeur.telephone); setEcran('accueil') }}>Retour à l&apos;accueil</button></div>
+          </>
+        )}
+
+        {ecran === 'fin' && finRaison !== 'chauffeur' && (
+          <>
+            <div className="screen-header"><strong>{finRaison === 'passager_terminee' ? 'Course terminée' : 'Course annulée'}</strong></div>
+            <div className="screen-body center">
+              <p className="muted" style={{ marginTop: 16 }}>
+                {finRaison === 'passager_terminee'
+                  ? 'Le passager a mis fin à la course.'
+                  : 'Le passager a annulé la course.'}
+              </p>
+              {finRaison === 'passager_terminee' && prixTermine ? <div className="price">{prixTermine} DH</div> : null}
+              <p className="muted" style={{ marginTop: 16 }}>Vous êtes de nouveau disponible pour une nouvelle course.</p>
             </div>
             <div className="screen-footer"><button className="btn" onClick={() => { setCourseActive(null); chauffeur && chargerHistorique(chauffeur.id, chauffeur.telephone); setEcran('accueil') }}>Retour à l&apos;accueil</button></div>
           </>

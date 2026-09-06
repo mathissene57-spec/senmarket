@@ -723,12 +723,18 @@ export default function PassagerPage() {
         )}
 
         {ecran === 'course' && course && (
-          <>
-            <div className="screen-header"><strong>{course.statut === 'assignee' ? 'Le chauffeur arrive' : 'Course en cours'}</strong></div>
-            <div className="screen-body">
-              <div className="map-placeholder">
-                <Carte points={[{ ...pointDepart, couleur: primary }, { ...pointArrivee, couleur: accent }]} zoom={13} />
-              </div>
+          // Meme motif carte plein ecran que l'accueil (map-fullscreen) :
+          // le titre d'ecran passe en overlay flottant en haut et "Terminer
+          // la course" rejoint la feuille flottante -- plus de screen-footer
+          // distinct sur cet ecran.
+          <div className="map-fullscreen">
+            <div className="map-layer">
+              <Carte points={[{ ...pointDepart, couleur: primary }, { ...pointArrivee, couleur: accent }]} zoom={13} />
+            </div>
+            <div className="map-overlay-top">
+              <strong>{course.statut === 'assignee' ? 'Le chauffeur arrive' : 'Course en cours'}</strong>
+            </div>
+            <div className="map-sheet">
               {chauffeur && (
                 <div className="card">
                   <div className="card-row">
@@ -764,13 +770,11 @@ export default function PassagerPage() {
                 )}
               </div>
               <div className="card"><div className="muted">Trajet</div><strong>{course.adresse_depart} → {course.adresse_arrivee}</strong></div>
-            </div>
-            <div className="screen-footer">
-              <button className="btn ghost" disabled={finEnCours} onClick={terminerMaCourseMaintenant}>
+              <button className="btn ghost" style={{ marginTop: 12 }} disabled={finEnCours} onClick={terminerMaCourseMaintenant}>
                 {finEnCours ? '…' : 'Terminer la course'}
               </button>
             </div>
-          </>
+          </div>
         )}
 
         {ecran === 'fin' && course && (

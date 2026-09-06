@@ -148,6 +148,19 @@ export default function PassagerPage() {
   const [pointDepart, setPointDepart] = useState(POINT_DEPART_DEFAUT)
   const [pointArrivee, setPointArrivee] = useState(POINT_ARRIVEE_DEFAUT)
   const [repereEnCours, setRepereEnCours] = useState(false)
+  // Foundation V1 (modele d'adresse) : le systeme accepte deja une adresse
+  // imprecise (quartier, ville) grace au geocodage existant -- mais avant ce
+  // correctif, un echec de geocodage (repere trop vague pour Nominatim,
+  // "en face de la pharmacie") laissait silencieusement pointDepart/Arrivee
+  // sur leur derniere valeur connue (potentiellement le point de repli par
+  // defaut, sans rapport avec le texte tape) : la course pouvait partir avec
+  // un point faux, sans que le passager ni le systeme de dispatch ne le
+  // sachent. Ces deux drapeaux tracent si le texte affiche correspond
+  // reellement a un point resolu -- "Commander" se bloque sinon, avec un
+  // message clair invitant a preciser l'adresse ou choisir sur la carte
+  // (qui, elle, ne depend jamais du geocodage pour fixer le point).
+  const [departLocalise, setDepartLocalise] = useState(true)
+  const [arriveeLocalise, setArriveeLocalise] = useState(true)
   // Picker "choisir sur la carte" : le passager glisse la carte (repere
   // fixe au centre) au lieu de taper une adresse -- plus precis pour un
   // point de depart/arrivee sans adresse formelle (portail, coin de rue...).
@@ -241,18 +254,24 @@ export default function PassagerPage() {
 
   useEffect(() => {
     if (departDepuisPickerRef.current) { departDepuisPickerRef.current = false; return }
+    setDepartLocalise(false)
     setRepereEnCours(true)
     const delai = setTimeout(() => {
-      geocoder(depart, operateur?.ville, operateur?.countries?.name).then((point) => { if (point) setPointDepart(point) }).finally(() => setRepereEnCours(false))
+      geocoder(depart, operateur?.ville, operateur?.countries?.name)
+        .then((point) => { if (point) { setPointDepart(point); setDepartLocalise(true) } })
+        .finally(() => setRepereEnCours(false))
     }, 700)
     return () => clearTimeout(delai)
   }, [depart])
 
   useEffect(() => {
     if (arriveeDepuisPickerRef.current) { arriveeDepuisPickerRef.current = false; return }
+    setArriveeLocalise(false)
     setRepereEnCours(true)
     const delai = setTimeout(() => {
-      geocoder(arrivee, operateur?.ville, operateur?.countries?.name).then((point) => { if (point) setPointArrivee(point) }).finally(() => setRepereEnCours(false))
+      geocoder(arrivee, operateur?.ville, operateur?.countries?.name)
+        .then((point) => { if (point) { setPointArrivee(point); setArriveeLocalise(true) } })
+        .finally(() => setRepereEnCours(false))
     }, 700)
     return () => clearTimeout(delai)
   }, [arrivee])
@@ -278,10 +297,12 @@ export default function PassagerPage() {
       departDepuisPickerRef.current = true
       setPointDepart(centrePicker)
       setDepart(libelle)
+      setDepartLocalise(true)
     } else {
       arriveeDepuisPickerRef.current = true
       setPointArrivee(centrePicker)
       setArrivee(libelle)
+      setArriveeLocalise(true)
     }
     setConfirmationPickerEnCours(false)
     setPickerCible(null)
@@ -787,6 +808,9 @@ export default function PassagerPage() {
               {(modeCourse === 'ville' ? zone : trajetInterville) && (
                 <div className="card card-row"><span>Prix estimé</span><span className="price">{prixEstime} {deviseEstimee}</span></div>
               )}
+              {modeCourse === 'ville' && !repereEnCours && ((depart.trim() && !departLocalise) || (arrivee.trim() && !arriveeLocalise)) && (
+                <p className="error-text">Adresse introuvable — précisez-la ou choisissez sur la carte.</p>
+              )}
               {permissionNotif === 'default' && (
                 <button className="btn ghost" style={{ marginTop: 4 }} onClick={activerNotifications}>
                   🔔 Activer les notifications
@@ -797,7 +821,7 @@ export default function PassagerPage() {
                 className="btn accent"
                 style={{ marginTop: 4 }}
                 onClick={commander}
-                disabled={chargement || (modeCourse === 'ville' ? (!depart.trim() || !arrivee.trim()) : !trajetIntervilleId)}
+                disabled={chargement || (modeCourse === 'ville' ? (!depart.trim() || !arrivee.trim() || !departLocalise || !arriveeLocalise) : !trajetIntervilleId)}
               >
                 {chargement ? 'Envoi…' : 'Commander'}
               </button>

@@ -375,26 +375,31 @@ export default function PassagerPage() {
   }
 
   // Voir app/chauffeur/page.tsx pour l'explication (photo + note vocale,
-  // meme mecanisme d'upload + RPC).
+  // meme mecanisme d'upload + RPC, meme gestion d'erreur explicite).
+  function idAleatoire(): string {
+    return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`
+  }
   async function envoyerMedia(fichier: File, type: 'image' | 'audio') {
     if (!course || envoiMediaEnCours) return
     setErreurMedia(null)
     setEnvoiMediaEnCours(true)
-    const extension = fichier.name.split('.').pop() || (type === 'image' ? 'jpg' : 'webm')
-    const chemin = `${course.id}/${crypto.randomUUID()}.${extension}`
-    const { error: erreurUpload } = await supabase.storage.from('messages-media').upload(chemin, fichier, {
-      contentType: fichier.type || undefined,
-    })
-    if (erreurUpload) {
-      setErreurMedia("Envoi du fichier impossible. Reessayez.")
+    try {
+      const extension = fichier.name.split('.').pop() || (type === 'image' ? 'jpg' : 'webm')
+      const chemin = `${course.id}/${idAleatoire()}.${extension}`
+      const { error: erreurUpload } = await supabase.storage.from('messages-media').upload(chemin, fichier, {
+        contentType: fichier.type || undefined,
+      })
+      if (erreurUpload) { setErreurMedia(`Envoi impossible : ${erreurUpload.message}`); return }
+      const { error: erreurEnvoi } = await supabase.rpc('envoyer_message_course', {
+        p_course_id: course.id, p_telephone: telephone, p_contenu: null, p_type: type, p_media_path: chemin,
+      })
+      if (erreurEnvoi) { setErreurMedia(`Envoi impossible : ${erreurEnvoi.message}`); return }
+      chargerMessages(course.id)
+    } catch {
+      setErreurMedia("Envoi impossible. Verifiez votre connexion et reessayez.")
+    } finally {
       setEnvoiMediaEnCours(false)
-      return
     }
-    await supabase.rpc('envoyer_message_course', {
-      p_course_id: course.id, p_telephone: telephone, p_contenu: null, p_type: type, p_media_path: chemin,
-    })
-    chargerMessages(course.id)
-    setEnvoiMediaEnCours(false)
   }
 
   function choisirPhoto(e: ChangeEvent<HTMLInputElement>) {

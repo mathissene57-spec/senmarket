@@ -382,28 +382,35 @@ export default function ChauffeurPage() {
   }
 
   // P17 : photo + note vocale dans la messagerie course. Upload direct dans
-  // le bucket public "messages-media" (chemin imprevisible via crypto.randomUUID,
-  // voir migration p16), puis meme RPC envoyer_message_course que le texte
-  // avec p_type/p_media_path.
+  // le bucket public "messages-media" (chemin imprevisible, voir migration
+  // p16), puis meme RPC envoyer_message_course que le texte avec
+  // p_type/p_media_path. try/catch + erreurs remontees explicitement --
+  // sans ca, une exception (ex: API indisponible sur un vieux navigateur)
+  // ou une erreur RPC restait totalement invisible pour l'utilisateur.
+  function idAleatoire(): string {
+    return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`
+  }
   async function envoyerMedia(fichier: File, type: 'image' | 'audio') {
     if (!courseActive || !chauffeur || envoiMediaEnCours) return
     setErreurMedia(null)
     setEnvoiMediaEnCours(true)
-    const extension = fichier.name.split('.').pop() || (type === 'image' ? 'jpg' : 'webm')
-    const chemin = `${courseActive.id}/${crypto.randomUUID()}.${extension}`
-    const { error: erreurUpload } = await supabase.storage.from('messages-media').upload(chemin, fichier, {
-      contentType: fichier.type || undefined,
-    })
-    if (erreurUpload) {
-      setErreurMedia("Envoi du fichier impossible. Reessayez.")
+    try {
+      const extension = fichier.name.split('.').pop() || (type === 'image' ? 'jpg' : 'webm')
+      const chemin = `${courseActive.id}/${idAleatoire()}.${extension}`
+      const { error: erreurUpload } = await supabase.storage.from('messages-media').upload(chemin, fichier, {
+        contentType: fichier.type || undefined,
+      })
+      if (erreurUpload) { setErreurMedia(`Envoi impossible : ${erreurUpload.message}`); return }
+      const { error: erreurEnvoi } = await supabase.rpc('envoyer_message_course', {
+        p_course_id: courseActive.id, p_telephone: chauffeur.telephone, p_contenu: null, p_type: type, p_media_path: chemin,
+      })
+      if (erreurEnvoi) { setErreurMedia(`Envoi impossible : ${erreurEnvoi.message}`); return }
+      chargerMessages(courseActive.id)
+    } catch {
+      setErreurMedia("Envoi impossible. Verifiez votre connexion et reessayez.")
+    } finally {
       setEnvoiMediaEnCours(false)
-      return
     }
-    await supabase.rpc('envoyer_message_course', {
-      p_course_id: courseActive.id, p_telephone: chauffeur.telephone, p_contenu: null, p_type: type, p_media_path: chemin,
-    })
-    chargerMessages(courseActive.id)
-    setEnvoiMediaEnCours(false)
   }
 
   function choisirPhoto(e: ChangeEvent<HTMLInputElement>) {

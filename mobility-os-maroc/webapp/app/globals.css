@@ -131,6 +131,18 @@ button { font-family: inherit; }
   overflow-y: auto;
 }
 
+/* Picker "choisir sur la carte" (passager) : repere fixe au centre exact de
+   .map-layer pendant que la carte bouge en dessous -- la pointe de l'emoji
+   doit tomber pile sur le centre, d'ou le translate(-50%,-100%) plutot
+   qu'un simple centrage. */
+.map-pin-centre {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -100%);
+  z-index: 1; pointer-events: none;
+  font-size: 34px;
+  filter: drop-shadow(0 3px 3px rgba(0,0,0,0.35));
+}
+
 .brand { display: flex; align-items: center; gap: 8px; }
 .brand-mark {
   position: relative;

@@ -139,6 +139,18 @@ export default function PassagerPage() {
   const [pointDepart, setPointDepart] = useState(POINT_DEPART_DEFAUT)
   const [pointArrivee, setPointArrivee] = useState(POINT_ARRIVEE_DEFAUT)
   const [repereEnCours, setRepereEnCours] = useState(false)
+  // Picker "choisir sur la carte" : le passager glisse la carte (repere
+  // fixe au centre) au lieu de taper une adresse -- plus precis pour un
+  // point de depart/arrivee sans adresse formelle (portail, coin de rue...).
+  const [pickerCible, setPickerCible] = useState<'depart' | 'arrivee' | null>(null)
+  const [centrePicker, setCentrePicker] = useState<{ lat: number; lng: number } | null>(null)
+  const [confirmationPickerEnCours, setConfirmationPickerEnCours] = useState(false)
+  // Evite que le geocodage direct (adresse tapee -> point), declenche par le
+  // changement de depart/arrivee ci-dessous, n'ecrase le point exact choisi
+  // sur la carte par une nouvelle recherche approximative de l'adresse
+  // generee a partir de ce meme point (aller-retour non garanti pixel-perfect).
+  const departDepuisPickerRef = useRef(false)
+  const arriveeDepuisPickerRef = useRef(false)
   const [otpEnvoye, setOtpEnvoye] = useState(false)
   const [otpCode, setOtpCode] = useState('')
   const [otpEnCours, setOtpEnCours] = useState(false)
@@ -219,6 +231,7 @@ export default function PassagerPage() {
   useEffect(() => { courseRef.current = course }, [course])
 
   useEffect(() => {
+    if (departDepuisPickerRef.current) { departDepuisPickerRef.current = false; return }
     setRepereEnCours(true)
     const delai = setTimeout(() => {
       geocoder(depart).then((point) => { if (point) setPointDepart(point) }).finally(() => setRepereEnCours(false))
@@ -227,12 +240,43 @@ export default function PassagerPage() {
   }, [depart])
 
   useEffect(() => {
+    if (arriveeDepuisPickerRef.current) { arriveeDepuisPickerRef.current = false; return }
     setRepereEnCours(true)
     const delai = setTimeout(() => {
       geocoder(arrivee).then((point) => { if (point) setPointArrivee(point) }).finally(() => setRepereEnCours(false))
     }, 700)
     return () => clearTimeout(delai)
   }, [arrivee])
+
+  function ouvrirPickerCarte(cible: 'depart' | 'arrivee') {
+    setCentrePicker(cible === 'depart' ? pointDepart : pointArrivee)
+    setPickerCible(cible)
+  }
+
+  async function confirmerPositionCarte() {
+    if (!pickerCible || !centrePicker) return
+    setConfirmationPickerEnCours(true)
+    let adresse: string | null = null
+    try {
+      const reponse = await fetch(`/api/geocoder?lat=${centrePicker.lat}&lng=${centrePicker.lng}`)
+      const data = await reponse.json()
+      adresse = data.adresse || null
+    } catch {
+      adresse = null
+    }
+    const libelle = adresse || `Position choisie (${centrePicker.lat.toFixed(5)}, ${centrePicker.lng.toFixed(5)})`
+    if (pickerCible === 'depart') {
+      departDepuisPickerRef.current = true
+      setPointDepart(centrePicker)
+      setDepart(libelle)
+    } else {
+      arriveeDepuisPickerRef.current = true
+      setPointArrivee(centrePicker)
+      setArrivee(libelle)
+    }
+    setConfirmationPickerEnCours(false)
+    setPickerCible(null)
+  }
 
   // Applique une mise a jour de course (statut/chauffeur_id) recue par le
   // canal Realtime OU par le sondage de secours ci-dessous. Factorise pour
@@ -637,15 +681,49 @@ export default function PassagerPage() {
           // (.map-placeholder standard) -- desormais elle remplit tout
           // l'ecran et le formulaire flotte par-dessus dans une feuille
           // ancree en bas, comme les apps de VTC grand public.
+          //
+          // Mode picker ("Choisir sur la carte") : la carte devient
+          // interactive (glisser/zoomer), un repere reste fixe au centre de
+          // l'ecran (voir .map-pin-centre, globals.css) et le contenu de la
+          // feuille du bas est remplace par les actions Confirmer/Annuler --
+          // le key={} force un remontage du composant Carte pour que le
+          // nouveau centre soit bien applique (react-leaflet ignore les
+          // changements de centre apres le montage initial).
           <div className="map-fullscreen">
             <div className="map-layer">
-              <Carte points={[{ ...pointDepart, couleur: primary }, { ...pointArrivee, couleur: accent }]} zoom={13} />
+              <Carte
+                key={pickerCible ? `picker-${pickerCible}` : 'apercu'}
+                points={pickerCible ? [] : [{ ...pointDepart, couleur: primary }, { ...pointArrivee, couleur: accent }]}
+                centre={pickerCible && centrePicker ? [centrePicker.lat, centrePicker.lng] : undefined}
+                zoom={pickerCible ? 16 : 13}
+                interactif={!!pickerCible}
+                onDeplacer={pickerCible ? setCentrePicker : undefined}
+              />
             </div>
+            {pickerCible && <div className="map-pin-centre" aria-hidden="true">📍</div>}
             <div className="map-overlay-top">
-              <span className="brand"><Marque nom={operateur?.nom} logoUrl={operateur?.logo_url} /><span className="brand-label">{operateur?.nom}</span></span>
-              <span className="badge ok">En ligne</span>
+              {pickerCible ? (
+                <strong>Choisissez {pickerCible === 'depart' ? 'le point de départ' : 'la destination'}</strong>
+              ) : (
+                <>
+                  <span className="brand"><Marque nom={operateur?.nom} logoUrl={operateur?.logo_url} /><span className="brand-label">{operateur?.nom}</span></span>
+                  <span className="badge ok">En ligne</span>
+                </>
+              )}
             </div>
             <div className="map-sheet">
+              {pickerCible ? (
+                <>
+                  <p className="muted" style={{ marginTop: 0 }}>Déplacez la carte pour positionner le repère sur l&apos;endroit exact.</p>
+                  <div className="btn-row">
+                    <button className="btn outline" onClick={() => setPickerCible(null)} disabled={confirmationPickerEnCours}>Annuler</button>
+                    <button className="btn accent" onClick={confirmerPositionCarte} disabled={confirmationPickerEnCours}>
+                      {confirmationPickerEnCours ? 'Repérage…' : 'Confirmer cette position'}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
               <div className="btn-row" style={{ marginBottom: 12 }}>
                 <button className={`btn ${modeCourse === 'ville' ? 'accent' : 'outline'}`} onClick={() => setModeCourse('ville')}>🏙️ Ville</button>
                 <button className={`btn ${modeCourse === 'intervilles' ? 'accent' : 'outline'}`} onClick={() => setModeCourse('intervilles')}>🛣️ Intervilles</button>
@@ -660,8 +738,14 @@ export default function PassagerPage() {
                   {repereEnCours && <p className="muted" style={{ marginTop: 0, marginBottom: 12 }}>Repérage de l&apos;adresse…</p>}
                   <label className="field-label">Point de départ</label>
                   <input type="text" value={depart} onChange={(e) => setDepart(e.target.value)} />
+                  <button type="button" className="btn ghost" style={{ width: 'auto', padding: '4px 0', fontSize: 13, marginBottom: 12 }} onClick={() => ouvrirPickerCarte('depart')}>
+                    📍 Choisir sur la carte
+                  </button>
                   <label className="field-label">Destination</label>
                   <input type="text" value={arrivee} onChange={(e) => setArrivee(e.target.value)} />
+                  <button type="button" className="btn ghost" style={{ width: 'auto', padding: '4px 0', fontSize: 13, marginBottom: 12 }} onClick={() => ouvrirPickerCarte('arrivee')}>
+                    📍 Choisir sur la carte
+                  </button>
                   {zones.length > 0 && (
                     <>
                       <label className="field-label">Zone tarifaire</label>
@@ -707,6 +791,8 @@ export default function PassagerPage() {
               >
                 {chargement ? 'Envoi…' : 'Commander'}
               </button>
+                </>
+              )}
             </div>
           </div>
         )}

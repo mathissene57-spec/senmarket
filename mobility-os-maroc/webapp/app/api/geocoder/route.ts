@@ -20,12 +20,57 @@
 // deja recherchee recemment (adresses de depart/arrivee frequemment
 // repetees -- gares, aeroport, quartiers connus). Purement additif : le
 // contrat cote client (adresse texte -> {lat,lng} ou null) ne change pas.
+//
+// Geocodage inverse (lat,lng -> adresse) ajoute pour le picker "choisir sur
+// la carte" cote passager (deplacer un repere et recuperer une adresse
+// lisible a afficher/envoyer) -- meme proxy, meme politique d'usage
+// Nominatim a respecter, cache separe par coordonnees arrondies.
 
 const CACHE_TTL_MS = 5 * 60 * 1000
 const cache = new Map<string, { at: number; resultat: { lat: number; lng: number } | null }>()
+const cacheInverse = new Map<string, { at: number; adresse: string | null }>()
+
+async function geocoderInverse(lat: number, lng: number) {
+  const cle = `${lat.toFixed(5)},${lng.toFixed(5)}`
+  const enCache = cacheInverse.get(cle)
+  if (enCache && Date.now() - enCache.at < CACHE_TTL_MS) {
+    return Response.json({ adresse: enCache.adresse })
+  }
+
+  const params = new URLSearchParams({ lat: String(lat), lon: String(lng), format: 'json' })
+
+  try {
+    const reponse = await fetch(`https://nominatim.openstreetmap.org/reverse?${params.toString()}`, {
+      headers: { 'User-Agent': 'MobilityOSMaroc/1.0 (pilote transport Casablanca)' },
+    })
+    const resultat = await reponse.json()
+    // display_name est tres long (ex: "12, Boulevard Zerktouni, Maarif,
+    // Casablanca, Casablanca-Settat, 20100, Maroc") -- on ne garde que les
+    // premiers segments, assez precis pour identifier le lieu sans deborder
+    // du champ adresse.
+    const adresse = typeof resultat?.display_name === 'string'
+      ? resultat.display_name.split(',').slice(0, 3).join(',').trim()
+      : null
+
+    cacheInverse.set(cle, { at: Date.now(), adresse })
+    return Response.json({ adresse })
+  } catch {
+    return Response.json({ adresse: null })
+  }
+}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
+
+  const lat = searchParams.get('lat')
+  const lng = searchParams.get('lng')
+  if (lat != null && lng != null) {
+    const latN = parseFloat(lat)
+    const lngN = parseFloat(lng)
+    if (Number.isNaN(latN) || Number.isNaN(lngN)) return Response.json({ adresse: null })
+    return geocoderInverse(latN, lngN)
+  }
+
   const adresse = (searchParams.get('q') || '').trim()
 
   if (adresse.length < 3) {

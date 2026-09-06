@@ -19,3 +19,22 @@ self.addEventListener('push', (event) => {
   } catch { /* payload non-JSON : on garde le titre par defaut */ }
   event.waitUntil(self.registration.showNotification(titre, { body: corps }))
 })
+
+// Sans ceci, taper sur la notification ne fait rien -- l'ecran de la
+// course reste invisible tant que le chauffeur ne rouvre pas l'onglet
+// lui-meme (delai mesure en test reel : 1 a 3 minutes entre la creation
+// de la course et son acceptation). Remettre au premier plan un onglet
+// deja ouvert declenche immediatement le rattrapage prevu au retour au
+// premier plan (visibilitychange, voir app/chauffeur/page.tsx) au lieu
+// d'attendre que l'utilisateur retrouve l'appli par lui-meme.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        if ('focus' in client) return client.focus()
+      }
+      if (self.clients.openWindow) return self.clients.openWindow('/')
+    })
+  )
+})

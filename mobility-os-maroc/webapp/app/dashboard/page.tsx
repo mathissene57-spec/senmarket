@@ -509,6 +509,7 @@ export default function DashboardPage() {
     <div className="dashboard" style={{ ['--primary' as any]: primary }}>
       <div className="sidebar">
         <div className="brand"><span className="brand-mark">{operateur.nom[0]}</span><span className="brand-label">{operateur.nom}</span></div>
+        <button className="nav-item" style={{ marginTop: 12 }} onClick={() => window.history.back()}>← Retour</button>
         <nav style={{ marginTop: 28 }}>
           <button className={`nav-item${onglet === 'apercu' ? ' active' : ''}`} onClick={() => setOnglet('apercu')}>Vue d&apos;ensemble</button>
           <button className={`nav-item${onglet === 'flotte' ? ' active' : ''}`} onClick={() => setOnglet('flotte')}>Carte de flotte</button>

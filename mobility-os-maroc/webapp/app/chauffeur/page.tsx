@@ -343,22 +343,25 @@ export default function ChauffeurPage() {
     }
   }, [chauffeur?.id, chauffeur?.statut])
 
-  async function seConnecter() {
-    if (!OPERATEUR_ID) return
-    setErreur(null)
-    setChargement(true)
+  async function seConnecter(silencieux = false): Promise<boolean> {
+    if (!OPERATEUR_ID) return false
+    if (!silencieux) { setErreur(null); setChargement(true) }
     const { data, error } = await supabase.rpc('connexion_chauffeur', {
       p_operateur_id: OPERATEUR_ID,
       p_telephone: telephone.replace(/\s/g, ''),
     })
-    setChargement(false)
+    if (!silencieux) setChargement(false)
     const trouve = data && data.length > 0 ? data[0] : null
-    if (error || !trouve) { setErreur("Chauffeur non reconnu. Contactez votre opérateur pour être ajouté à la flotte."); return }
+    if (error || !trouve) {
+      if (!silencieux) setErreur("Chauffeur non reconnu. Contactez votre opérateur pour être ajouté à la flotte.")
+      return false
+    }
     if (typeof window !== 'undefined') localStorage.setItem('mos_chauffeur_telephone', telephone.replace(/\s/g, ''))
     setChauffeur(trouve)
     setEcran('accueil')
     chargerHistorique(trouve.id, trouve.telephone)
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') subscribeToPush(supabase, trouve.telephone)
+    return true
   }
 
   // P0.2 : verification OTP reelle avant connexion_chauffeur. Le code n'est
@@ -366,9 +369,17 @@ export default function ChauffeurPage() {
   // -- auparavant renvoye en clair dans la reponse RPC, ce qui permettait de
   // "verifier" n'importe quel numero sans jamais y avoir acces). Le code part
   // desormais uniquement par SMS reel une fois un fournisseur configure.
+  //
+  // P20 : certains chauffeurs de flotte (ex: TransAtlas, le temps qu'un
+  // fournisseur SMS reel soit configure -- voir est_telephone_verifie() cote
+  // serveur, seul endroit qui decide de la dispense) n'ont jamais besoin de
+  // code. On tente donc d'abord une connexion directe et silencieuse ; si le
+  // serveur l'accepte, l'ecran de saisie de code n'est jamais affiche. Sinon
+  // (cas normal), on repasse par le flux demander_otp/verifier_otp habituel.
   async function demanderOtp() {
     setOtpErreur(null)
     setOtpEnCours(true)
+    if (await seConnecter(true)) { setOtpEnCours(false); return }
     const { error } = await supabase.rpc('demander_otp', { p_telephone: telephone.replace(/\s/g, '') })
     setOtpEnCours(false)
     if (error) { setOtpErreur(error.message); return }

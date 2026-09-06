@@ -727,22 +727,27 @@ export default function ChauffeurPage() {
         )}
 
         {ecran === 'navigation' && courseActive && (
-          <>
-            <div className="screen-header"><strong>En route vers le passager</strong></div>
-            <div className="screen-body">
-              <div className="map-placeholder">
-                {(position || (courseActive.depart_lat != null && courseActive.depart_lng != null)) && (
-                  <Carte
-                    points={[
-                      ...(position ? [{ ...position, couleur: primary }] : []),
-                      ...(courseActive.depart_lat != null && courseActive.depart_lng != null
-                        ? [{ lat: courseActive.depart_lat, lng: courseActive.depart_lng, couleur: accent }]
-                        : []),
-                    ]}
-                    zoom={14}
-                  />
-                )}
-              </div>
+          // Meme motif carte plein ecran que l'accueil : le bouton "Je suis
+          // arrive" vit desormais dans la feuille flottante (map-sheet) --
+          // il n'y a plus de screen-footer distinct sur cet ecran.
+          <div className="map-fullscreen">
+            <div className="map-layer">
+              {(position || (courseActive.depart_lat != null && courseActive.depart_lng != null)) && (
+                <Carte
+                  points={[
+                    ...(position ? [{ ...position, couleur: primary }] : []),
+                    ...(courseActive.depart_lat != null && courseActive.depart_lng != null
+                      ? [{ lat: courseActive.depart_lat, lng: courseActive.depart_lng, couleur: accent }]
+                      : []),
+                  ]}
+                  zoom={14}
+                />
+              )}
+            </div>
+            <div className="map-overlay-top">
+              <strong>En route vers le passager</strong>
+            </div>
+            <div className="map-sheet">
               <div className="card"><div className="muted">Départ</div><strong>{courseActive.adresse_depart}</strong></div>
               {contactPassager && (
                 <div className="btn-row" style={{ marginTop: 10 }}>
@@ -762,28 +767,30 @@ export default function ChauffeurPage() {
               <a className="btn outline" href="https://www.google.com/maps" target="_blank" rel="noopener" style={{ display: 'block', textAlign: 'center', textDecoration: 'none', marginTop: 10 }}>
                 Ouvrir la navigation (Waze / Google Maps)
               </a>
+              <button className="btn" style={{ marginTop: 10 }} onClick={jeSuisArrive}>Je suis arrivé</button>
             </div>
-            <div className="screen-footer"><button className="btn" onClick={jeSuisArrive}>Je suis arrivé</button></div>
-          </>
+          </div>
         )}
 
         {ecran === 'encours' && courseActive && (
-          <>
-            <div className="screen-header"><strong>Passager à bord</strong></div>
-            <div className="screen-body">
-              <div className="map-placeholder">
-                {(position || (courseActive.arrivee_lat != null && courseActive.arrivee_lng != null)) && (
-                  <Carte
-                    points={[
-                      ...(position ? [{ ...position, couleur: primary }] : []),
-                      ...(courseActive.arrivee_lat != null && courseActive.arrivee_lng != null
-                        ? [{ lat: courseActive.arrivee_lat, lng: courseActive.arrivee_lng, couleur: accent }]
-                        : []),
-                    ]}
-                    zoom={14}
-                  />
-                )}
-              </div>
+          <div className="map-fullscreen">
+            <div className="map-layer">
+              {(position || (courseActive.arrivee_lat != null && courseActive.arrivee_lng != null)) && (
+                <Carte
+                  points={[
+                    ...(position ? [{ ...position, couleur: primary }] : []),
+                    ...(courseActive.arrivee_lat != null && courseActive.arrivee_lng != null
+                      ? [{ lat: courseActive.arrivee_lat, lng: courseActive.arrivee_lng, couleur: accent }]
+                      : []),
+                  ]}
+                  zoom={14}
+                />
+              )}
+            </div>
+            <div className="map-overlay-top">
+              <strong>Passager à bord</strong>
+            </div>
+            <div className="map-sheet">
               <div className="card"><div className="muted">Destination</div><strong>{courseActive.adresse_arrivee}</strong></div>
               {contactPassager && (
                 <div className="btn-row" style={{ marginTop: 10 }}>
@@ -800,9 +807,9 @@ export default function ChauffeurPage() {
                   </button>
                 </div>
               )}
+              <button className="btn accent" style={{ marginTop: 10 }} onClick={terminerCourse}>Terminer la course</button>
             </div>
-            <div className="screen-footer"><button className="btn accent" onClick={terminerCourse}>Terminer la course</button></div>
-          </>
+          </div>
         )}
 
         {ecran === 'fin' && finRaison === 'chauffeur' && (

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useOperateurId } from '@/lib/useOperateurId'
 
@@ -54,8 +55,8 @@ export default function DashboardPage() {
   const [erreurAuth, setErreurAuth] = useState<string | null>(null)
   const [operateur, setOperateur] = useState<Operateur | null>(null)
   const [messageOperateur, setMessageOperateur] = useState<string | null>(null)
+  const router = useRouter()
   const [onglet, setOnglet] = useState<'apercu' | 'chauffeurs' | 'courses' | 'flotte' | 'tarifs' | 'parametres'>('apercu')
-  const [ongletHistorique, setOngletHistorique] = useState<typeof onglet[]>([])
   const [chauffeurs, setChauffeurs] = useState<ChauffeurRow[]>([])
   const [courses, setCourses] = useState<CourseRow[]>([])
   const [nouveauNom, setNouveauNom] = useState('')
@@ -506,39 +507,18 @@ export default function DashboardPage() {
     ...coursesEnCours.filter((c) => c.depart_lat != null && c.depart_lng != null).map((c) => ({ lat: c.depart_lat!, lng: c.depart_lng!, couleur: primary })),
   ]
 
-  // Bouton "Retour" (demande produit) : la navigation entre onglets se fait par
-  // simple etat React (setOnglet), jamais par de vraies routes -- le bouton
-  // precedent (window.history.back()) sortait donc carrement du dashboard au
-  // lieu de revenir a l'onglet precedent, ce qui ne correspondait pas a
-  // l'usage attendu. On empile chaque onglet quitte dans ongletHistorique et
-  // "Retour" depile le dernier ; presente dans la sidebar (donc sur tous les
-  // onglets), il ne retombe sur window.history.back() que si l'operateur n'a
-  // encore change d'onglet depuis l'arrivee sur le dashboard.
-  function changerOnglet(nouvel: typeof onglet) {
-    if (nouvel === onglet) return
-    setOngletHistorique((h) => [...h, onglet])
-    setOnglet(nouvel)
-  }
-  function retourOnglet() {
-    if (ongletHistorique.length === 0) { window.history.back(); return }
-    const copie = [...ongletHistorique]
-    const precedent = copie.pop()!
-    setOngletHistorique(copie)
-    setOnglet(precedent)
-  }
-
   return (
     <div className="dashboard" style={{ ['--primary' as any]: primary }}>
       <div className="sidebar">
         <div className="brand"><span className="brand-mark">{operateur.nom[0]}</span><span className="brand-label">{operateur.nom}</span></div>
-        <button className="nav-item" style={{ marginTop: 12 }} onClick={retourOnglet}>← Retour</button>
+        <button className="nav-item" style={{ marginTop: 12 }} onClick={() => router.push('/')}>← Retour à l&apos;accueil</button>
         <nav style={{ marginTop: 28 }}>
-          <button className={`nav-item${onglet === 'apercu' ? ' active' : ''}`} onClick={() => changerOnglet('apercu')}>Vue d&apos;ensemble</button>
-          <button className={`nav-item${onglet === 'flotte' ? ' active' : ''}`} onClick={() => changerOnglet('flotte')}>Carte de flotte</button>
-          <button className={`nav-item${onglet === 'chauffeurs' ? ' active' : ''}`} onClick={() => changerOnglet('chauffeurs')}>Chauffeurs</button>
-          <button className={`nav-item${onglet === 'courses' ? ' active' : ''}`} onClick={() => changerOnglet('courses')}>Courses</button>
-          <button className={`nav-item${onglet === 'tarifs' ? ' active' : ''}`} onClick={() => changerOnglet('tarifs')}>Tarifs</button>
-          <button className={`nav-item${onglet === 'parametres' ? ' active' : ''}`} onClick={() => changerOnglet('parametres')}>Paramètres</button>
+          <button className={`nav-item${onglet === 'apercu' ? ' active' : ''}`} onClick={() => setOnglet('apercu')}>Vue d&apos;ensemble</button>
+          <button className={`nav-item${onglet === 'flotte' ? ' active' : ''}`} onClick={() => setOnglet('flotte')}>Carte de flotte</button>
+          <button className={`nav-item${onglet === 'chauffeurs' ? ' active' : ''}`} onClick={() => setOnglet('chauffeurs')}>Chauffeurs</button>
+          <button className={`nav-item${onglet === 'courses' ? ' active' : ''}`} onClick={() => setOnglet('courses')}>Courses</button>
+          <button className={`nav-item${onglet === 'tarifs' ? ' active' : ''}`} onClick={() => setOnglet('tarifs')}>Tarifs</button>
+          <button className={`nav-item${onglet === 'parametres' ? ' active' : ''}`} onClick={() => setOnglet('parametres')}>Paramètres</button>
         </nav>
         <button className="nav-item" style={{ marginTop: 40, color: 'rgba(255,255,255,0.5)' }} onClick={() => supabase.auth.signOut()}>Se déconnecter</button>
       </div>

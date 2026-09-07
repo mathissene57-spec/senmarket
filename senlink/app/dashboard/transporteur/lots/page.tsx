@@ -173,9 +173,8 @@ export default function LotsPage() {
         </Link>
         <h1 style={styles.titre}>Lots</h1>
         <p style={styles.soustitre}>
-          Création et composition des lots via create_shipment_lot() /
-          add_shipment_to_lot() / remove_shipment_from_lot() (Migration 4).
-          Le départ se déclare depuis « Départs ».
+          Regroupe les colis prêts à être expédiés dans un même lot, pour un
+          trajet donné. Le départ se déclare ensuite depuis « Départs ».
         </p>
       </div>
 
@@ -250,9 +249,12 @@ export default function LotsPage() {
                   </div>
                 ))}
 
-                <div style={styles.sousTitreCard}>Ajouter un colis inspecté</div>
+                <div style={styles.sousTitreCard}>Ajouter un colis contrôlé</div>
                 {eligible.filter((s) => s.origin_country && s.destination_country).length === 0 && (
-                  <div style={styles.videMini}>Aucun colis « inspecté » disponible.</div>
+                  <div style={styles.videMini}>
+                    Aucun colis disponible pour l&apos;instant. Les colis doivent
+                    d&apos;abord être contrôlés avant de pouvoir être ajoutés à un lot.
+                  </div>
                 )}
                 {eligible.map((s) => (
                   <div key={s.id} style={styles.shipmentRow}>

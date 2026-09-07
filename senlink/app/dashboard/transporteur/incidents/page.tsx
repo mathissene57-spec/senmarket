@@ -106,9 +106,8 @@ export default function IncidentsPage() {
         </Link>
         <h1 style={styles.titre}>Incidents</h1>
         <p style={styles.soustitre}>
-          Signalement direct dans la table incidents (politique RLS
-          incidents_insert : reported_by = auth.uid()) — aucune RPC dédiée
-          n&apos;existe pour ce chemin dans le schéma actuel.
+          Signale un problème sur un colis (retard, dommage, colis manquant…)
+          pour qu&apos;il soit suivi et traité.
         </p>
       </div>
 

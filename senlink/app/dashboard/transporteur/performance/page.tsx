@@ -60,9 +60,8 @@ export default function PerformancePage() {
         </Link>
         <h1 style={styles.titre}>Performance</h1>
         <p style={styles.soustitre}>
-          Compteurs calculés en direct sur les colis et lots visibles pour ce
-          compte (RLS) — aucune table de statistiques dédiée n&apos;existe
-          côté SenLink pour l&apos;instant.
+          Vue d&apos;ensemble en temps réel de ton activité : colis et lots
+          par statut, incidents en cours.
         </p>
       </div>
 

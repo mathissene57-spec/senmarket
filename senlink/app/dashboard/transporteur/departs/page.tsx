@@ -98,11 +98,9 @@ export default function DepartsPage() {
         </Link>
         <h1 style={styles.titre}>Départs</h1>
         <p style={styles.soustitre}>
-          Déclare le départ d&apos;un lot ouvert via declare_lot_departure()
-          (Migration 4) — fait progresser chaque colis du lot à
-          « Transit international » via record_shipment_event(). Refusé si un
-          colis n&apos;est pas encore inspecté ou si un incident bloquant est
-          ouvert.
+          Déclare le départ d&apos;un lot prêt — tous ses colis passent alors
+          en transit international. Refusé si un colis n&apos;a pas encore
+          été contrôlé ou si un incident bloquant est ouvert.
         </p>
       </div>
 
@@ -130,13 +128,21 @@ export default function DepartsPage() {
               {hubLabel(lot.origin_hub_id)} → {hubLabel(lot.destination_hub_id)}
             </div>
             <div style={styles.meta}>{counts[lot.id] ?? 0} colis dans ce lot</div>
-            <button
-              style={styles.bouton}
-              disabled={busy === lot.id || (counts[lot.id] ?? 0) === 0}
-              onClick={() => handleDepart(lot.id)}
-            >
-              {busy === lot.id ? 'Déclaration…' : 'Déclarer le départ'}
-            </button>
+            {(counts[lot.id] ?? 0) === 0 ? (
+              <div style={styles.blocage}>
+                🔒 Départ impossible — ce lot ne contient aucun colis. Ajoute
+                au moins un colis contrôlé depuis « Lots » avant de déclarer
+                le départ.
+              </div>
+            ) : (
+              <button
+                style={styles.bouton}
+                disabled={busy === lot.id}
+                onClick={() => handleDepart(lot.id)}
+              >
+                {busy === lot.id ? 'Déclaration…' : 'Déclarer le départ'}
+              </button>
+            )}
           </div>
         ))}
       </div>
@@ -165,4 +171,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   route: { fontSize: 13, color: '#3D3D3D' },
   meta: { fontSize: 12.5, color: '#6A8572' },
   bouton: { padding: '12px 16px', borderRadius: 10, border: 'none', background: '#0A1A0F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' },
+  blocage: {
+    fontSize: 12.5, color: '#8A5A00', background: '#FFF6DE', borderRadius: 8,
+    padding: '10px 12px', lineHeight: 1.5,
+  },
 }

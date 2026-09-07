@@ -127,9 +127,9 @@ export default function ArriveesPage() {
         </Link>
         <h1 style={styles.titre}>Arrivées</h1>
         <p style={styles.soustitre}>
-          Cycle d&apos;arrivée d&apos;un lot (Migration 4) : déclarer
-          l&apos;arrivée, réconcilier (compare colis attendus/reçus, ouvre un
-          incident « colis manquant » par écart), puis clôturer.
+          Déclare l&apos;arrivée d&apos;un lot, vérifie que tous les colis
+          attendus sont bien là (un colis manquant ouvre automatiquement un
+          incident), puis clôture le lot.
         </p>
       </div>
 

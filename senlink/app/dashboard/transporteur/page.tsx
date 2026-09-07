@@ -33,6 +33,7 @@ const CARTES = [
   { label: 'Manifestes', href: '/dashboard/transporteur/manifestes' },
   { label: 'Performance', href: '/dashboard/transporteur/performance' },
   { label: 'Planning', href: '/dashboard/transporteur/planning' },
+  { label: 'Équipe', href: '/dashboard/transporteur/equipe' },
   { label: 'Profil', href: '/dashboard/transporteur/profil' },
 ]
 

@@ -1,16 +1,35 @@
+import Link from 'next/link'
+
 // Coquille (section 7 du document de référence — dashboard transporteur).
-const CARTES = ['Colis', 'Lots', 'Scans', 'Départs', 'Arrivées', 'Incidents', 'Manifestes', 'Performance']
+// "Scans" est la première carte construite en réel (voir ./scans) --
+// les autres restent des cartes statiques en attendant leur tour.
+const CARTES = [
+  { label: 'Colis', href: null },
+  { label: 'Lots', href: null },
+  { label: 'Scans', href: '/dashboard/transporteur/scans' },
+  { label: 'Départs', href: null },
+  { label: 'Arrivées', href: null },
+  { label: 'Incidents', href: null },
+  { label: 'Manifestes', href: null },
+  { label: 'Performance', href: null },
+]
 
 export default function DashboardTransporteurPage() {
   return (
     <main style={styles.page}>
       <h1 style={styles.titre}>Espace transporteur</h1>
       <div style={styles.grid}>
-        {CARTES.map((c) => (
-          <div key={c} style={styles.carte}>
-            {c}
-          </div>
-        ))}
+        {CARTES.map((c) =>
+          c.href ? (
+            <Link key={c.label} href={c.href} style={styles.carteLink}>
+              {c.label}
+            </Link>
+          ) : (
+            <div key={c.label} style={styles.carte}>
+              {c.label}
+            </div>
+          )
+        )}
       </div>
     </main>
   )
@@ -23,5 +42,9 @@ const styles: { [key: string]: React.CSSProperties } = {
   carte: {
     padding: 20, borderRadius: 12, background: '#fff', border: '1px solid #E8E2D9',
     color: '#0A1A0F', fontWeight: 700, textAlign: 'center',
+  },
+  carteLink: {
+    padding: 20, borderRadius: 12, background: '#0A1A0F', border: '1px solid #0A1A0F',
+    color: '#fff', fontWeight: 700, textAlign: 'center', textDecoration: 'none',
   },
 }

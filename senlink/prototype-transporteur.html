@@ -375,6 +375,7 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
 .tl-loc { font-size:11.5px; color:var(--txt2); margin-top:2px; }
 .tl-meta { font-size:10.5px; color:var(--mut); margin-top:2px; }
 .tl-proof { display:inline-flex; align-items:center; gap:4px; font-size:10px; color:var(--gm); background:var(--gg); border-radius:var(--r8); padding:2px 7px; margin-top:5px; }
+.tl-gps { display:inline-flex; align-items:center; gap:4px; font-size:10px; color:var(--gold); background:var(--amberb); border-radius:var(--r8); padding:2px 7px; margin-top:5px; margin-left:5px; }
 
 /* ================================================================
    SCANNER
@@ -1182,6 +1183,7 @@ function timelineHtml(shipment) {
       +   '<div class="tl-loc">'+h(ev.loc)+' — '+h(ev.actor)+'</div>'
       +   '<div class="tl-meta">'+h(ev.time)+'</div>'
       +   (ev.proof ? '<div class="tl-proof">📷 Preuve enregistrée</div>' : '')
+      +   (ev.gpsLat != null ? '<div class="tl-gps">🧪📍 '+ev.gpsLat.toFixed(4)+', '+ev.gpsLng.toFixed(4)+' (simulé)</div>' : '')
       + '</div></li>';
   }).join('');
   return '<ul class="timeline">'+items+'</ul>';
@@ -1936,8 +1938,35 @@ function bindNewLotForm() {
 /* ----------------------------------------------------------------
    SCANNER -- interface de record_shipment_event() (Migration 1),
    restreinte aux statuts que la matrice rôle × statut autorise au
-   rôle transporteur.
+   rôle transporteur. La position GPS capturée ci-dessous alimente
+   les paramètres réels p_location_text / p_location_lat /
+   p_location_lng de record_shipment_event() -- contrairement aux
+   autres affichages GPS de ce prototype (Lots/Incidents/Colis,
+   purement illustratifs et sans équivalent RPC), ce champ correspond
+   donc à un paramètre qui existe réellement côté backend.
+   // DEMO ONLY -- la valeur elle-même reste simulée localement
+   (aucun capteur navigator.geolocation, aucun appel Supabase réel).
    ---------------------------------------------------------------- */
+function hubCoordsForCity(city) {
+  var hub = HUBS.filter(function(x){ return x.city === city; })[0];
+  return hub ? [hub.lat, hub.lng] : null;
+}
+function simulateScanPosition(shipment, status) {
+  var oc = hubCoordsForCity(shipment.originCity) || [33.5731, -7.5898];
+  var dc = hubCoordsForCity(shipment.destCity) || [14.7167, -17.4677];
+  var T = { departed_origin:0, in_transit_international:0.5, customs_clearance:0.85, arrived_destination:1 };
+  var t = T[status] === undefined ? 0.5 : T[status];
+  var pos = lerpLatLng(oc, dc, t);
+  var jitter = function(v){ return v + (Math.random() - 0.5) * 0.01; };
+  var text = t === 0 ? shipment.originCity : t === 1 ? shipment.destCity : (shipment.originCity + ' → ' + shipment.destCity);
+  return { lat: jitter(pos[0]), lng: jitter(pos[1]), text: text };
+}
+function scanGpsFieldHtml(shipment, status) {
+  var pos = simulateScanPosition(shipment, status);
+  return '<div class="fieldset-lgd">Position GPS au moment du scan</div>'
+    + '<div class="field-hint">📍 '+pos.lat.toFixed(4)+', '+pos.lng.toFixed(4)+' — '+h(pos.text)+'</div>'
+    + '<div class="gps-demo-badge">🧪 MODE DÉMO · Position simulée</div>';
+}
 function renderScanPicker() {
   var eligible = ST.shipments.filter(function(s){ return SHIPMENT_TRANSITIONS[s.status]; });
   var el = document.getElementById('scanPicker');
@@ -1974,14 +2003,15 @@ function openScanStep(code) {
     +   '<div class="fieldset-lgd">Action</div>'
     +   '<div class="field"><label for="scanNextStatus">Statut à enregistrer</label><select id="scanNextStatus">'+opts+'</select></div>'
     +   '<div class="field" id="scanPhotoField"></div>'
+    +   '<div class="field" id="scanGpsField"></div>'
     + '</div>'
     + '<button class="btn-primary" id="btnScanConfirm">Valider ce scan</button>'
     + '</div>';
-  updateScanFields();
-  document.getElementById('scanNextStatus').addEventListener('change', updateScanFields);
+  updateScanFields(code);
+  document.getElementById('scanNextStatus').addEventListener('change', function(){ updateScanFields(code); });
   document.getElementById('btnScanConfirm').addEventListener('click', function(){ confirmScanStep(code); });
 }
-function updateScanFields() {
+function updateScanFields(code) {
   var sel = document.getElementById('scanNextStatus');
   if (!sel) return;
   var status = sel.value;
@@ -1989,6 +2019,9 @@ function updateScanFields() {
   photoField.innerHTML = PROOF_REQUIRED.indexOf(status) > -1
     ? '<label class="field-check"><input type="checkbox" id="scanPhotoTaken"> 📷 Photo prise (preuve obligatoire pour ce statut)</label>'
     : '<div class="field-hint">Aucune preuve requise pour ce statut (transit déclaratif).</div>';
+  var s = findShipment(code);
+  var gpsField = document.getElementById('scanGpsField');
+  if (s && gpsField) gpsField.innerHTML = scanGpsFieldHtml(s, status);
 }
 function confirmScanStep(code) {
   var s = findShipment(code);
@@ -1998,8 +2031,9 @@ function confirmScanStep(code) {
     var chk = document.getElementById('scanPhotoTaken');
     if (!chk || !chk.checked) { showToast('Preuve photo requise pour ce statut', 'e'); return; }
   }
+  var pos = simulateScanPosition(s, status);
   s.status = status;
-  s.timeline.push({ lbl:STATUS_META[status].label, loc:s.destCity, actor:'Atlas Cargo', time:'à l\'instant', proof:PROOF_REQUIRED.indexOf(status) > -1 });
+  s.timeline.push({ lbl:STATUS_META[status].label, loc:s.destCity, actor:'Atlas Cargo', time:'à l\'instant', proof:PROOF_REQUIRED.indexOf(status) > -1, gpsLat:pos.lat, gpsLng:pos.lng, gpsText:pos.text });
   saveAll();
   renderAll();
   document.getElementById('scanStepWrap').innerHTML = '';

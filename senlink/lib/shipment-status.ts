@@ -58,6 +58,24 @@ export const STATUSES_REQUIRING_PROOF: ShipmentStatus[] = [
   'delivered',
 ]
 
+export type LotStatus = 'open' | 'in_transit' | 'arrived' | 'closed'
+
+export const LOT_STATUS_LABELS: Record<LotStatus, string> = {
+  open: 'Ouvert',
+  in_transit: 'En transit',
+  arrived: 'Arrivé',
+  closed: 'Clôturé',
+}
+
+export type IncidentStatus = 'open' | 'investigating' | 'resolved' | 'closed'
+
+export const INCIDENT_STATUS_LABELS: Record<IncidentStatus, string> = {
+  open: 'Ouvert',
+  investigating: 'En cours',
+  resolved: 'Résolu',
+  closed: 'Clôturé',
+}
+
 export type UserRole = 'client' | 'agent_point_relais' | 'transporteur' | 'admin'
 
 export const USER_ROLE_LABELS: Record<UserRole, string> = {

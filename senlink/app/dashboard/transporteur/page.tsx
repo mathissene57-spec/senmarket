@@ -1,17 +1,16 @@
 import Link from 'next/link'
 
-// Coquille (section 7 du document de référence — dashboard transporteur).
-// "Scans" est la première carte construite en réel (voir ./scans) --
-// les autres restent des cartes statiques en attendant leur tour.
+// Section 7 du document de référence — dashboard transporteur. Toutes les
+// cartes sont désormais des écrans réels (voir les sous-dossiers).
 const CARTES = [
-  { label: 'Colis', href: null },
-  { label: 'Lots', href: null },
+  { label: 'Colis', href: '/dashboard/transporteur/colis' },
+  { label: 'Lots', href: '/dashboard/transporteur/lots' },
   { label: 'Scans', href: '/dashboard/transporteur/scans' },
-  { label: 'Départs', href: null },
-  { label: 'Arrivées', href: null },
-  { label: 'Incidents', href: null },
-  { label: 'Manifestes', href: null },
-  { label: 'Performance', href: null },
+  { label: 'Départs', href: '/dashboard/transporteur/departs' },
+  { label: 'Arrivées', href: '/dashboard/transporteur/arrivees' },
+  { label: 'Incidents', href: '/dashboard/transporteur/incidents' },
+  { label: 'Manifestes', href: '/dashboard/transporteur/manifestes' },
+  { label: 'Performance', href: '/dashboard/transporteur/performance' },
 ]
 
 export default function DashboardTransporteurPage() {

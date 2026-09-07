@@ -799,6 +799,17 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
   <div class="sheet-bd" id="incidentSheetBody"></div>
 </div>
 
+<!-- SHEET -- Fiche membre d'équipe (écran Équipe, entièrement fictif,
+     voir note de conception sur la page : aucun schéma réel derrière). -->
+<div class="overlay" id="memberOverlay" onclick="closeSheet('member')"></div>
+<div class="sheet" id="memberSheet" role="dialog" aria-modal="true" aria-label="Fiche du membre">
+  <div class="sheet-hd">
+    <span class="sheet-ttl">Membre</span>
+    <button class="sheet-x" onclick="closeSheet('member')" aria-label="Fermer">✕</button>
+  </div>
+  <div class="sheet-bd" id="memberSheetBody"></div>
+</div>
+
 <div id="toasts" role="status" aria-live="polite" aria-atomic="true"></div>
 
 <!-- ================================================================
@@ -1776,24 +1787,51 @@ function renderPlanning() {
    (user_roles.role), pas les niveaux affichés ici.
    ---------------------------------------------------------------- */
 var SEED_TEAM = [
-  { name:'Hicham Bennani', role:'Administrateur transporteur', status:'active' },
-  { name:'Nawal Chraibi', role:'Manager opérationnel', status:'active' },
-  { name:'Youssef Amine', role:'Agent dépôt — Hub Casablanca', status:'active' },
-  { name:'Fatima Zahra Idrissi', role:'Agent terrain — Hub Dakar', status:'active' },
-  { name:'Rachid El Fassi', role:'Conducteur — Casablanca ↔ Dakar', status:'invited' }
+  { name:'Hicham Bennani', role:'Administrateur transporteur', status:'active', phone:'+212 6 61 22 33 44', zone:'Casablanca (siège)', added:'12 mars 2026' },
+  { name:'Nawal Chraibi', role:'Manager opérationnel', status:'active', phone:'+212 6 62 33 44 55', zone:'Casablanca (siège)', added:'12 mars 2026' },
+  { name:'Youssef Amine', role:'Agent dépôt — Hub Casablanca', status:'active', phone:'+212 6 63 44 55 66', zone:'Hub Casablanca', added:'2 avril 2026' },
+  { name:'Fatima Zahra Idrissi', role:'Agent terrain — Hub Dakar', status:'active', phone:'+221 77 123 45 67', zone:'Hub Dakar', added:'2 avril 2026' },
+  { name:'Rachid El Fassi', role:'Conducteur — Casablanca ↔ Dakar', status:'invited', phone:'+212 6 64 55 66 77', zone:'Casablanca ↔ Dakar', added:'invitation envoyée le 28 août 2026' }
 ];
 function initials(name) {
   return name.split(' ').map(function(p){ return p[0]; }).slice(0,2).join('').toUpperCase();
 }
 function renderEquipe() {
   var el = document.getElementById('teamList');
-  el.innerHTML = SEED_TEAM.map(function(m){
-    return '<div class="team-row">'
+  el.innerHTML = SEED_TEAM.map(function(m, i){
+    return '<div class="team-row" data-idx="'+i+'" style="cursor:pointer">'
       + '<div class="team-av">'+initials(m.name)+'</div>'
       + '<div class="team-body"><div class="team-name">'+h(m.name)+'</div><div class="team-role">'+h(m.role)+'</div></div>'
       + '<span class="team-status '+m.status+'">'+(m.status==='active'?'Actif':'Invité')+'</span>'
       + '</div>';
   }).join('');
+  Array.prototype.forEach.call(el.querySelectorAll('.team-row'), function(row){
+    row.addEventListener('click', function(){ openMemberSheet(Number(row.dataset.idx)); });
+  });
+}
+function openMemberSheet(idx) {
+  var m = SEED_TEAM[idx];
+  if (!m) return;
+  document.getElementById('memberSheetBody').innerHTML = '<div class="form-wrap">'
+    + '<div class="fieldset" style="text-align:center">'
+    +   '<div class="team-av" style="margin:0 auto 10px;width:56px;height:56px;font-size:18px">'+initials(m.name)+'</div>'
+    +   '<div style="font-size:16px;font-weight:700;color:var(--txt)">'+h(m.name)+'</div>'
+    +   '<div style="font-size:12.5px;color:var(--txt2);margin-top:2px">'+h(m.role)+'</div>'
+    +   '<span class="team-status '+m.status+'" style="display:inline-flex;margin-top:8px">'+(m.status==='active'?'Actif':'Invité')+'</span>'
+    + '</div>'
+    + '<div class="fieldset">'
+    +   '<div class="fieldset-lgd">Coordonnées (démo)</div>'
+    +   '<div class="field-hint">📞 '+h(m.phone)+'</div>'
+    +   '<div class="field-hint">📍 '+h(m.zone)+'</div>'
+    +   '<div class="field-hint">🗓️ '+h(m.added)+'</div>'
+    + '</div>'
+    + '<button class="btn-secondary" id="btnRemoveMember">Retirer de l\'équipe (démo)</button>'
+    + '</div>';
+  document.getElementById('btnRemoveMember').addEventListener('click', function(){
+    showToast('Membre retiré (démo — aucune écriture réelle)', 'i');
+    closeSheet('member');
+  });
+  openSheet('member');
 }
 function bindEquipe() {
   document.getElementById('btnInviteMember').addEventListener('click', function(){

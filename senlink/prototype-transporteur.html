@@ -684,6 +684,19 @@ input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width
     <div class="page-ttl">Atlas Cargo</div>
     <div class="page-sub">Transporteur — Casablanca ↔ Dakar</div>
   </div>
+  <!-- Carte transporteur -- reflète les colonnes réelles de la table
+       transporters (name, country_scope, active). trust_score existe
+       aussi dans le schéma réel mais n'est jamais calculé (voir
+       migration d'origine) : l'afficher ici donnerait l'illusion d'un
+       vrai score, donc volontairement omis. -->
+  <div class="pcard">
+    <div class="pcard-ttl">Transporteur</div>
+    <div class="pcard-item" style="cursor:default">
+      <div class="pi-ico" aria-hidden="true">🚚</div>
+      <div class="pi-txt"><strong>Atlas Cargo</strong><span>🇲🇦 Maroc · 🇸🇳 Sénégal</span></div>
+      <span class="badge st-livre">Actif</span>
+    </div>
+  </div>
   <div class="pcard">
     <div class="pcard-ttl">Navigation</div>
     <div class="pcard-item" id="btnMenuPlanning">

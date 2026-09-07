@@ -2,6 +2,8 @@
 
 Constats issus de l'audit complet du 7 septembre 2026 (Supabase Advisors, projet réel
 `thduksfosaylbjimrgrn`), postérieur à la clôture de Migration 4 (Security Hardening).
+Mis à jour le même jour après application de Migration 5 (Foundation Core V1) — voir
+§5 pour les constats additionnels.
 
 ## Ce que ce document n'est PAS
 
@@ -66,6 +68,34 @@ pour une même combinaison rôle/action, ce qui oblige Postgres à évaluer chac
 Optimisation possible : fusionner certaines policies en une seule avec un `OR` explicite.
 Encore une fois, cela touche au texte de policies déjà auditées et verrouillées (Migrations
 1 à 4) — à ne considérer qu'avec un besoin démontré.
+
+### 5. Constats additionnels après Migration 5 (Foundation Core V1) — priorité basse
+
+Audit post-application du 7 septembre 2026 : le linter est passé de ~60 à 88 lints. Vérifié
+un par un — **aucune nouvelle catégorie de problème**, chaque nouveau constat est
+l'extension mécanique d'une catégorie déjà listée ci-dessus sur les objets ajoutés par
+Migration 5 :
+
+- **Policies permissives multiples** (catégorie §4) : `countries` et `corridors`
+  apparaissent désormais dans cette liste (5 occurrences chacune), pour la même raison
+  que `hubs`/`organizations`/`pickup_points`/`transporters` déjà listés — leur policy
+  `*_admin_write` (`for all`) et `*_public_read` (`for select`) se chevauchent sur
+  `SELECT`. C'est le même schéma de design volontaire déjà en place ailleurs dans le
+  Core, reproduit à l'identique pour les deux nouvelles tables de référence.
+- **Clés étrangères non indexées** (catégorie §1) : les 3 nouvelles FK introduites par
+  Migration 5 s'ajoutent à la liste — `corridors.origin_country`/`destination_country`
+  (vers `countries.code`), `shipments.organization_id`, `shipment_lots.organization_id`
+  (vers `organizations.id`), ainsi que les FK de remplacement des anciens CHECK sur
+  `organizations.country`/`hubs.country`/`pickup_points.country`.
+- **`auth_rls_initplan`** (catégorie §2) : aucune nouvelle occurrence sur `countries`/
+  `corridors` — leurs policies (`using (true)` et `using (is_admin())`) n'appellent pas
+  `auth.uid()`/`auth.role()` directement, donc ne déclenchent pas ce lint.
+- **Index inutilisés** (catégorie §3) : aucune nouvelle occurrence liée à Migration 5.
+
+Aucune modification SQL, aucune indexation, aucun changement de policy ou de grant n'a été
+fait ni n'est recommandé sur la base de ce constat. Migrations 1 à 5 restent verrouillées.
+Reste soumis à la même règle d'engagement que le reste de ce document (benchmark préalable
+requis, base actuellement vide).
 
 ## Quand revisiter ce backlog
 

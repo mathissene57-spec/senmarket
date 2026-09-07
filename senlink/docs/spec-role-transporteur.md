@@ -13,6 +13,11 @@
 >   (`localStorage`, JS), mais aucune RPC ni politique réelle ne l'implémente aujourd'hui.
 >   Ne jamais coder une vraie page contre ces comportements sans d'abord construire la
 >   migration correspondante.
+>
+> **Mise à jour du 8 septembre 2026** : depuis la rédaction initiale de ce document, deux
+> migrations sont venues rendre réel ce qui était illustratif — `team_core` (§8, Équipe) et
+> `shipment_proofs_storage` (preuve photo réelle sur la transition `arrived_destination` du
+> Scanner, §3). Le reste du document (Migrations 1-3, prototype de référence) n'a pas bougé.
 
 ## 0. Identité et rôle
 
@@ -295,18 +300,33 @@ mobile (pas d'onglet dédié dans la barre basse, pour ne pas la surcharger).
 
 ---
 
-## 8. Équipe 🧪 (entièrement illustratif)
+## 8. Équipe 🔒 (réel depuis Migration `team_core`, 7-8 septembre 2026)
 
-**Données affichées** : liste de 5 membres fictifs (`SEED_TEAM`) avec des rôles granulaires
-spéculatifs (ex. "Chauffeur", "Coordinateur hub").
+**Mise à jour** : cette section décrivait initialement un écran entièrement illustratif
+(`SEED_TEAM`, 5 membres fictifs, bouton "Inviter" en stub). Ce n'est plus le cas depuis la
+migration `team_core` (et son correctif `fix_get_team_members_ambiguous_column`) : l'écran
+Équipe de `app/dashboard/transporteur/equipe/page.tsx` appelle désormais de vraies RPC.
 
-**Actions autorisées** : "Inviter un membre" — stub, affiche uniquement un toast, aucune
-action réelle.
+**Données affichées** : liste réelle des membres de l'équipe (`get_team_members()`), lue
+depuis `user_roles` — nom, email, date d'ajout.
 
-**Statuts / événements / RLS / validations** : **aucun** — ni `user_roles` multi-membres par
-transporteur, ni notion d'équipe, ni RPC d'invitation n'existe dans le schéma réel. Le
-prototype porte une "NOTE DE CONCEPTION" visible à l'écran et un commentaire de code
-équivalent pour ne jamais laisser croire que cette fonctionnalité est backée.
+**Actions autorisées** 🔒 :
+- Ajouter un membre par email (`add_team_member(p_email, p_acting_role)`) — uniquement si un
+  compte avec cet email existe déjà (pas d'envoi d'invitation par email, aucune Edge Function
+  d'email n'existe dans ce scaffold).
+- Retirer un membre (`remove_team_member(p_user_id, p_acting_role)`) — bloqué si c'est le
+  dernier membre restant.
+
+**Modèle de permissions** 🔒 (décision explicite, V1) : pas de sous-rôles/titres — tous les
+membres d'un même transporteur sont symétriques ; n'importe quel membre peut ajouter ou
+retirer n'importe quel autre (pas de notion de "propriétaire").
+
+**Statuts / événements** : aucun événement dédié (pas de table d'audit sur l'équipe à ce
+stade) — seule `user_roles` change.
+
+**Permissions RLS** 🔒 : les deux RPC sont `SECURITY DEFINER`, vérifient elles-mêmes
+`p_acting_role = 'transporteur'` et l'appartenance de l'appelant au même `transporter_id` que
+la cible, avant toute écriture.
 
 **Parcours mobile** : accessible depuis la barre desktop et depuis le menu Profil sur mobile.
 
@@ -338,7 +358,7 @@ serveur).
 | Carte GPS (Lots et Incidents) | 🧪 démo — le vrai GPS Core (Migration 3) existe et est verrouillé mais n'est jamais appelé |
 | Résolution d'incident par le transporteur | 🧪 démo — le schéma réel réserve cette action à un admin |
 | Cycle de statut des incidents (2 vs 4 états) | 🧪 démo — aucune migration incidents verrouillée, deux documents divergents |
-| Équipe (liste, invitation) | 🧪 entièrement fictif, aucun schéma |
+| Équipe (liste, ajout/retrait par email) | 🔒 réel (Migration `team_core`, 7-8 septembre 2026) |
 | Réassignation d'un colis entre lots (`reassign_shipment_lot`) | 🔒 backé en base mais **non exposé** dans l'UI actuelle |
 
 Aucune de ces zones 🧪 ne doit être considérée comme une spécification figée pour une future

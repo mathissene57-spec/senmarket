@@ -93,8 +93,14 @@ avant validation terrain ») :
 - Paiement / calcul de commission.
 - Calcul du SenLink Trust Score (`transporters.trust_score` reste `null`).
 - Manifeste PWA / service worker.
-- Upload réel vers Supabase Storage (colonnes `photo_url` en `text`, pas de
-  bucket créé ni de logique d'upload).
 - Edge Functions d'envoi de notifications.
+
+Mise à jour Storage (8 septembre 2026) : le bucket `shipment-proofs` existe
+désormais (migration `shipment_proofs_storage`), avec ses policies RLS
+(lecture publique, écriture réservée à `authenticated`). Le flux transporteur
+(`app/dashboard/transporteur/scans/page.tsx`) uploade une vraie preuve photo
+avant de la passer à `record_shipment_event()`. Reste hors périmètre : la
+prise de photo côté formulaire client (`app/envois/nouveau/page.tsx`), dont
+le champ fichier est toujours désactivé.
 
 Chaque point est marqué `// TODO` dans le code au niveau pertinent.

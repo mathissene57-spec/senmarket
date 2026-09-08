@@ -1,28 +1,34 @@
 import Link from 'next/link'
 
-// Coquille (section 7 du document de référence — dashboard admin). Seule
-// « Incidents » est branchée pour de vrai — voir /dashboard/admin/incidents.
-const CARTES_STATIQUES = [
-  'Tous les colis',
-  'Flux Maroc/Sénégal',
-  'Transporteurs',
-  'Points relais',
-  'Retards',
-  'Analytics',
-  'Revenus',
-  'Audit logs',
+// Section 7 du document de référence — dashboard admin. Toutes les cartes
+// sont branchées sauf « Revenus » : aucun modèle de prix/commission n'existe
+// dans le schéma (paiement hors périmètre, voir docs/blueprint.md) — la
+// brancher afficherait des chiffres inventés plutôt que des données réelles.
+const CARTES_LIENS: { label: string; href: string }[] = [
+  { label: 'Tous les colis', href: '/dashboard/admin/colis' },
+  { label: 'Flux Maroc/Sénégal', href: '/dashboard/admin/flux' },
+  { label: 'Transporteurs', href: '/dashboard/admin/transporteurs' },
+  { label: 'Points relais', href: '/dashboard/admin/points-relais' },
+  { label: 'Retards', href: '/dashboard/admin/retards' },
+  { label: 'Analytics', href: '/dashboard/admin/analytics' },
+  { label: 'Incidents', href: '/dashboard/admin/incidents' },
+  { label: 'Audit logs', href: '/dashboard/admin/audit' },
 ]
+
+const CARTES_STATIQUES = ['Revenus']
 
 export default function DashboardAdminPage() {
   return (
     <main style={styles.page}>
       <h1 style={styles.titre}>Administration SenLink</h1>
       <div style={styles.grid}>
-        <Link href="/dashboard/admin/incidents" style={styles.carteLink}>
-          Incidents
-        </Link>
+        {CARTES_LIENS.map((c) => (
+          <Link key={c.href} href={c.href} style={styles.carteLink}>
+            {c.label}
+          </Link>
+        ))}
         {CARTES_STATIQUES.map((c) => (
-          <div key={c} style={styles.carte}>
+          <div key={c} style={styles.carte} title="Aucun modèle de prix/commission en base pour l'instant">
             {c}
           </div>
         ))}

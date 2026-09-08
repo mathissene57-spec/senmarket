@@ -10,6 +10,7 @@ type TrackingRow = {
   event_type: string | null
   event_location: string | null
   event_created_at: string | null
+  delivery_otp: string | null
 }
 
 async function getTracking(code: string): Promise<TrackingRow[] | null> {
@@ -66,6 +67,17 @@ export default async function SuiviPage({ params }: { params: { code: string } }
         {SHIPMENT_STATUS_LABELS[shipment.status] ?? shipment.status}
       </div>
 
+      {shipment.delivery_otp && (
+        <div style={styles.otpBox}>
+          <div style={styles.otpLabel}>Code de retrait</div>
+          <div style={styles.otpCode}>{shipment.delivery_otp}</div>
+          <p style={styles.otpHelp}>
+            Présentez ce code au point relais pour récupérer votre colis.
+            Ne le communiquez à personne d&apos;autre.
+          </p>
+        </div>
+      )}
+
       <h2 style={styles.sousTitre}>Historique</h2>
       {timeline.length === 0 ? (
         <p style={styles.vide}>Aucun événement enregistré pour l&apos;instant.</p>
@@ -102,6 +114,19 @@ const styles: { [key: string]: React.CSSProperties } = {
     background: '#00C96B', color: '#0A1A0F', fontWeight: 700, fontSize: 14,
     marginBottom: 32,
   },
+  otpBox: {
+    padding: '20px 24px', borderRadius: 14, background: '#0A1A0F',
+    color: '#fff', marginBottom: 32, textAlign: 'center',
+  },
+  otpLabel: {
+    fontSize: 12, fontWeight: 700, color: '#F5B800', textTransform: 'uppercase',
+    letterSpacing: 0.6, marginBottom: 8,
+  },
+  otpCode: {
+    fontFamily: "'Playfair Display', serif", fontSize: 36, fontWeight: 900,
+    letterSpacing: 4,
+  },
+  otpHelp: { fontSize: 12.5, color: '#C9D6CE', marginTop: 10, lineHeight: 1.5 },
   sousTitre: { fontSize: 18, fontWeight: 700, marginBottom: 16 },
   timeline: { listStyle: 'none', padding: 0, margin: 0 },
   timelineItem: { display: 'flex', gap: 12, marginBottom: 20 },

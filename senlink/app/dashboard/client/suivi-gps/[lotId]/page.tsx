@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { LiveMap } from '@/components/LiveMap'
 
 type Location = {
   latitude: number
@@ -69,12 +70,9 @@ export default function ClientSuiviGpsPage() {
 
       {location && (
         <>
-          <iframe
-            title="Position du véhicule"
-            style={styles.carte}
-            src={`https://www.google.com/maps?q=${location.latitude},${location.longitude}&z=14&output=embed`}
-            loading="lazy"
-          />
+          <div style={styles.carteWrap}>
+            <LiveMap latitude={location.latitude} longitude={location.longitude} />
+          </div>
           <div style={styles.details}>
             {location.speed_kmh != null && (
               <div style={styles.ligne}>
@@ -101,7 +99,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   soustitre: { color: '#3D3D3D', fontSize: 13.5, lineHeight: 1.6, margin: 0 },
   vide: { color: '#3D3D3D', fontSize: 14, lineHeight: 1.6 },
   erreur: { padding: 16, borderRadius: 10, background: '#FFF3F3', color: '#C41E3A', fontSize: 14 },
-  carte: { width: '100%', height: 340, border: 0, borderRadius: 14, marginBottom: 16 },
+  carteWrap: { marginBottom: 16, overflow: 'hidden', borderRadius: 14, border: '1px solid #E8E2D9' },
   details: {
     border: '1px solid #E8E2D9', borderRadius: 12, padding: '4px 16px', background: '#fff',
   },

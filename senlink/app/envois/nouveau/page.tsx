@@ -20,6 +20,7 @@ export default function NouvelEnvoiPage() {
   const [category, setCategory] = useState('')
   const [weight, setWeight] = useState('')
   const [declaredValue, setDeclaredValue] = useState('')
+  const [photo, setPhoto] = useState<File | null>(null)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -31,33 +32,50 @@ export default function NouvelEnvoiPage() {
     setLoading(true)
     setMsg(null)
 
-    // tracking_code et qr_code_data sont générés côté base par un trigger
-    // (voir supabase/migrations) : on ne les envoie jamais depuis le client.
-    const { data: userData } = await supabase.auth.getUser()
-    const { error } = await supabase.from('shipments').insert({
-      client_user_id: userData.user?.id ?? null,
-      created_by: userData.user?.id ?? null,
-      sender_name: senderName,
-      sender_phone: senderPhone,
-      origin_city: originCity,
-      origin_country: 'MA',
-      recipient_name: recipientName,
-      recipient_phone: recipientPhone,
-      destination_city: destinationCity,
-      destination_country: 'SN',
-      category: category || null,
-      weight_declared_kg: weight ? Number(weight) : null,
-      declared_value: declaredValue ? Number(declaredValue) : null,
-    })
+    try {
+      // Le colis n'a pas encore d'id au moment de l'upload — on utilise un
+      // chemin aléatoire dans le bucket public 'shipment-proofs', déjà
+      // utilisé pour les preuves de dépôt/contrôle plus loin dans le parcours.
+      let photoUrl: string | null = null
+      if (photo) {
+        const ext = photo.name.split('.').pop() || 'jpg'
+        const path = `${crypto.randomUUID()}.${ext}`
+        const { error: uploadError } = await supabase.storage
+          .from('shipment-proofs')
+          .upload(path, photo, { contentType: photo.type })
+        if (uploadError) throw uploadError
+        const { data: publicUrlData } = supabase.storage.from('shipment-proofs').getPublicUrl(path)
+        photoUrl = publicUrlData.publicUrl
+      }
 
-    setLoading(false)
+      // tracking_code et qr_code_data sont générés côté base par un trigger
+      // (voir supabase/migrations) : on ne les envoie jamais depuis le client.
+      const { data: userData } = await supabase.auth.getUser()
+      const { error } = await supabase.from('shipments').insert({
+        client_user_id: userData.user?.id ?? null,
+        created_by: userData.user?.id ?? null,
+        sender_name: senderName,
+        sender_phone: senderPhone,
+        origin_city: originCity,
+        origin_country: 'MA',
+        recipient_name: recipientName,
+        recipient_phone: recipientPhone,
+        destination_city: destinationCity,
+        destination_country: 'SN',
+        category: category || null,
+        weight_declared_kg: weight ? Number(weight) : null,
+        declared_value: declaredValue ? Number(declaredValue) : null,
+        photo_url: photoUrl,
+      })
+      if (error) throw error
 
-    if (error) {
-      setMsg({ text: error.message, type: 'err' })
-      return
+      setMsg({ text: 'Envoi créé ! Vous recevrez le code de suivi par notification.', type: 'ok' })
+      setPhoto(null)
+    } catch (e) {
+      setMsg({ text: e instanceof Error ? e.message : 'Erreur inconnue', type: 'err' })
+    } finally {
+      setLoading(false)
     }
-
-    setMsg({ text: 'Envoi créé ! Vous recevrez le code de suivi par notification.', type: 'ok' })
   }
 
   return (
@@ -134,10 +152,13 @@ export default function NouvelEnvoiPage() {
             value={declaredValue}
             onChange={(e) => setDeclaredValue(e.target.value)}
           />
-          {/* TODO: pas de vraie prise de photo ni d'upload vers Supabase
-              Storage dans ce scaffold — bucket 'shipment-photos' à créer et
-              à câbler plus tard (voir README "Hors périmètre"). */}
-          <input style={styles.input} type="file" accept="image/*" disabled />
+          <input
+            style={styles.input}
+            type="file"
+            accept="image/*"
+            onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
+          />
+          {photo && <div style={styles.photoNom}>{photo.name}</div>}
         </fieldset>
 
         <button style={styles.bouton} type="submit" disabled={loading}>
@@ -166,4 +187,5 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   msgOk: { padding: 12, borderRadius: 8, background: '#EAFBF2', color: '#00875A', fontSize: 13 },
   msgErr: { padding: 12, borderRadius: 8, background: '#FFF3F3', color: '#C41E3A', fontSize: 13 },
+  photoNom: { fontSize: 12, color: '#6A8572' },
 }

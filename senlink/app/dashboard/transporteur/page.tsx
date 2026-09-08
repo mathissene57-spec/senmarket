@@ -27,6 +27,7 @@ const CARTES = [
   { label: 'Colis', href: '/dashboard/transporteur/colis' },
   { label: 'Lots', href: '/dashboard/transporteur/lots' },
   { label: 'Scans', href: '/dashboard/transporteur/scans' },
+  { label: 'Suivi GPS', href: '/dashboard/transporteur/gps' },
   { label: 'Départs', href: '/dashboard/transporteur/departs' },
   { label: 'Arrivées', href: '/dashboard/transporteur/arrivees' },
   { label: 'Incidents', href: '/dashboard/transporteur/incidents' },

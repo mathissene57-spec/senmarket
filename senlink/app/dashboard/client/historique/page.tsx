@@ -12,12 +12,14 @@ type Shipment = {
   origin_city: string
   destination_city: string
   created_at: string
+  lot_id: string | null
 }
 
 export default function HistoriquePage() {
   const supabase = createClient()
   const [loading, setLoading] = useState(true)
   const [shipments, setShipments] = useState<Shipment[]>([])
+  const [lotsEnTransit, setLotsEnTransit] = useState<Set<string>>(new Set())
   const [erreur, setErreur] = useState<string | null>(null)
 
   useEffect(() => {
@@ -34,11 +36,27 @@ export default function HistoriquePage() {
         // besoin de filtrer côté client — la RLS ne renvoie que ses colis.
         const { data, error } = await supabase
           .from('shipments')
-          .select('id, tracking_code, status, origin_city, destination_city, created_at')
+          .select('id, tracking_code, status, origin_city, destination_city, created_at, lot_id')
           .eq('client_user_id', user.id)
           .order('created_at', { ascending: false })
         if (error) throw error
-        setShipments((data ?? []) as Shipment[])
+        const rows = (data ?? []) as Shipment[]
+        setShipments(rows)
+
+        // Le suivi GPS n'existe que pendant que le lot est en transit
+        // (record_lot_location() le refuse sinon) — on vérifie lesquels le sont.
+        const lotIds = Array.from(new Set(rows.map((s) => s.lot_id).filter((id): id is string => !!id)))
+        if (lotIds.length > 0) {
+          const { data: lotsData, error: lotsError } = await supabase
+            .from('shipment_lots')
+            .select('id')
+            .in('id', lotIds)
+            .eq('status', 'in_transit')
+          if (lotsError) throw lotsError
+          setLotsEnTransit(new Set((lotsData ?? []).map((l) => l.id as string)))
+        } else {
+          setLotsEnTransit(new Set())
+        }
       } catch (e) {
         setErreur(e instanceof Error ? e.message : 'Erreur inconnue')
       } finally {
@@ -71,18 +89,28 @@ export default function HistoriquePage() {
       )}
 
       <div style={styles.list}>
-        {shipments.map((s) => (
-          <Link key={s.id} href={`/suivi/${s.tracking_code}`} style={styles.card}>
-            <div style={styles.cardTop}>
-              <span style={styles.code}>{s.tracking_code}</span>
-              <span style={styles.badge}>{SHIPMENT_STATUS_LABELS[s.status]}</span>
+        {shipments.map((s) => {
+          const enTransit = s.lot_id != null && lotsEnTransit.has(s.lot_id)
+          return (
+            <div key={s.id} style={styles.card}>
+              <Link href={`/suivi/${s.tracking_code}`} style={styles.cardLien}>
+                <div style={styles.cardTop}>
+                  <span style={styles.code}>{s.tracking_code}</span>
+                  <span style={styles.badge}>{SHIPMENT_STATUS_LABELS[s.status]}</span>
+                </div>
+                <div style={styles.route}>
+                  {s.origin_city} → {s.destination_city}
+                </div>
+                <div style={styles.date}>{new Date(s.created_at).toLocaleString('fr-FR')}</div>
+              </Link>
+              {enTransit && (
+                <Link href={`/dashboard/client/suivi-gps/${s.lot_id}`} style={styles.gpsLien}>
+                  📍 Suivre en direct
+                </Link>
+              )}
             </div>
-            <div style={styles.route}>
-              {s.origin_city} → {s.destination_city}
-            </div>
-            <div style={styles.date}>{new Date(s.created_at).toLocaleString('fr-FR')}</div>
-          </Link>
-        ))}
+          )
+        })}
       </div>
     </main>
   )
@@ -99,7 +127,10 @@ const styles: { [key: string]: React.CSSProperties } = {
   list: { display: 'flex', flexDirection: 'column', gap: 14 },
   card: {
     border: '1px solid #E8E2D9', borderRadius: 14, padding: 16,
-    display: 'flex', flexDirection: 'column', gap: 6, background: '#fff',
+    display: 'flex', flexDirection: 'column', gap: 10, background: '#fff',
+  },
+  cardLien: {
+    display: 'flex', flexDirection: 'column', gap: 6,
     textDecoration: 'none', color: 'inherit',
   },
   cardTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
@@ -110,4 +141,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   route: { fontSize: 13, color: '#3D3D3D' },
   date: { fontSize: 11.5, color: '#8A8A8A' },
+  gpsLien: {
+    alignSelf: 'flex-start', fontSize: 12.5, fontWeight: 700, color: '#00875A',
+    textDecoration: 'none',
+  },
 }

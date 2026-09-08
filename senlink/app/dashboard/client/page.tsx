@@ -1,15 +1,12 @@
 import Link from 'next/link'
 
-// Coquille (section 7 du document de référence). Pas de requêtes live pour
-// l'instant au-delà de ce que /dashboard fait déjà — à brancher une fois
-// qu'un vrai projet Supabase SenLink existe.
 const CARTES = [
   { label: 'Créer un envoi', href: '/envois/nouveau' },
   { label: 'Suivre un colis', href: '/suivi' },
-  { label: 'Historique', href: '#' },
-  { label: 'Notifications', href: '#' },
-  { label: 'Points relais', href: '#' },
-  { label: 'Incidents', href: '#' },
+  { label: 'Historique', href: '/dashboard/client/historique' },
+  { label: 'Notifications', href: '/dashboard/client/notifications' },
+  { label: 'Points relais', href: '/dashboard/client/points-relais' },
+  { label: 'Incidents', href: '/dashboard/client/incidents' },
 ]
 
 export default function DashboardClientPage() {

@@ -1,5 +1,6 @@
 'use client'
 
+import { messageErreur } from '@/lib/errors'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -42,7 +43,7 @@ export default function PlanningPage() {
         rows.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         setEntries(rows)
       } catch (e) {
-        setErreur(e instanceof Error ? e.message : 'Erreur inconnue')
+        setErreur(messageErreur(e))
       } finally {
         setLoading(false)
       }

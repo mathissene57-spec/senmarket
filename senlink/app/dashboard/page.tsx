@@ -1,3 +1,4 @@
+import { messageErreur } from '@/lib/errors'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { USER_ROLE_LABELS, type UserRole } from '@/lib/shipment-status'
@@ -24,7 +25,7 @@ export default async function DashboardPage() {
       roles = (data ?? []).map((r) => r.role as UserRole)
     }
   } catch (e) {
-    erreur = e instanceof Error ? e.message : 'Erreur inconnue'
+    erreur = messageErreur(e)
   }
 
   if (erreur) {

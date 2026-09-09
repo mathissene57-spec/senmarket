@@ -1,5 +1,6 @@
 'use client'
 
+import { messageErreur } from '@/lib/errors'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -43,7 +44,7 @@ export default function ProfilPage() {
         const transporter = roleRes.data?.transporters as unknown as { name: string } | null
         setTransporterName(transporter?.name ?? null)
       } catch (e) {
-        setErreur(e instanceof Error ? e.message : 'Erreur inconnue')
+        setErreur(messageErreur(e))
       } finally {
         setLoading(false)
       }

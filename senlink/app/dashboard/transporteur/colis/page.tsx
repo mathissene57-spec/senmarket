@@ -1,5 +1,6 @@
 'use client'
 
+import { messageErreur } from '@/lib/errors'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -35,7 +36,7 @@ export default function ColisPage() {
         if (error) throw error
         setShipments((data ?? []) as Shipment[])
       } catch (e) {
-        setErreur(e instanceof Error ? e.message : 'Erreur inconnue')
+        setErreur(messageErreur(e))
       } finally {
         setLoading(false)
       }

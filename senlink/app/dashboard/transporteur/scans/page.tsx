@@ -1,5 +1,6 @@
 'use client'
 
+import { messageErreur } from '@/lib/errors'
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -52,7 +53,7 @@ export default function ScansPage() {
       if (error) throw error
       setShipments((data ?? []) as Shipment[])
     } catch (e) {
-      setErreur(e instanceof Error ? e.message : 'Erreur inconnue')
+      setErreur(messageErreur(e))
     } finally {
       setLoading(false)
     }
@@ -105,7 +106,7 @@ export default function ScansPage() {
       await handleAdvance(shipment, publicUrlData.publicUrl)
     } catch (e) {
       setSubmitting(null)
-      setMsg({ text: e instanceof Error ? e.message : 'Envoi de la photo impossible', type: 'err' })
+      setMsg({ text: messageErreur(e), type: 'err' })
     }
   }
 

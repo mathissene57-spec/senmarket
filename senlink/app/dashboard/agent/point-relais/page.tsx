@@ -1,5 +1,6 @@
 'use client'
 
+import { messageErreur } from '@/lib/errors'
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -89,7 +90,7 @@ export default function PointRelaisPage() {
         if (iciError) throw iciError
         setIci((iciData ?? []) as LocalShipment[])
       } catch (e) {
-        setErreurInit(e instanceof Error ? e.message : 'Erreur inconnue')
+        setErreurInit(messageErreur(e))
       } finally {
         setLoading(false)
       }
@@ -155,7 +156,7 @@ export default function PointRelaisPage() {
         setIci((iciData ?? []) as LocalShipment[])
       }
     } catch (e) {
-      setMsg({ text: e instanceof Error ? e.message : 'Erreur inconnue', type: 'err' })
+      setMsg({ text: messageErreur(e), type: 'err' })
     } finally {
       setSubmitting(false)
     }

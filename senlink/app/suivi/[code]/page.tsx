@@ -1,3 +1,4 @@
+import { messageErreur } from '@/lib/errors'
 import { createClient } from '@/lib/supabase/server'
 import { SHIPMENT_STATUS_LABELS, type ShipmentStatus } from '@/lib/shipment-status'
 
@@ -29,7 +30,7 @@ export default async function SuiviPage({ params }: { params: { code: string } }
   try {
     rows = await getTracking(params.code)
   } catch (e) {
-    erreur = e instanceof Error ? e.message : 'Erreur inconnue'
+    erreur = messageErreur(e)
   }
 
   if (erreur) {

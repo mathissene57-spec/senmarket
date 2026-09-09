@@ -1,5 +1,6 @@
 'use client'
 
+import { messageErreur } from '@/lib/errors'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -72,7 +73,7 @@ export default function NouvelEnvoiPage() {
       setMsg({ text: 'Envoi créé ! Vous recevrez le code de suivi par notification.', type: 'ok' })
       setPhoto(null)
     } catch (e) {
-      setMsg({ text: e instanceof Error ? e.message : 'Erreur inconnue', type: 'err' })
+      setMsg({ text: messageErreur(e), type: 'err' })
     } finally {
       setLoading(false)
     }

@@ -1,5 +1,6 @@
 'use client'
 
+import { messageErreur } from '@/lib/errors'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -62,7 +63,7 @@ export default function ClientIncidentsPage() {
       if (incidentsRes.error) throw incidentsRes.error
       setIncidents((incidentsRes.data ?? []) as Incident[])
     } catch (e) {
-      setErreur(e instanceof Error ? e.message : 'Erreur inconnue')
+      setErreur(messageErreur(e))
     } finally {
       setLoading(false)
     }
@@ -100,7 +101,7 @@ export default function ClientIncidentsPage() {
       setDescription('')
       load()
     } catch (e) {
-      setMsg({ text: e instanceof Error ? e.message : 'Erreur inconnue', type: 'err' })
+      setMsg({ text: messageErreur(e), type: 'err' })
     } finally {
       setSubmitting(false)
     }

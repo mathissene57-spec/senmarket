@@ -1,5 +1,6 @@
 'use client'
 
+import { messageErreur } from '@/lib/errors'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -30,7 +31,7 @@ export default function AdminTransporteursPage() {
         if (error) throw error
         setTransporteurs((data ?? []) as Transporter[])
       } catch (e) {
-        setErreur(e instanceof Error ? e.message : 'Erreur inconnue')
+        setErreur(messageErreur(e))
       } finally {
         setLoading(false)
       }

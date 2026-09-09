@@ -1,5 +1,6 @@
 'use client'
 
+import { messageErreur } from '@/lib/errors'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -44,7 +45,7 @@ export default function AdminFluxPage() {
         }
         setGroupes(Array.from(parRoute.values()).sort((a, b) => b.total - a.total))
       } catch (e) {
-        setErreur(e instanceof Error ? e.message : 'Erreur inconnue')
+        setErreur(messageErreur(e))
       } finally {
         setLoading(false)
       }

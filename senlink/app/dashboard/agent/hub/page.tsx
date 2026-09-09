@@ -1,5 +1,6 @@
 'use client'
 
+import { messageErreur } from '@/lib/errors'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -54,7 +55,7 @@ export default function HubPage() {
         }
         setMyHubId(data.hub_id)
       } catch (e) {
-        setErreurInit(e instanceof Error ? e.message : 'Erreur inconnue')
+        setErreurInit(messageErreur(e))
       } finally {
         setLoading(false)
       }

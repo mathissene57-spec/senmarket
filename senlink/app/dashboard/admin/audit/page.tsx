@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { SHIPMENT_STATUS_LABELS, USER_ROLE_LABELS, type ShipmentStatus, type UserRole } from '@/lib/shipment-status'
 
 type ShipmentEvent = {
   id: string
@@ -90,11 +91,11 @@ export default function AdminAuditPage() {
               <span style={styles.date}>{new Date(e.created_at).toLocaleString('fr-FR')}</span>
             </div>
             <div style={styles.type}>
-              {e.event_type}
-              {e.new_status && ` → ${e.new_status}`}
+              {SHIPMENT_STATUS_LABELS[e.event_type as ShipmentStatus] ?? e.event_type}
+              {e.new_status && ` → ${SHIPMENT_STATUS_LABELS[e.new_status as ShipmentStatus] ?? e.new_status}`}
             </div>
             <div style={styles.meta}>
-              {e.actor_role ?? 'rôle inconnu'}
+              {e.actor_role ? USER_ROLE_LABELS[e.actor_role as UserRole] ?? e.actor_role : 'rôle inconnu'}
               {e.location_text && ` · ${e.location_text}`}
             </div>
           </div>

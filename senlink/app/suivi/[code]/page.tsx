@@ -87,7 +87,9 @@ export default async function SuiviPage({ params }: { params: { code: string } }
             <li key={i} style={styles.timelineItem}>
               <div style={styles.timelinePoint} />
               <div>
-                <div style={styles.timelineType}>{event.event_type}</div>
+                <div style={styles.timelineType}>
+                  {SHIPMENT_STATUS_LABELS[event.event_type as ShipmentStatus] ?? event.event_type}
+                </div>
                 {event.event_location && (
                   <div style={styles.timelineLoc}>{event.event_location}</div>
                 )}

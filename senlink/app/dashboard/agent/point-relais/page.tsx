@@ -32,10 +32,14 @@ type LocalShipment = {
   destination_city: string
 }
 
-type Action = 'dropped_off' | 'inspected' | 'delivered' | null
+type Action = 'dropped_off' | 'inspected' | 'at_pickup_point' | 'delivered' | null
 
 function nextAction(shipment: LookedUpShipment, myPickupPointId: string): Action {
   if (shipment.status === 'created') return 'dropped_off'
+  // Réception d'un colis en provenance d'un hub : au même titre que
+  // 'created', c'est une prise en charge, pas encore rattachée à un point
+  // relais (current_pickup_point_id est encore null à ce stade).
+  if (shipment.status === 'at_hub') return 'at_pickup_point'
   if (shipment.current_pickup_point_id !== myPickupPointId) return null
   if (shipment.status === 'dropped_off') return 'inspected'
   if (shipment.status === 'at_pickup_point') return 'delivered'
@@ -45,6 +49,7 @@ function nextAction(shipment: LookedUpShipment, myPickupPointId: string): Action
 const ACTION_LABEL: Record<Exclude<Action, null>, string> = {
   dropped_off: 'Confirmer le dépôt',
   inspected: 'Confirmer le contrôle',
+  at_pickup_point: 'Confirmer la réception',
   delivered: 'Confirmer le retrait',
 }
 
@@ -187,8 +192,9 @@ export default function PointRelaisPage() {
         </Link>
         <h1 style={styles.titre}>Dépôt · Contrôle · Retrait</h1>
         <p style={styles.soustitre}>
-          Entre le code de suivi communiqué par le client pour agir sur son
-          colis — dépôt, contrôle, ou retrait selon son état actuel.
+          Entre le code de suivi communiqué par le client, ou le colis reçu
+          du hub, pour agir dessus — dépôt, contrôle, réception, ou retrait
+          selon son état actuel.
         </p>
       </div>
 

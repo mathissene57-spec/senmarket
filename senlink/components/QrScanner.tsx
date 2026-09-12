@@ -103,11 +103,11 @@ const styles: { [key: string]: React.CSSProperties } = {
     background: '#fff', borderRadius: 16, padding: 20, maxWidth: 360, width: '100%',
     display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'center',
   },
-  titre: { fontWeight: 700, fontSize: 15, color: '#0A1A0F' },
+  titre: { fontWeight: 700, fontSize: 15, color: '#0B2418' },
   video: { width: '100%', borderRadius: 10, background: '#000' },
-  erreur: { fontSize: 13, color: '#C41E3A', textAlign: 'center', padding: '20px 0' },
+  erreur: { fontSize: 13, color: '#E5484D', textAlign: 'center', padding: '20px 0' },
   fermer: {
-    padding: '10px 20px', borderRadius: 8, border: '1px solid #E8E2D9',
-    background: '#fff', color: '#0A1A0F', fontWeight: 600, fontSize: 13.5, cursor: 'pointer',
+    padding: '10px 20px', borderRadius: 8, border: '1px solid #E7E1D3',
+    background: '#fff', color: '#0B2418', fontWeight: 600, fontSize: 13.5, cursor: 'pointer',
   },
 }

@@ -1,11 +1,13 @@
 'use client'
 
-import { messageErreur } from '@/lib/errors'
+import { messageUtilisateur } from '@/lib/errors'
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { SHIPMENT_STATUS_LABELS, type ShipmentStatus } from '@/lib/shipment-status'
 import { QrScanner } from '@/components/QrScanner'
+import { StatusBadge } from '@/components/StatusBadge'
+import { color, shared } from '@/lib/theme'
 
 type LookedUpShipment = {
   id: string
@@ -93,7 +95,7 @@ export default function PointRelaisPage() {
         if (iciError) throw iciError
         setIci((iciData ?? []) as LocalShipment[])
       } catch (e) {
-        setErreurInit(messageErreur(e))
+        setErreurInit(messageUtilisateur(e))
       } finally {
         setLoading(false)
       }
@@ -115,7 +117,7 @@ export default function PointRelaisPage() {
     })
     setSearching(false)
     if (error) {
-      setMsg({ text: error.message, type: 'err' })
+      setMsg({ text: messageUtilisateur(error), type: 'err' })
       return
     }
     if (!data || data.length === 0) {
@@ -169,7 +171,7 @@ export default function PointRelaisPage() {
         setIci((iciData ?? []) as LocalShipment[])
       }
     } catch (e) {
-      setMsg({ text: messageErreur(e), type: 'err' })
+      setMsg({ text: messageUtilisateur(e), type: 'err' })
     } finally {
       setSubmitting(false)
     }
@@ -223,10 +225,10 @@ export default function PointRelaisPage() {
           {msg && <div style={msg.type === 'ok' ? styles.msgOk : styles.msgErr}>{msg.text}</div>}
 
           {shipment && (
-            <div style={styles.card}>
+            <div className="sl-fade-in" style={styles.card}>
               <div style={styles.cardTop}>
                 <span style={styles.code}>{shipment.tracking_code}</span>
-                <span style={styles.badge}>{SHIPMENT_STATUS_LABELS[shipment.status]}</span>
+                <StatusBadge status={shipment.status} size="sm" />
               </div>
               <div style={styles.route}>
                 {shipment.origin_city} → {shipment.destination_city}
@@ -279,7 +281,7 @@ export default function PointRelaisPage() {
             {ici.map((s) => (
               <div key={s.id} style={styles.cardMini}>
                 <span style={styles.code}>{s.tracking_code}</span>
-                <span style={styles.badge}>{SHIPMENT_STATUS_LABELS[s.status]}</span>
+                <StatusBadge status={s.status} size="sm" />
               </div>
             ))}
           </div>
@@ -290,39 +292,32 @@ export default function PointRelaisPage() {
 }
 
 const styles: { [key: string]: React.CSSProperties } = {
-  page: { maxWidth: 640, margin: '0 auto', padding: '32px 24px 64px' },
+  page: { maxWidth: 640, margin: '0 auto', padding: 'clamp(24px, 5vw, 32px) clamp(16px, 4vw, 24px) 64px' },
   head: { marginBottom: 24 },
-  retour: { color: '#00875A', fontSize: 13, fontWeight: 600, textDecoration: 'none' },
-  titre: { fontFamily: "'Playfair Display', serif", fontSize: 24, fontWeight: 900, margin: '8px 0 4px' },
-  soustitre: { color: '#3D3D3D', fontSize: 13.5, lineHeight: 1.6, margin: 0 },
-  vide: { color: '#3D3D3D', fontSize: 14, lineHeight: 1.6 },
-  erreur: { padding: 16, borderRadius: 10, background: '#FFF3F3', color: '#C41E3A', fontSize: 14 },
-  msgOk: { padding: 12, borderRadius: 8, background: '#EAFBF2', color: '#00875A', fontSize: 13, marginBottom: 16 },
-  msgErr: { padding: 12, borderRadius: 8, background: '#FFF3F3', color: '#C41E3A', fontSize: 13, marginBottom: 16 },
+  retour: { color: color.green600, fontSize: 13, fontWeight: 600, textDecoration: 'none' },
+  titre: { fontFamily: "'Playfair Display', serif", fontSize: 24, fontWeight: 900, color: color.inkStrong, margin: '8px 0 4px' },
+  soustitre: { color: color.muted, fontSize: 13.5, lineHeight: 1.6, margin: 0 },
+  vide: { color: color.muted, fontSize: 14, lineHeight: 1.6 },
+  erreur: { padding: 16, borderRadius: 10, background: color.dangerTint, color: color.danger, fontSize: 14 },
+  msgOk: { padding: 12, borderRadius: 8, background: color.greenTint, color: color.green600, fontSize: 13, marginBottom: 16 },
+  msgErr: { padding: 12, borderRadius: 8, background: color.dangerTint, color: color.danger, fontSize: 13, marginBottom: 16 },
   searchBox: { display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' },
-  input: { flex: 1, padding: '12px 14px', borderRadius: 8, border: '1px solid #E8E2D9', fontSize: 14, marginBottom: 10, minWidth: 180 },
-  bouton: { padding: '12px 18px', borderRadius: 10, border: 'none', background: '#0A1A0F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' },
-  boutonSecondaire: {
-    padding: '12px 18px', borderRadius: 10, border: '1px solid #E8E2D9',
-    background: '#fff', color: '#0A1A0F', fontWeight: 700, fontSize: 14, cursor: 'pointer',
-  },
-  card: {
-    border: '1px solid #E8E2D9', borderRadius: 14, padding: 16, marginBottom: 28,
-    display: 'flex', flexDirection: 'column', gap: 10, background: '#fff',
-  },
+  input: { ...shared.input, flex: 1, marginBottom: 10, minWidth: 180 },
+  bouton: shared.boutonPrimaire,
+  boutonSecondaire: shared.boutonSecondaire,
+  card: { ...shared.card, padding: 16, marginBottom: 28, display: 'flex', flexDirection: 'column', gap: 10 },
   cardMini: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    border: '1px solid #E8E2D9', borderRadius: 10, padding: '10px 14px', background: '#fff',
+    ...shared.card, padding: '10px 14px',
   },
   cardTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  code: { fontWeight: 700, fontSize: 14, color: '#0A1A0F' },
-  badge: { fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 999, background: '#FFF6DE', color: '#8A5A00' },
-  route: { fontSize: 13, color: '#3D3D3D' },
-  meta: { fontSize: 12.5, color: '#6A8572' },
+  code: { fontWeight: 700, fontSize: 14, color: color.inkStrong },
+  route: { fontSize: 13, color: color.muted },
+  meta: { fontSize: 12.5, color: color.muted },
   blocage: {
-    fontSize: 12.5, color: '#8A5A00', background: '#FFF6DE', borderRadius: 8,
+    fontSize: 12.5, color: '#8A6100', background: color.goldTint, borderRadius: 8,
     padding: '10px 12px', lineHeight: 1.5,
   },
-  sousTitre: { fontSize: 12, fontWeight: 700, color: '#6A8572', textTransform: 'uppercase', letterSpacing: 0.3, margin: '0 0 10px' },
+  sousTitre: { fontSize: 12, fontWeight: 700, color: color.muted, textTransform: 'uppercase', letterSpacing: 0.3, margin: '0 0 10px' },
   list: { display: 'flex', flexDirection: 'column', gap: 8 },
 }

@@ -1,9 +1,10 @@
 'use client'
 
-import { messageErreur } from '@/lib/errors'
+import { messageUtilisateur } from '@/lib/errors'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { ShipmentQrCode } from '@/components/ShipmentQrCode'
+import { color, shared } from '@/lib/theme'
 
 export default function NouvelEnvoiPage() {
   const supabase = createClient()
@@ -79,7 +80,7 @@ export default function NouvelEnvoiPage() {
       setMsg(null)
       setPhoto(null)
     } catch (e) {
-      setMsg({ text: messageErreur(e), type: 'err' })
+      setMsg({ text: messageUtilisateur(e), type: 'err' })
     } finally {
       setLoading(false)
     }
@@ -89,8 +90,10 @@ export default function NouvelEnvoiPage() {
     return (
       <main style={styles.page}>
         <h1 style={styles.titre}>Envoi créé</h1>
-        <div style={styles.succesBox}>
-          <ShipmentQrCode value={created} size={160} />
+        <div className="sl-fade-in" style={styles.succesBox}>
+          <div style={styles.succesQr}>
+            <ShipmentQrCode value={created} size={160} />
+          </div>
           <div style={styles.succesCode}>{created}</div>
           <p style={styles.succesHelp}>
             Présentez ce code (ou ce QR) au point relais lors du dépôt.
@@ -101,7 +104,7 @@ export default function NouvelEnvoiPage() {
             .
           </p>
         </div>
-        <button style={styles.bouton} onClick={() => setCreated(null)}>
+        <button style={shared.boutonPrimaire} onClick={() => setCreated(null)}>
           Créer un autre envoi
         </button>
       </main>
@@ -110,6 +113,7 @@ export default function NouvelEnvoiPage() {
 
   return (
     <main style={styles.page}>
+      <p style={styles.kicker}>Nouvel envoi</p>
       <h1 style={styles.titre}>Créer un envoi</h1>
       <p style={styles.soustitre}>
         Casablanca → Dakar — pilote contrôlé (voir docs/blueprint.md).
@@ -204,25 +208,25 @@ export default function NouvelEnvoiPage() {
 }
 
 const styles: { [key: string]: React.CSSProperties } = {
-  page: { maxWidth: 560, margin: '0 auto', padding: '48px 24px' },
-  titre: { fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 900, margin: '0 0 4px' },
-  soustitre: { color: '#3D3D3D', fontSize: 14, margin: '0 0 32px' },
+  page: { maxWidth: 560, margin: '0 auto', padding: 'clamp(32px, 6vw, 48px) clamp(16px, 4vw, 24px) 64px' },
+  kicker: { fontSize: 11.5, fontWeight: 700, color: color.green600, textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 6px' },
+  titre: { fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 900, color: color.inkStrong, margin: '0 0 4px' },
+  soustitre: { color: color.muted, fontSize: 14, margin: '0 0 32px' },
   form: { display: 'flex', flexDirection: 'column', gap: 20 },
-  fieldset: { border: '1px solid #E8E2D9', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 },
-  legend: { fontSize: 13, fontWeight: 700, color: '#0A1A0F', padding: '0 6px' },
-  input: { padding: '10px 12px', borderRadius: 8, border: '1px solid #D8D2C6', fontSize: 14 },
-  bouton: {
-    padding: '14px 24px', borderRadius: 10, border: 'none', background: '#0A1A0F',
-    color: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer',
-  },
-  msgOk: { padding: 12, borderRadius: 8, background: '#EAFBF2', color: '#00875A', fontSize: 13 },
-  msgErr: { padding: 12, borderRadius: 8, background: '#FFF3F3', color: '#C41E3A', fontSize: 13 },
-  photoNom: { fontSize: 12, color: '#6A8572' },
+  fieldset: { ...shared.card, border: `1px solid ${color.border}`, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 },
+  legend: { fontSize: 12.5, fontWeight: 700, color: color.inkStrong, padding: '0 6px', textTransform: 'uppercase', letterSpacing: 0.4 },
+  input: shared.input,
+  bouton: shared.boutonPrimaire,
+  msgOk: { padding: 12, borderRadius: 8, background: color.greenTint, color: color.green600, fontSize: 13 },
+  msgErr: { padding: 12, borderRadius: 8, background: color.dangerTint, color: color.danger, fontSize: 13 },
+  photoNom: { fontSize: 12, color: color.muted },
   succesBox: {
-    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12,
-    padding: 24, borderRadius: 14, border: '1px solid #E8E2D9', marginBottom: 20,
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
+    padding: 28, borderRadius: 20, marginBottom: 20,
+    background: `linear-gradient(135deg, ${color.green900}, ${color.green800})`, color: '#fff',
   },
+  succesQr: { background: '#fff', padding: 12, borderRadius: 12 },
   succesCode: { fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 900, letterSpacing: 1 },
-  succesHelp: { fontSize: 13, color: '#3D3D3D', textAlign: 'center', margin: 0, lineHeight: 1.6 },
-  lien: { color: '#00875A', fontWeight: 600 },
+  succesHelp: { fontSize: 13, color: '#C9D6CE', textAlign: 'center', margin: 0, lineHeight: 1.6 },
+  lien: { color: color.green400, fontWeight: 600 },
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { messageErreur } from '@/lib/errors'
+import { messageUtilisateur } from '@/lib/errors'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -44,7 +44,7 @@ export default function ProfilPage() {
         const transporter = roleRes.data?.transporters as unknown as { name: string } | null
         setTransporterName(transporter?.name ?? null)
       } catch (e) {
-        setErreur(messageErreur(e))
+        setErreur(messageUtilisateur(e))
       } finally {
         setLoading(false)
       }
@@ -116,23 +116,23 @@ export default function ProfilPage() {
 const styles: { [key: string]: React.CSSProperties } = {
   page: { maxWidth: 480, margin: '0 auto', padding: '32px 24px 64px' },
   head: { marginBottom: 24 },
-  retour: { color: '#00875A', fontSize: 13, fontWeight: 600, textDecoration: 'none' },
+  retour: { color: '#006B3C', fontSize: 13, fontWeight: 600, textDecoration: 'none' },
   titre: { fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 900, margin: '8px 0 0' },
-  vide: { color: '#3D3D3D', fontSize: 14 },
-  erreur: { padding: 16, borderRadius: 10, background: '#FFF3F3', color: '#C41E3A', fontSize: 14 },
-  card: { border: '1px solid #E8E2D9', borderRadius: 14, padding: 20, background: '#fff', marginBottom: 20 },
-  nom: { fontSize: 18, fontWeight: 800, color: '#0A1A0F' },
-  sousLigne: { fontSize: 13, color: '#6A8572', marginTop: 2, marginBottom: 16 },
+  vide: { color: '#66756D', fontSize: 14 },
+  erreur: { padding: 16, borderRadius: 10, background: '#FBE7E8', color: '#E5484D', fontSize: 14 },
+  card: { border: '1px solid #E7E1D3', borderRadius: 14, padding: 20, background: '#fff', marginBottom: 20 },
+  nom: { fontSize: 18, fontWeight: 800, color: '#0B2418' },
+  sousLigne: { fontSize: 13, color: '#66756D', marginTop: 2, marginBottom: 16 },
   champs: { display: 'flex', flexDirection: 'column', gap: 10, marginTop: 16 },
   champ: { display: 'flex', justifyContent: 'space-between', fontSize: 13.5 },
-  champLabel: { color: '#6A8572' },
+  champLabel: { color: '#66756D' },
   liens: { display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 },
   lien: {
-    padding: '12px 14px', borderRadius: 10, border: '1px solid #E8E2D9',
-    background: '#fff', color: '#0A1A0F', fontWeight: 600, fontSize: 13.5, textDecoration: 'none',
+    padding: '12px 14px', borderRadius: 10, border: '1px solid #E7E1D3',
+    background: '#fff', color: '#0B2418', fontWeight: 600, fontSize: 13.5, textDecoration: 'none',
   },
   boutonDeco: {
-    width: '100%', padding: '12px 16px', borderRadius: 10, border: '1px solid #C41E3A',
-    background: '#fff', color: '#C41E3A', fontWeight: 700, fontSize: 14, cursor: 'pointer',
+    width: '100%', padding: '12px 16px', borderRadius: 10, border: '1px solid #E5484D',
+    background: '#fff', color: '#E5484D', fontWeight: 700, fontSize: 14, cursor: 'pointer',
   },
 }

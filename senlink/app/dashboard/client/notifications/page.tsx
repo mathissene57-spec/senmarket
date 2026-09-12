@@ -1,6 +1,6 @@
 'use client'
 
-import { messageErreur } from '@/lib/errors'
+import { messageUtilisateur } from '@/lib/errors'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -48,7 +48,7 @@ export default function NotificationsPage() {
         setNotifications((notifRes.data ?? []) as Notification[])
         setShipments((shipmentsRes.data ?? []) as ShipmentOption[])
       } catch (e) {
-        setErreur(messageErreur(e))
+        setErreur(messageUtilisateur(e))
       } finally {
         setLoading(false)
       }
@@ -105,19 +105,19 @@ export default function NotificationsPage() {
 const styles: { [key: string]: React.CSSProperties } = {
   page: { maxWidth: 640, margin: '0 auto', padding: '32px 24px 64px' },
   head: { marginBottom: 24 },
-  retour: { color: '#00875A', fontSize: 13, fontWeight: 600, textDecoration: 'none' },
+  retour: { color: '#006B3C', fontSize: 13, fontWeight: 600, textDecoration: 'none' },
   titre: { fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 900, margin: '8px 0 4px' },
-  soustitre: { color: '#3D3D3D', fontSize: 13.5, lineHeight: 1.6, margin: 0 },
-  vide: { color: '#3D3D3D', fontSize: 14, lineHeight: 1.6 },
-  erreur: { padding: 16, borderRadius: 10, background: '#FFF3F3', color: '#C41E3A', fontSize: 14 },
+  soustitre: { color: '#66756D', fontSize: 13.5, lineHeight: 1.6, margin: 0 },
+  vide: { color: '#66756D', fontSize: 14, lineHeight: 1.6 },
+  erreur: { padding: 16, borderRadius: 10, background: '#FBE7E8', color: '#E5484D', fontSize: 14 },
   list: { display: 'flex', flexDirection: 'column', gap: 12 },
   card: {
-    border: '1px solid #E8E2D9', borderRadius: 12, padding: '14px 16px',
+    border: '1px solid #E7E1D3', borderRadius: 12, padding: '14px 16px',
     display: 'flex', flexDirection: 'column', gap: 6, background: '#fff',
   },
   cardTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  type: { fontWeight: 700, fontSize: 13.5, color: '#0A1A0F' },
-  date: { fontSize: 11, color: '#8A8A8A' },
-  message: { fontSize: 13.5, color: '#3D3D3D' },
-  meta: { fontSize: 11.5, color: '#6A8572' },
+  type: { fontWeight: 700, fontSize: 13.5, color: '#0B2418' },
+  date: { fontSize: 11, color: '#66756D' },
+  message: { fontSize: 13.5, color: '#66756D' },
+  meta: { fontSize: 11.5, color: '#66756D' },
 }

@@ -22,7 +22,7 @@ export default function RootLayout({
         />
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
       </head>
-      <body style={{ margin: 0, padding: 0, background: '#F8F6F1' }}>
+      <body style={{ margin: 0, padding: 0 }}>
         <Entete />
         {children}
       </body>

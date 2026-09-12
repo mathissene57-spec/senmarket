@@ -1,6 +1,6 @@
 'use client'
 
-import { messageErreur } from '@/lib/errors'
+import { messageUtilisateur } from '@/lib/errors'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -43,7 +43,7 @@ export default function PlanningPage() {
         rows.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         setEntries(rows)
       } catch (e) {
-        setErreur(messageErreur(e))
+        setErreur(messageUtilisateur(e))
       } finally {
         setLoading(false)
       }
@@ -111,22 +111,22 @@ export default function PlanningPage() {
 const styles: { [key: string]: React.CSSProperties } = {
   page: { maxWidth: 640, margin: '0 auto', padding: '32px 24px 64px' },
   head: { marginBottom: 24 },
-  retour: { color: '#00875A', fontSize: 13, fontWeight: 600, textDecoration: 'none' },
+  retour: { color: '#006B3C', fontSize: 13, fontWeight: 600, textDecoration: 'none' },
   titre: { fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 900, margin: '8px 0 4px' },
-  soustitre: { color: '#3D3D3D', fontSize: 13.5, lineHeight: 1.6, margin: 0 },
-  vide: { color: '#3D3D3D', fontSize: 14, lineHeight: 1.6 },
-  erreur: { padding: 16, borderRadius: 10, background: '#FFF3F3', color: '#C41E3A', fontSize: 14 },
+  soustitre: { color: '#66756D', fontSize: 13.5, lineHeight: 1.6, margin: 0 },
+  vide: { color: '#66756D', fontSize: 14, lineHeight: 1.6 },
+  erreur: { padding: 16, borderRadius: 10, background: '#FBE7E8', color: '#E5484D', fontSize: 14 },
   groupe: { marginBottom: 24 },
   jour: {
-    fontSize: 12, fontWeight: 700, color: '#6A8572', textTransform: 'uppercase',
+    fontSize: 12, fontWeight: 700, color: '#66756D', textTransform: 'uppercase',
     letterSpacing: 0.3, marginBottom: 10,
   },
   list: { display: 'flex', flexDirection: 'column', gap: 8 },
   item: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    padding: '12px 14px', borderRadius: 10, border: '1px solid #E8E2D9',
-    background: '#fff', textDecoration: 'none', color: '#0A1A0F', fontSize: 13.5,
+    padding: '12px 14px', borderRadius: 10, border: '1px solid #E7E1D3',
+    background: '#fff', textDecoration: 'none', color: '#0B2418', fontSize: 13.5,
   },
   itemLabel: { fontWeight: 600 },
-  itemCode: { color: '#6A8572', fontSize: 12.5 },
+  itemCode: { color: '#66756D', fontSize: 12.5 },
 }

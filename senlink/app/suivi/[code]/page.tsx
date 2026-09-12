@@ -1,7 +1,10 @@
-import { messageErreur } from '@/lib/errors'
+import { messageUtilisateur } from '@/lib/errors'
 import { createClient } from '@/lib/supabase/server'
 import { SHIPMENT_STATUS_LABELS, type ShipmentStatus } from '@/lib/shipment-status'
 import { ShipmentQrCode } from '@/components/ShipmentQrCode'
+import { StatusBadge } from '@/components/StatusBadge'
+import { ShipmentTimeline } from '@/components/ShipmentTimeline'
+import { color, shared } from '@/lib/theme'
 
 type TrackingRow = {
   tracking_code: string
@@ -31,24 +34,20 @@ export default async function SuiviPage({ params }: { params: { code: string } }
   try {
     rows = await getTracking(params.code)
   } catch (e) {
-    erreur = messageErreur(e)
+    erreur = messageUtilisateur(e)
   }
 
   if (erreur) {
     return (
-      <main style={styles.page}>
-        <div style={styles.erreur}>
-          Impossible de charger le suivi pour le moment.
-          <br />
-          <small>{erreur}</small>
-        </div>
+      <main style={shared.page}>
+        <div style={styles.erreur}>Action non disponible pour le moment. Réessayez dans un instant.</div>
       </main>
     )
   }
 
   if (!rows || rows.length === 0) {
     return (
-      <main style={styles.page}>
+      <main style={{ ...shared.page, maxWidth: 640 }}>
         <p style={styles.vide}>
           Aucun colis trouvé pour le code <strong>{params.code}</strong>.
         </p>
@@ -57,19 +56,27 @@ export default async function SuiviPage({ params }: { params: { code: string } }
   }
 
   const shipment = rows[0]
-  const timeline = rows.filter((r) => r.event_type !== null)
+  const historique = rows.filter((r) => r.event_type !== null)
 
   return (
-    <main style={styles.page}>
-      <h1 style={styles.titre}>{shipment.tracking_code}</h1>
-      <p style={styles.trajet}>
-        {shipment.origin_city} → {shipment.destination_city}
-      </p>
-      <div style={styles.statutBadge}>
-        {SHIPMENT_STATUS_LABELS[shipment.status] ?? shipment.status}
+    <main style={{ ...shared.page, maxWidth: 640 }}>
+      <div className="sl-fade-in" style={styles.entete}>
+        <div>
+          <p style={styles.kicker}>Suivi de colis</p>
+          <h1 style={{ ...shared.titre, fontSize: 26, margin: '0 0 8px' }}>{shipment.tracking_code}</h1>
+          <p style={styles.trajet}>
+            {shipment.origin_city.toUpperCase()} → {shipment.destination_city.toUpperCase()}
+          </p>
+        </div>
+        <StatusBadge status={shipment.status} />
       </div>
 
-      <div style={styles.qrBox}>
+      <div className="sl-fade-in" style={{ ...shared.card, padding: 24, marginBottom: 24 }}>
+        <div style={styles.sousTitre}>Progression</div>
+        <ShipmentTimeline currentStatus={shipment.status} events={historique} />
+      </div>
+
+      <div className="sl-fade-in" style={styles.qrBox}>
         <ShipmentQrCode value={shipment.tracking_code} size={140} />
         <p style={styles.qrHelp}>
           Présentez ce QR au point relais lors du dépôt ou du retrait — il
@@ -78,7 +85,7 @@ export default async function SuiviPage({ params }: { params: { code: string } }
       </div>
 
       {shipment.delivery_otp && (
-        <div style={styles.otpBox}>
+        <div className="sl-fade-in" style={styles.otpBox}>
           <div style={styles.otpLabel}>Code de retrait</div>
           <div style={styles.otpCode}>{shipment.delivery_otp}</div>
           <p style={styles.otpHelp}>
@@ -88,27 +95,20 @@ export default async function SuiviPage({ params }: { params: { code: string } }
         </div>
       )}
 
-      <h2 style={styles.sousTitre}>Historique</h2>
-      {timeline.length === 0 ? (
+      <div style={styles.sousTitre}>Historique détaillé</div>
+      {historique.length === 0 ? (
         <p style={styles.vide}>Aucun événement enregistré pour l&apos;instant.</p>
       ) : (
-        <ul style={styles.timeline}>
-          {timeline.map((event, i) => (
-            <li key={i} style={styles.timelineItem}>
-              <div style={styles.timelinePoint} />
-              <div>
-                <div style={styles.timelineType}>
-                  {SHIPMENT_STATUS_LABELS[event.event_type as ShipmentStatus] ?? event.event_type}
-                </div>
-                {event.event_location && (
-                  <div style={styles.timelineLoc}>{event.event_location}</div>
-                )}
-                {event.event_created_at && (
-                  <div style={styles.timelineDate}>
-                    {new Date(event.event_created_at).toLocaleString('fr-FR')}
-                  </div>
-                )}
+        <ul style={styles.liste}>
+          {historique.map((event, i) => (
+            <li key={i} style={styles.ligne}>
+              <div style={styles.ligneType}>
+                {SHIPMENT_STATUS_LABELS[event.event_type as ShipmentStatus] ?? event.event_type}
               </div>
+              {event.event_location && <div style={styles.ligneLoc}>{event.event_location}</div>}
+              {event.event_created_at && (
+                <div style={styles.ligneDate}>{new Date(event.event_created_at).toLocaleString('fr-FR')}</div>
+              )}
             </li>
           ))}
         </ul>
@@ -118,20 +118,15 @@ export default async function SuiviPage({ params }: { params: { code: string } }
 }
 
 const styles: { [key: string]: React.CSSProperties } = {
-  page: { maxWidth: 640, margin: '0 auto', padding: '48px 24px' },
-  titre: { fontFamily: "'Playfair Display', serif", fontSize: 28, fontWeight: 900, margin: '0 0 4px' },
-  trajet: { color: '#3D3D3D', fontSize: 15, margin: '0 0 16px' },
-  statutBadge: {
-    display: 'inline-block', padding: '8px 16px', borderRadius: 999,
-    background: '#00C96B', color: '#0A1A0F', fontWeight: 700, fontSize: 14,
-    marginBottom: 32,
-  },
+  entete: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 24, flexWrap: 'wrap' },
+  kicker: { fontSize: 11.5, fontWeight: 700, color: color.green600, textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 4px' },
+  trajet: { color: color.muted, fontSize: 14.5, margin: 0, fontWeight: 600 },
   otpBox: {
-    padding: '20px 24px', borderRadius: 14, background: '#0A1A0F',
-    color: '#fff', marginBottom: 32, textAlign: 'center',
+    padding: '20px 24px', borderRadius: 16, background: `linear-gradient(135deg, ${color.green900}, ${color.green800})`,
+    color: '#fff', marginBottom: 24, textAlign: 'center',
   },
   otpLabel: {
-    fontSize: 12, fontWeight: 700, color: '#F5B800', textTransform: 'uppercase',
+    fontSize: 12, fontWeight: 700, color: color.gold, textTransform: 'uppercase',
     letterSpacing: 0.6, marginBottom: 8,
   },
   otpCode: {
@@ -141,19 +136,18 @@ const styles: { [key: string]: React.CSSProperties } = {
   otpHelp: { fontSize: 12.5, color: '#C9D6CE', marginTop: 10, lineHeight: 1.5 },
   qrBox: {
     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
-    padding: 20, borderRadius: 14, border: '1px solid #E8E2D9', marginBottom: 32,
+    padding: 20, borderRadius: 16, marginBottom: 24, ...shared.card,
   },
-  qrHelp: { fontSize: 12.5, color: '#3D3D3D', textAlign: 'center', margin: 0, lineHeight: 1.5 },
-  sousTitre: { fontSize: 18, fontWeight: 700, marginBottom: 16 },
-  timeline: { listStyle: 'none', padding: 0, margin: 0 },
-  timelineItem: { display: 'flex', gap: 12, marginBottom: 20 },
-  timelinePoint: { width: 10, height: 10, borderRadius: '50%', background: '#00C96B', marginTop: 6, flexShrink: 0 },
-  timelineType: { fontWeight: 700, fontSize: 14 },
-  timelineLoc: { fontSize: 13, color: '#3D3D3D' },
-  timelineDate: { fontSize: 12, color: '#8A8A8A' },
-  vide: { color: '#3D3D3D', fontSize: 15 },
+  qrHelp: { fontSize: 12.5, color: color.muted, textAlign: 'center', margin: 0, lineHeight: 1.5 },
+  sousTitre: { fontSize: 12, fontWeight: 700, color: color.muted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 14 },
+  liste: { listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 },
+  ligne: { ...shared.card, padding: '12px 16px' },
+  ligneType: { fontWeight: 700, fontSize: 14, color: color.inkStrong },
+  ligneLoc: { fontSize: 13, color: color.muted, marginTop: 2 },
+  ligneDate: { fontSize: 11.5, color: color.muted, marginTop: 2 },
+  vide: { color: color.muted, fontSize: 15 },
   erreur: {
-    padding: 16, borderRadius: 10, background: '#FFF3F3', color: '#C41E3A',
+    padding: 16, borderRadius: 10, background: color.dangerTint, color: color.danger,
     fontSize: 14,
   },
 }

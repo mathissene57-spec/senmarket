@@ -30,7 +30,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14 },
   carte: {
     display: 'block', padding: 20, borderRadius: 12, background: '#fff',
-    border: '1px solid #E8E2D9', color: '#0A1A0F', fontWeight: 700,
+    border: '1px solid #E7E1D3', color: '#0B2418', fontWeight: 700,
     textDecoration: 'none', textAlign: 'center',
   },
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { messageErreur } from '@/lib/errors'
+import { messageUtilisateur } from '@/lib/errors'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -32,7 +32,7 @@ export default function DashboardAgentPage() {
         if (error) throw error
         setAffiliation((data ?? { pickup_point_id: null, hub_id: null }) as Affiliation)
       } catch (e) {
-        setErreur(messageErreur(e))
+        setErreur(messageUtilisateur(e))
       } finally {
         setLoading(false)
       }
@@ -84,13 +84,13 @@ export default function DashboardAgentPage() {
 const styles: { [key: string]: React.CSSProperties } = {
   page: { maxWidth: 480, margin: '0 auto', padding: '48px 24px' },
   titre: { fontFamily: "'Playfair Display', serif", fontSize: 24, fontWeight: 900, margin: '0 0 4px' },
-  soustitre: { color: '#3D3D3D', fontSize: 14, lineHeight: 1.6, margin: '0 0 24px' },
-  vide: { color: '#3D3D3D', fontSize: 14, lineHeight: 1.6 },
-  erreur: { padding: 16, borderRadius: 10, background: '#FFF3F3', color: '#C41E3A', fontSize: 14 },
+  soustitre: { color: '#66756D', fontSize: 14, lineHeight: 1.6, margin: '0 0 24px' },
+  vide: { color: '#66756D', fontSize: 14, lineHeight: 1.6 },
+  erreur: { padding: 16, borderRadius: 10, background: '#FBE7E8', color: '#E5484D', fontSize: 14 },
   grid: { display: 'flex', flexDirection: 'column', gap: 12 },
   carte: {
-    padding: '20px 18px', borderRadius: 12, border: '1px solid #0A1A0F',
-    background: '#0A1A0F', color: '#fff', fontWeight: 700, fontSize: 14,
+    padding: '20px 18px', borderRadius: 12, border: '1px solid #0B2418',
+    background: '#0B2418', color: '#fff', fontWeight: 700, fontSize: 14,
     textAlign: 'center', textDecoration: 'none',
   },
 }

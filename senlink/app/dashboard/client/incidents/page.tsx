@@ -1,6 +1,6 @@
 'use client'
 
-import { messageErreur } from '@/lib/errors'
+import { messageUtilisateur } from '@/lib/errors'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -63,7 +63,7 @@ export default function ClientIncidentsPage() {
       if (incidentsRes.error) throw incidentsRes.error
       setIncidents((incidentsRes.data ?? []) as Incident[])
     } catch (e) {
-      setErreur(messageErreur(e))
+      setErreur(messageUtilisateur(e))
     } finally {
       setLoading(false)
     }
@@ -101,7 +101,7 @@ export default function ClientIncidentsPage() {
       setDescription('')
       load()
     } catch (e) {
-      setMsg({ text: messageErreur(e), type: 'err' })
+      setMsg({ text: messageUtilisateur(e), type: 'err' })
     } finally {
       setSubmitting(false)
     }
@@ -178,29 +178,29 @@ export default function ClientIncidentsPage() {
 const styles: { [key: string]: React.CSSProperties } = {
   page: { maxWidth: 640, margin: '0 auto', padding: '32px 24px 64px' },
   head: { marginBottom: 24 },
-  retour: { color: '#00875A', fontSize: 13, fontWeight: 600, textDecoration: 'none' },
+  retour: { color: '#006B3C', fontSize: 13, fontWeight: 600, textDecoration: 'none' },
   titre: { fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 900, margin: '8px 0 4px' },
-  soustitre: { color: '#3D3D3D', fontSize: 13.5, lineHeight: 1.6, margin: 0 },
-  vide: { color: '#3D3D3D', fontSize: 14, lineHeight: 1.6 },
-  erreur: { padding: 16, borderRadius: 10, background: '#FFF3F3', color: '#C41E3A', fontSize: 14 },
-  msgOk: { padding: 12, borderRadius: 8, background: '#EAFBF2', color: '#00875A', fontSize: 13, marginBottom: 16 },
-  msgErr: { padding: 12, borderRadius: 8, background: '#FFF3F3', color: '#C41E3A', fontSize: 13, marginBottom: 16 },
+  soustitre: { color: '#66756D', fontSize: 13.5, lineHeight: 1.6, margin: 0 },
+  vide: { color: '#66756D', fontSize: 14, lineHeight: 1.6 },
+  erreur: { padding: 16, borderRadius: 10, background: '#FBE7E8', color: '#E5484D', fontSize: 14 },
+  msgOk: { padding: 12, borderRadius: 8, background: '#E4F7EC', color: '#006B3C', fontSize: 13, marginBottom: 16 },
+  msgErr: { padding: 12, borderRadius: 8, background: '#FBE7E8', color: '#E5484D', fontSize: 13, marginBottom: 16 },
   createBox: {
     border: '1px dashed #C9C0AE', borderRadius: 14, padding: 16,
     display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24, background: '#fff',
   },
-  createTitre: { fontWeight: 700, fontSize: 13.5, color: '#0A1A0F' },
-  select: { padding: '10px 12px', borderRadius: 8, border: '1px solid #E8E2D9', fontSize: 13.5 },
-  textarea: { padding: '10px 12px', borderRadius: 8, border: '1px solid #E8E2D9', fontSize: 13.5, minHeight: 70, fontFamily: 'inherit' },
-  bouton: { padding: '12px 16px', borderRadius: 10, border: 'none', background: '#0A1A0F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' },
+  createTitre: { fontWeight: 700, fontSize: 13.5, color: '#0B2418' },
+  select: { padding: '10px 12px', borderRadius: 8, border: '1px solid #E7E1D3', fontSize: 13.5 },
+  textarea: { padding: '10px 12px', borderRadius: 8, border: '1px solid #E7E1D3', fontSize: 13.5, minHeight: 70, fontFamily: 'inherit' },
+  bouton: { padding: '12px 16px', borderRadius: 10, border: 'none', background: '#0B2418', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' },
   list: { display: 'flex', flexDirection: 'column', gap: 14 },
   card: {
-    border: '1px solid #E8E2D9', borderRadius: 14, padding: 16,
+    border: '1px solid #E7E1D3', borderRadius: 14, padding: 16,
     display: 'flex', flexDirection: 'column', gap: 8, background: '#fff',
   },
   cardTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  code: { fontWeight: 700, fontSize: 14, color: '#0A1A0F' },
-  badge: { fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 999, background: '#FFF6DE', color: '#8A5A00' },
-  route: { fontSize: 13, color: '#3D3D3D' },
-  desc: { fontSize: 12.5, color: '#6A8572' },
+  code: { fontWeight: 700, fontSize: 14, color: '#0B2418' },
+  badge: { fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 999, background: '#FBF1DA', color: '#8A6100' },
+  route: { fontSize: 13, color: '#66756D' },
+  desc: { fontSize: 12.5, color: '#66756D' },
 }

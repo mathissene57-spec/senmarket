@@ -46,11 +46,11 @@ const styles: { [key: string]: React.CSSProperties } = {
   titre: { fontFamily: "'Playfair Display', serif", fontSize: 24, fontWeight: 900, margin: '0 0 24px' },
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 14 },
   carte: {
-    padding: 20, borderRadius: 12, background: '#0A1A0F', color: '#fff',
+    padding: 20, borderRadius: 12, background: '#0B2418', color: '#fff',
     fontWeight: 700, textAlign: 'center',
   },
   carteLink: {
-    padding: 20, borderRadius: 12, background: '#0A1A0F', border: '1px solid #F5B800',
-    color: '#F5B800', fontWeight: 700, textAlign: 'center', textDecoration: 'none',
+    padding: 20, borderRadius: 12, background: '#0B2418', border: '1px solid #D4A017',
+    color: '#D4A017', fontWeight: 700, textAlign: 'center', textDecoration: 'none',
   },
 }

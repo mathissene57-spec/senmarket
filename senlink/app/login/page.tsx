@@ -47,7 +47,7 @@ export default function LoginPage() {
       return
     }
 
-    showMsg('Connexion reussie ! Redirection...', 'ok')
+    showMsg('Connexion réussie ! Redirection...', 'ok')
     router.push('/dashboard')
     router.refresh()
   }
@@ -59,7 +59,7 @@ export default function LoginPage() {
       return
     }
     if (regPwd.length < 8) {
-      showMsg('Mot de passe minimum 8 caracteres', 'err')
+      showMsg('Mot de passe minimum 8 caractères', 'err')
       return
     }
 
@@ -83,7 +83,7 @@ export default function LoginPage() {
       return
     }
 
-    showMsg('Compte cree ! Verifiez votre email pour confirmer.', 'ok')
+    showMsg('Compte créé ! Vérifiez votre email pour confirmer.', 'ok')
   }
 
   async function handleMagicLink() {
@@ -99,7 +99,7 @@ export default function LoginPage() {
       showMsg(error.message, 'err')
       return
     }
-    showMsg('Lien envoye a ' + loginEmail + ' !', 'ok')
+    showMsg('Lien envoyé à ' + loginEmail + ' !', 'ok')
   }
 
   async function handleResetPassword() {
@@ -115,7 +115,7 @@ export default function LoginPage() {
       showMsg(error.message, 'err')
       return
     }
-    showMsg('Email de reinitialisation envoye !', 'ok')
+    showMsg('Email de réinitialisation envoyé !', 'ok')
   }
 
   return (
@@ -123,13 +123,13 @@ export default function LoginPage() {
       <div style={styles.logo}>
         <div style={styles.logoIco}>📦</div>
         <span style={styles.logoTxt}>
-          Sen<span style={{ color: '#F5B800' }}>Link</span>
+          Sen<span style={{ color: '#D4A017' }}>Link</span>
         </span>
       </div>
 
       <div style={styles.card}>
         <div style={styles.cardTitle}>Espace SenLink</div>
-        <div style={styles.cardSub}>Connectez-vous pour acceder a votre tableau de bord</div>
+        <div style={styles.cardSub}>Connectez-vous pour accéder à votre tableau de bord</div>
 
         <div style={styles.tabs}>
           <button
@@ -142,7 +142,7 @@ export default function LoginPage() {
             style={mode === 'register' ? styles.tabBtnOn : styles.tabBtn}
             onClick={() => { setMode('register'); setMsg(null) }}
           >
-            Creer un compte
+            Créer un compte
           </button>
         </div>
 
@@ -187,7 +187,7 @@ export default function LoginPage() {
 
             <div style={styles.forgot}>
               <span onClick={handleResetPassword} style={styles.forgotLink}>
-                Mot de passe oublie ?
+                Mot de passe oublié ?
               </span>
             </div>
           </form>
@@ -220,7 +220,7 @@ export default function LoginPage() {
               <input
                 style={styles.input}
                 type="password"
-                placeholder="Minimum 8 caracteres"
+                placeholder="Minimum 8 caractères"
                 autoComplete="new-password"
                 value={regPwd}
                 onChange={(e) => setRegPwd(e.target.value)}
@@ -240,7 +240,7 @@ export default function LoginPage() {
       </div>
 
       <div style={styles.backLink}>
-        <a href="/" style={{ color: '#00C96B', fontWeight: 600, textDecoration: 'none' }}>
+        <a href="/" style={{ color: '#00C878', fontWeight: 600, textDecoration: 'none' }}>
           ← Retour a l&apos;accueil
         </a>
       </div>
@@ -251,7 +251,7 @@ export default function LoginPage() {
 const styles: { [key: string]: React.CSSProperties } = {
   body: {
     fontFamily: "'DM Sans', system-ui, sans-serif",
-    background: '#0A1A0F',
+    background: '#0B2418',
     color: '#F2F7F4',
     minHeight: '100vh',
     display: 'flex',
@@ -275,49 +275,49 @@ const styles: { [key: string]: React.CSSProperties } = {
     boxShadow: '0 16px 48px rgba(0,0,0,.4)',
   },
   cardTitle: { fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 900, marginBottom: 6, textAlign: 'center' },
-  cardSub: { fontSize: 14, color: '#6A8572', textAlign: 'center', marginBottom: 28, lineHeight: 1.6 },
-  tabs: { display: 'flex', background: '#0A1A0F', borderRadius: 10, padding: 4, marginBottom: 24 },
+  cardSub: { fontSize: 14, color: '#66756D', textAlign: 'center', marginBottom: 28, lineHeight: 1.6 },
+  tabs: { display: 'flex', background: '#0B2418', borderRadius: 10, padding: 4, marginBottom: 24 },
   tabBtn: {
     flex: 1, padding: 10, borderRadius: 8, fontSize: 13, fontWeight: 700,
-    color: '#6A8572', cursor: 'pointer', textAlign: 'center',
+    color: '#66756D', cursor: 'pointer', textAlign: 'center',
     border: 'none', fontFamily: 'inherit', background: 'transparent',
   },
   tabBtnOn: {
     flex: 1, padding: 10, borderRadius: 8, fontSize: 13, fontWeight: 700,
-    color: '#00C96B', cursor: 'pointer', textAlign: 'center',
+    color: '#00C878', cursor: 'pointer', textAlign: 'center',
     border: 'none', fontFamily: 'inherit', background: '#172618',
     boxShadow: '0 2px 8px rgba(0,0,0,.3)',
   },
   fg: { marginBottom: 16 },
-  label: { display: 'block', fontSize: 12, fontWeight: 700, color: '#6A8572', textTransform: 'uppercase', letterSpacing: '.7px', marginBottom: 8 },
+  label: { display: 'block', fontSize: 12, fontWeight: 700, color: '#66756D', textTransform: 'uppercase', letterSpacing: '.7px', marginBottom: 8 },
   input: {
     width: '100%', padding: '14px 16px', background: '#172618',
     border: '1.5px solid rgba(255,255,255,.08)', borderRadius: 12,
     fontSize: 16, color: '#F2F7F4', fontFamily: 'inherit', outline: 'none',
   },
   btnP: {
-    width: '100%', padding: 16, borderRadius: 14, background: '#00C96B',
+    width: '100%', padding: 16, borderRadius: 14, background: '#00C878',
     color: '#000', fontSize: 16, fontWeight: 700, border: 'none',
     cursor: 'pointer', fontFamily: 'inherit', marginTop: 8,
     boxShadow: '0 4px 20px rgba(0,201,107,.25)',
   },
   btnWa: {
-    width: '100%', padding: 14, borderRadius: 14, background: '#25D366',
-    color: '#fff', fontSize: 14, fontWeight: 700, border: 'none',
+    width: '100%', padding: 14, borderRadius: 14, background: 'transparent',
+    color: '#F2F7F4', fontSize: 14, fontWeight: 700, border: '1.5px solid rgba(255,255,255,.14)',
     cursor: 'pointer', fontFamily: 'inherit',
   },
   divider: { textAlign: 'center', margin: '20px 0', color: '#3D5449', fontSize: 13 },
-  forgot: { textAlign: 'center', marginTop: 16, fontSize: 13, color: '#6A8572' },
-  forgotLink: { color: '#00C96B', fontWeight: 600, cursor: 'pointer' },
+  forgot: { textAlign: 'center', marginTop: 16, fontSize: 13, color: '#66756D' },
+  forgotLink: { color: '#00C878', fontWeight: 600, cursor: 'pointer' },
   msgOk: {
     padding: '12px 16px', borderRadius: 10, fontSize: 13, fontWeight: 500,
     marginTop: 12, textAlign: 'center',
-    background: 'rgba(0,201,107,.12)', border: '1px solid rgba(0,201,107,.25)', color: '#00C96B',
+    background: 'rgba(0,201,107,.12)', border: '1px solid rgba(0,201,107,.25)', color: '#00C878',
   },
   msgErr: {
     padding: '12px 16px', borderRadius: 10, fontSize: 13, fontWeight: 500,
     marginTop: 12, textAlign: 'center',
-    background: 'rgba(255,71,87,.1)', border: '1px solid rgba(255,71,87,.25)', color: '#FF4757',
+    background: 'rgba(229,72,77,.1)', border: '1px solid rgba(229,72,77,.25)', color: '#E5484D',
   },
-  backLink: { textAlign: 'center', marginTop: 20, fontSize: 13, color: '#6A8572' },
+  backLink: { textAlign: 'center', marginTop: 20, fontSize: 13, color: '#66756D' },
 }

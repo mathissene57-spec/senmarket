@@ -1,17 +1,28 @@
 'use client'
 
-import { messageErreur } from '@/lib/errors'
+import { messageUtilisateur } from '@/lib/errors'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { LOT_STATUS_LABELS, type LotStatus, type ShipmentStatus } from '@/lib/shipment-status'
+import { LOT_STATUS_LABELS, SHIPMENT_STATUS_LABELS, type LotStatus, type ShipmentStatus } from '@/lib/shipment-status'
+import { KpiCard } from '@/components/KpiCard'
+import { CorridorVisual } from '@/components/CorridorVisual'
+import { color, shared } from '@/lib/theme'
+import { Package, Truck, AlertTriangle, CheckCircle2, Boxes, Gauge } from 'lucide-react'
 
 // Écran "Accueil" (section 1 de docs/spec-role-transporteur.md) : vue
 // d'ensemble en lecture seule, page d'atterrissage du rôle transporteur.
-// Les 8 écrans réels restent accessibles via la grille de navigation
-// rapide en bas de page.
+// Les 12 écrans réels restent accessibles via la grille de navigation
+// rapide en bas de page — cette page ne fait que présenter les mêmes
+// données différemment (cockpit visuel), aucune fonctionnalité retirée.
 
-type ShipmentRow = { status: ShipmentStatus; lot_id: string | null }
+type ShipmentRow = {
+  id: string
+  tracking_code: string
+  status: ShipmentStatus
+  lot_id: string | null
+  updated_at: string | null
+}
 type LotRow = { id: string; lot_code: string; status: LotStatus }
 
 const EN_TRANSIT: ShipmentStatus[] = [
@@ -53,7 +64,7 @@ export default function DashboardTransporteurPage() {
       setErreur(null)
       try {
         const [shipmentsRes, lotsRes, incidentsRes] = await Promise.all([
-          supabase.from('shipments').select('status, lot_id'),
+          supabase.from('shipments').select('id, tracking_code, status, lot_id, updated_at'),
           supabase.from('shipment_lots').select('id, lot_code, status'),
           supabase.from('incidents').select('id').eq('status', 'open'),
         ])
@@ -65,7 +76,7 @@ export default function DashboardTransporteurPage() {
         setLots((lotsRes.data ?? []) as LotRow[])
         setIncidentsOuverts((incidentsRes.data ?? []).length)
       } catch (e) {
-        setErreur(messageErreur(e))
+        setErreur(messageUtilisateur(e))
       } finally {
         setLoading(false)
       }
@@ -81,79 +92,101 @@ export default function DashboardTransporteurPage() {
   const lotsEnTransport = lots.filter((l) => l.status === 'in_transit')
   const lotsOuverts = lots.filter((l) => l.status === 'open')
 
+  const recents = [...shipments]
+    .filter((s) => s.updated_at)
+    .sort((a, b) => (b.updated_at! < a.updated_at! ? -1 : 1))
+    .slice(0, 6)
+
   return (
-    <main style={styles.page}>
-      <h1 style={styles.titre}>Espace transporteur</h1>
+    <main style={shared.page}>
+      <p style={styles.kicker}>Espace transporteur</p>
+      <h1 style={{ ...shared.titre, fontSize: 26, margin: '0 0 24px' }}>Cockpit opérationnel</h1>
 
       {loading && <p style={styles.vide}>Chargement…</p>}
-      {erreur && (
-        <div style={styles.erreur}>
-          Impossible de charger la vue d&apos;ensemble pour le moment.
-          <br />
-          <small>{erreur}</small>
-        </div>
-      )}
+      {erreur && <div style={styles.erreur}>{erreur}</div>}
 
       {!loading && !erreur && (
         <>
-          <div style={styles.kpis}>
-            <div style={styles.kpi}>
-              <div style={styles.kpiValeur}>{enTransit.length}</div>
-              <div style={styles.kpiLabel}>En transit</div>
-            </div>
-            <div style={styles.kpi}>
-              <div style={styles.kpiValeur}>{aPrendreEnCharge.length}</div>
-              <div style={styles.kpiLabel}>À prendre en charge</div>
-            </div>
-            <div style={styles.kpi}>
-              <div style={styles.kpiValeur}>{lotsEnTransport.length}</div>
-              <div style={styles.kpiLabel}>Lots en transport</div>
-            </div>
-            <div style={styles.kpi}>
-              <div style={styles.kpiValeur}>{incidentsOuverts}</div>
-              <div style={styles.kpiLabel}>Incidents ouverts</div>
-            </div>
-            <div style={styles.kpi}>
-              <div style={styles.kpiValeur}>{livres.length}</div>
-              <div style={styles.kpiLabel}>Colis livrés</div>
-            </div>
-            <div style={styles.kpi}>
-              <div style={styles.kpiValeur}>{tauxLivraison}%</div>
-              <div style={styles.kpiLabel}>Taux de livraison</div>
-            </div>
+          <div style={styles.corridorSection}>
+            <CorridorVisual
+              stats={[
+                { value: lotsEnTransport.length, label: 'Lots en transport' },
+                { value: enTransit.length, label: 'Colis en transit' },
+                { value: `${tauxLivraison}%`, label: 'Taux de livraison' },
+              ]}
+            />
           </div>
 
-          <div style={styles.sousTitre}>À faire maintenant</div>
-          <div style={styles.todoList}>
-            {aPrendreEnCharge.length === 0 && lotsOuverts.length === 0 && incidentsOuverts === 0 ? (
-              <div style={styles.todoVide}>Rien à traiter pour l&apos;instant.</div>
-            ) : (
-              <>
-                {aPrendreEnCharge.length > 0 && (
-                  <Link href="/dashboard/transporteur/lots" style={styles.todoItem}>
-                    {aPrendreEnCharge.length} colis contrôlé(s) à rattacher à un lot
-                  </Link>
+          <div style={styles.kpis}>
+            <KpiCard icon={<Truck size={17} />} value={enTransit.length} label="En transit" accent="gold" />
+            <KpiCard
+              icon={<Boxes size={17} />}
+              value={aPrendreEnCharge.length}
+              label="À prendre en charge"
+              accent="neutral"
+            />
+            <KpiCard icon={<Package size={17} />} value={lotsEnTransport.length} label="Lots en transport" accent="green" />
+            <KpiCard
+              icon={<AlertTriangle size={17} />}
+              value={incidentsOuverts}
+              label="Incidents ouverts"
+              accent={incidentsOuverts > 0 ? 'danger' : 'neutral'}
+            />
+            <KpiCard icon={<CheckCircle2 size={17} />} value={livres.length} label="Colis livrés" accent="green" />
+            <KpiCard icon={<Gauge size={17} />} value={`${tauxLivraison}%`} label="Taux de livraison" accent="gold" />
+          </div>
+
+          <div style={styles.colonnes}>
+            <div style={styles.colonne}>
+              <div style={styles.sousTitre}>À faire maintenant</div>
+              <div style={styles.todoList}>
+                {aPrendreEnCharge.length === 0 && lotsOuverts.length === 0 && incidentsOuverts === 0 ? (
+                  <div style={styles.todoVide}>Rien à traiter pour l&apos;instant.</div>
+                ) : (
+                  <>
+                    {aPrendreEnCharge.length > 0 && (
+                      <Link href="/dashboard/transporteur/lots" style={styles.todoItem}>
+                        {aPrendreEnCharge.length} colis contrôlé(s) à rattacher à un lot
+                      </Link>
+                    )}
+                    {incidentsOuverts > 0 && (
+                      <Link href="/dashboard/transporteur/incidents" style={styles.todoItemDanger}>
+                        {incidentsOuverts} incident(s) non traité(s)
+                      </Link>
+                    )}
+                    {lotsOuverts.map((l) => (
+                      <Link key={l.id} href="/dashboard/transporteur/departs" style={styles.todoItem}>
+                        Lot {l.lot_code} ouvert — prêt pour le départ ?
+                      </Link>
+                    ))}
+                  </>
                 )}
-                {incidentsOuverts > 0 && (
-                  <Link href="/dashboard/transporteur/incidents" style={styles.todoItem}>
-                    {incidentsOuverts} incident(s) non traité(s)
-                  </Link>
-                )}
-                {lotsOuverts.map((l) => (
-                  <Link key={l.id} href="/dashboard/transporteur/departs" style={styles.todoItem}>
-                    Lot {l.lot_code} ouvert — prêt pour le départ ?
-                  </Link>
-                ))}
-              </>
-            )}
+              </div>
+            </div>
+
+            <div style={styles.colonne}>
+              <div style={styles.sousTitre}>Activité récente</div>
+              {recents.length === 0 ? (
+                <div style={styles.todoVide}>Aucun mouvement récent.</div>
+              ) : (
+                <div style={styles.activiteList}>
+                  {recents.map((s) => (
+                    <div key={s.id} style={styles.activiteItem}>
+                      <span style={styles.activiteCode}>{s.tracking_code}</span>
+                      <span style={styles.activiteStatut}>{SHIPMENT_STATUS_LABELS[s.status]}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </>
       )}
 
-      <div style={styles.sousTitre}>Accès rapide</div>
+      <div style={{ ...styles.sousTitre, marginTop: 8 }}>Accès rapide</div>
       <div style={styles.grid}>
         {CARTES.map((c) => (
-          <Link key={c.label} href={c.href} style={styles.carteLink}>
+          <Link key={c.label} href={c.href} className="sl-card-hover" style={styles.carteLink}>
             {c.label}
           </Link>
         ))}
@@ -163,24 +196,37 @@ export default function DashboardTransporteurPage() {
 }
 
 const styles: { [key: string]: React.CSSProperties } = {
-  page: { maxWidth: 800, margin: '0 auto', padding: '48px 24px' },
-  titre: { fontFamily: "'Playfair Display', serif", fontSize: 24, fontWeight: 900, margin: '0 0 24px' },
-  vide: { color: '#3D3D3D', fontSize: 14 },
-  erreur: { padding: 16, borderRadius: 10, background: '#FFF3F3', color: '#C41E3A', fontSize: 14, marginBottom: 24 },
-  kpis: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 12, marginBottom: 28 },
-  kpi: { border: '1px solid #E8E2D9', borderRadius: 14, padding: 16, textAlign: 'center', background: '#fff' },
-  kpiValeur: { fontSize: 24, fontWeight: 900, color: '#0A1A0F' },
-  kpiLabel: { fontSize: 11.5, color: '#6A8572', marginTop: 4 },
-  sousTitre: { fontSize: 12, fontWeight: 700, color: '#6A8572', textTransform: 'uppercase', letterSpacing: 0.3, margin: '0 0 10px' },
-  todoList: { display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 28 },
-  todoVide: { fontSize: 13.5, color: '#6A8572' },
-  todoItem: {
-    display: 'block', padding: '12px 14px', borderRadius: 10, background: '#FFF6DE',
-    color: '#8A5A00', fontWeight: 600, fontSize: 13.5, textDecoration: 'none',
+  kicker: { fontSize: 12, fontWeight: 700, color: color.green600, textTransform: 'uppercase', letterSpacing: 1, margin: 0 },
+  vide: { color: color.muted, fontSize: 14 },
+  erreur: { padding: 16, borderRadius: 10, background: color.dangerTint, color: color.danger, fontSize: 14, marginBottom: 24 },
+  corridorSection: { marginBottom: 24 },
+  kpis: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12, marginBottom: 28 },
+  colonnes: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20, marginBottom: 32 },
+  colonne: { display: 'flex', flexDirection: 'column' },
+  sousTitre: {
+    fontSize: 12, fontWeight: 700, color: color.muted, textTransform: 'uppercase',
+    letterSpacing: 0.3, margin: '0 0 12px',
   },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 14 },
+  todoList: { display: 'flex', flexDirection: 'column', gap: 8 },
+  todoVide: { fontSize: 13.5, color: color.muted, ...shared.card, padding: 16 },
+  todoItem: {
+    display: 'block', padding: '12px 14px', borderRadius: 10, background: color.goldTint,
+    color: '#8A6100', fontWeight: 600, fontSize: 13.5, textDecoration: 'none',
+  },
+  todoItemDanger: {
+    display: 'block', padding: '12px 14px', borderRadius: 10, background: color.dangerTint,
+    color: color.danger, fontWeight: 600, fontSize: 13.5, textDecoration: 'none',
+  },
+  activiteList: { display: 'flex', flexDirection: 'column', gap: 6, ...shared.card, padding: 6 },
+  activiteItem: {
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    padding: '10px 12px', borderRadius: 8, fontSize: 13,
+  },
+  activiteCode: { fontWeight: 700, color: color.inkStrong },
+  activiteStatut: { color: color.muted, fontSize: 12 },
+  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12 },
   carteLink: {
-    padding: 20, borderRadius: 12, background: '#0A1A0F', border: '1px solid #0A1A0F',
-    color: '#fff', fontWeight: 700, textAlign: 'center', textDecoration: 'none',
+    padding: '18px 16px', borderRadius: 12, background: color.green900,
+    color: '#fff', fontWeight: 700, textAlign: 'center', textDecoration: 'none', fontSize: 13.5,
   },
 }

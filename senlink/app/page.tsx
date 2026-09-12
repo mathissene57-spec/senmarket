@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { CorridorVisual } from '@/components/CorridorVisual'
+import { color, shared } from '@/lib/theme'
 
 export default function LandingPage() {
   const router = useRouter()
@@ -15,10 +17,10 @@ export default function LandingPage() {
 
   return (
     <main style={styles.page}>
-      <section style={styles.hero}>
-        <p style={styles.kicker}>Maroc ↔ Sénégal. Chaque colis. Chaque étape.</p>
+      <section className="sl-fade-in" style={styles.hero}>
+        <p style={styles.kicker}>Maroc ↔ Sénégal · Chaque colis, chaque étape</p>
         <h1 style={styles.titre}>
-          La couche numérique de <span style={{ color: '#F5B800' }}>confiance</span> du
+          La couche numérique de <span style={{ color: color.gold }}>confiance</span> du
           corridor logistique Maroc–Sénégal.
         </h1>
         <p style={styles.soustitre}>
@@ -34,62 +36,47 @@ export default function LandingPage() {
             placeholder="Ex : SL-MA-SN-847291"
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            style={styles.input}
+            style={{ ...shared.input, flex: '1 1 260px', fontSize: 15, padding: '13px 16px' }}
           />
-          <button type="submit" style={styles.bouton}>
+          <button type="submit" style={{ ...shared.boutonPrimaire, padding: '13px 26px', fontSize: 15 }}>
             Suivre mon colis
           </button>
         </form>
       </section>
+
+      <div className="sl-fade-in" style={styles.corridorWrap}>
+        <CorridorVisual />
+      </div>
     </main>
   )
 }
 
 const styles: { [key: string]: React.CSSProperties } = {
-  page: { minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  hero: {
-    maxWidth: 720,
-    padding: '80px 24px',
-    textAlign: 'center',
-  },
+  page: { maxWidth: 980, margin: '0 auto', padding: 'clamp(48px, 8vw, 96px) clamp(16px, 4vw, 24px) 64px' },
+  hero: { maxWidth: 720, margin: '0 auto', textAlign: 'center', marginBottom: 56 },
   kicker: {
-    color: '#00C96B',
+    color: color.green600,
     fontWeight: 700,
-    fontSize: 14,
-    letterSpacing: 1,
+    fontSize: 13,
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
-    marginBottom: 12,
+    marginBottom: 14,
   },
   titre: {
     fontFamily: "'Playfair Display', serif",
-    fontSize: 'clamp(28px, 5vw, 44px)',
+    fontSize: 'clamp(28px, 5vw, 46px)',
     fontWeight: 900,
-    color: '#0A1A0F',
+    color: color.inkStrong,
     lineHeight: 1.2,
+    letterSpacing: -0.5,
     margin: '0 0 20px',
   },
   soustitre: {
     fontSize: 16,
-    color: '#3D3D3D',
-    lineHeight: 1.6,
+    color: color.muted,
+    lineHeight: 1.65,
     margin: '0 0 32px',
   },
   form: { display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' },
-  input: {
-    flex: '1 1 260px',
-    padding: '12px 16px',
-    borderRadius: 8,
-    border: '1px solid #D8D2C6',
-    fontSize: 15,
-  },
-  bouton: {
-    padding: '12px 24px',
-    borderRadius: 8,
-    border: 'none',
-    background: '#0A1A0F',
-    color: '#fff',
-    fontWeight: 700,
-    fontSize: 15,
-    cursor: 'pointer',
-  },
+  corridorWrap: { maxWidth: 720, margin: '0 auto' },
 }

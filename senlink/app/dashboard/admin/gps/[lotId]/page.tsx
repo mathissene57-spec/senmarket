@@ -97,18 +97,18 @@ export default function AdminGpsLotPage() {
 const styles: { [key: string]: React.CSSProperties } = {
   page: { maxWidth: 640, margin: '0 auto', padding: '32px 24px 64px' },
   head: { marginBottom: 24 },
-  retour: { color: '#00875A', fontSize: 13, fontWeight: 600, textDecoration: 'none' },
+  retour: { color: '#006B3C', fontSize: 13, fontWeight: 600, textDecoration: 'none' },
   titre: { fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 900, margin: '8px 0 4px' },
-  soustitre: { color: '#3D3D3D', fontSize: 13.5, lineHeight: 1.6, margin: 0 },
-  vide: { color: '#3D3D3D', fontSize: 14, lineHeight: 1.6 },
-  erreur: { padding: 16, borderRadius: 10, background: '#FFF3F3', color: '#C41E3A', fontSize: 14 },
-  carteWrap: { marginBottom: 16, overflow: 'hidden', borderRadius: 14, border: '1px solid #E8E2D9' },
+  soustitre: { color: '#66756D', fontSize: 13.5, lineHeight: 1.6, margin: 0 },
+  vide: { color: '#66756D', fontSize: 14, lineHeight: 1.6 },
+  erreur: { padding: 16, borderRadius: 10, background: '#FBE7E8', color: '#E5484D', fontSize: 14 },
+  carteWrap: { marginBottom: 16, overflow: 'hidden', borderRadius: 14, border: '1px solid #E7E1D3' },
   details: {
-    border: '1px solid #E8E2D9', borderRadius: 12, padding: '4px 16px', background: '#fff',
+    border: '1px solid #E7E1D3', borderRadius: 12, padding: '4px 16px', background: '#fff',
   },
   ligne: {
     display: 'flex', justifyContent: 'space-between', padding: '10px 0',
-    borderBottom: '1px solid #F1EEE7', fontSize: 13.5, color: '#3D3D3D',
+    borderBottom: '1px solid #F1EEE7', fontSize: 13.5, color: '#66756D',
   },
-  label: { color: '#6A8572' },
+  label: { color: '#66756D' },
 }

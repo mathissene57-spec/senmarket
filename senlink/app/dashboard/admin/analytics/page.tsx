@@ -1,6 +1,6 @@
 'use client'
 
-import { messageErreur } from '@/lib/errors'
+import { messageUtilisateur } from '@/lib/errors'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -61,7 +61,7 @@ export default function AdminAnalyticsPage() {
           pointsRelaisTotal: pointsRes.data?.length ?? 0,
         })
       } catch (e) {
-        setErreur(messageErreur(e))
+        setErreur(messageUtilisateur(e))
       } finally {
         setLoading(false)
       }
@@ -144,28 +144,28 @@ export default function AdminAnalyticsPage() {
 const styles: { [key: string]: React.CSSProperties } = {
   page: { maxWidth: 640, margin: '0 auto', padding: '32px 24px 64px' },
   head: { marginBottom: 24 },
-  retour: { color: '#00875A', fontSize: 13, fontWeight: 600, textDecoration: 'none' },
+  retour: { color: '#006B3C', fontSize: 13, fontWeight: 600, textDecoration: 'none' },
   titre: { fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 900, margin: '8px 0 4px' },
-  soustitre: { color: '#3D3D3D', fontSize: 13.5, lineHeight: 1.6, margin: 0 },
-  vide: { color: '#3D3D3D', fontSize: 14, lineHeight: 1.6 },
-  erreur: { padding: 16, borderRadius: 10, background: '#FFF3F3', color: '#C41E3A', fontSize: 14 },
+  soustitre: { color: '#66756D', fontSize: 13.5, lineHeight: 1.6, margin: 0 },
+  vide: { color: '#66756D', fontSize: 14, lineHeight: 1.6 },
+  erreur: { padding: 16, borderRadius: 10, background: '#FBE7E8', color: '#E5484D', fontSize: 14 },
   grid: {
     display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
     gap: 12, marginBottom: 32,
   },
   stat: {
-    padding: '18px 16px', borderRadius: 14, background: '#0A1A0F', color: '#fff', textAlign: 'center',
+    padding: '18px 16px', borderRadius: 14, background: '#0B2418', color: '#fff', textAlign: 'center',
   },
   statValeur: { fontSize: 24, fontWeight: 900, fontFamily: "'Playfair Display', serif" },
   statLabel: { fontSize: 11.5, color: '#C9D6CE', marginTop: 4 },
-  sousTitre: { fontSize: 16, fontWeight: 700, margin: '0 0 12px', color: '#0A1A0F' },
+  sousTitre: { fontSize: 16, fontWeight: 700, margin: '0 0 12px', color: '#0B2418' },
   repartition: {
     display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 28,
-    border: '1px solid #E8E2D9', borderRadius: 12, padding: '4px 16px', background: '#fff',
+    border: '1px solid #E7E1D3', borderRadius: 12, padding: '4px 16px', background: '#fff',
   },
   ligne: {
     display: 'flex', justifyContent: 'space-between', padding: '10px 0',
-    borderBottom: '1px solid #F1EEE7', fontSize: 13.5, color: '#3D3D3D',
+    borderBottom: '1px solid #F1EEE7', fontSize: 13.5, color: '#66756D',
   },
-  ligneValeur: { fontWeight: 700, color: '#0A1A0F' },
+  ligneValeur: { fontWeight: 700, color: '#0B2418' },
 }

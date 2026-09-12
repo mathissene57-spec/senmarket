@@ -10,6 +10,8 @@ const CARTES_LIENS: { label: string; href: string }[] = [
   { label: 'Transporteurs', href: '/dashboard/admin/transporteurs' },
   { label: 'Points relais', href: '/dashboard/admin/points-relais' },
   { label: 'Hubs', href: '/dashboard/admin/hubs' },
+  { label: 'Pays', href: '/dashboard/admin/countries' },
+  { label: 'Corridors', href: '/dashboard/admin/corridors' },
   { label: 'Retards', href: '/dashboard/admin/retards' },
   { label: 'Analytics', href: '/dashboard/admin/analytics' },
   { label: 'Incidents', href: '/dashboard/admin/incidents' },

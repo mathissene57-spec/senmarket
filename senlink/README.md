@@ -134,9 +134,11 @@ des TODO ponctuels, des chantiers pas commencés :
 - **Paiement / calcul de commission** : aucune trace dans le schéma —
   décision produit (fournisseur, modèle de commission) à prendre avant
   toute implémentation.
-- **Calcul du SenLink Trust Score** (`transporters.trust_score` reste
-  `null`, affiché `—` dans le dashboard admin) — la formule (facteurs,
-  pondération) est une décision produit, pas encore prise.
+- ~~Calcul du SenLink Trust Score~~ — fait (v1.0) : `trust_score` = % de
+  colis gérés par le transporteur sans aucun incident déclaré, recalculé
+  par trigger à chaque affectation de colis ou incident (voir migration
+  `trust_score_ponctualite`). Un seul facteur pour l'instant (ponctualité/
+  incidents) — volume et autres pondérations restent à décider si besoin.
 - **Manifeste PWA / service worker** : pas de mode hors-ligne pour les
   agents/transporteurs terrain.
 - **Candidature partenaire** : existe dans `prototype.html`, aucune route

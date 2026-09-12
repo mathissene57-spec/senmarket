@@ -9,6 +9,7 @@ const CARTES_LIENS: { label: string; href: string }[] = [
   { label: 'Flux Maroc/Sénégal', href: '/dashboard/admin/flux' },
   { label: 'Transporteurs', href: '/dashboard/admin/transporteurs' },
   { label: 'Points relais', href: '/dashboard/admin/points-relais' },
+  { label: 'Hubs', href: '/dashboard/admin/hubs' },
   { label: 'Retards', href: '/dashboard/admin/retards' },
   { label: 'Analytics', href: '/dashboard/admin/analytics' },
   { label: 'Incidents', href: '/dashboard/admin/incidents' },

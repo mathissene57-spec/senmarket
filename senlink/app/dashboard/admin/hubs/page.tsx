@@ -5,24 +5,20 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 
-type PickupPoint = {
+type Hub = {
   id: string
   name: string
   city: string
   country: string
   address: string | null
-  phone: string | null
   active: boolean
-  hub_id: string | null
 }
 
-type Hub = { id: string; name: string }
 type Country = { code: string; name: string }
 
-export default function AdminPointsRelaisPage() {
+export default function AdminHubsPage() {
   const supabase = createClient()
   const [loading, setLoading] = useState(true)
-  const [points, setPoints] = useState<PickupPoint[]>([])
   const [hubs, setHubs] = useState<Hub[]>([])
   const [countries, setCountries] = useState<Country[]>([])
   const [erreur, setErreur] = useState<string | null>(null)
@@ -33,26 +29,18 @@ export default function AdminPointsRelaisPage() {
   const [name, setName] = useState('')
   const [city, setCity] = useState('')
   const [country, setCountry] = useState('')
-  const [hubId, setHubId] = useState('')
   const [address, setAddress] = useState('')
-  const [phone, setPhone] = useState('')
 
   async function load() {
     setLoading(true)
     setErreur(null)
     try {
-      const [pointsRes, hubsRes, countriesRes] = await Promise.all([
-        supabase
-          .from('pickup_points')
-          .select('id, name, city, country, address, phone, active, hub_id')
-          .order('name'),
-        supabase.from('hubs').select('id, name').eq('active', true).order('name'),
+      const [hubsRes, countriesRes] = await Promise.all([
+        supabase.from('hubs').select('id, name, city, country, address, active').order('name'),
         supabase.from('countries').select('code, name').eq('active', true).order('name'),
       ])
-      if (pointsRes.error) throw pointsRes.error
       if (hubsRes.error) throw hubsRes.error
       if (countriesRes.error) throw countriesRes.error
-      setPoints((pointsRes.data ?? []) as PickupPoint[])
       setHubs((hubsRes.data ?? []) as Hub[])
       const countryRows = (countriesRes.data ?? []) as Country[]
       setCountries(countryRows)
@@ -69,31 +57,22 @@ export default function AdminPointsRelaisPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  function hubName(id: string | null) {
-    if (!id) return null
-    return hubs.find((h) => h.id === id)?.name ?? null
-  }
-
   async function handleCreate() {
     if (!name.trim() || !city.trim() || !country) return
     setSubmitting(true)
     setMsg(null)
     try {
-      const { error } = await supabase.from('pickup_points').insert({
+      const { error } = await supabase.from('hubs').insert({
         name: name.trim(),
         city: city.trim(),
         country,
-        hub_id: hubId || null,
         address: address.trim() || null,
-        phone: phone.trim() || null,
       })
       if (error) throw error
-      setMsg({ text: 'Point relais créé.', type: 'ok' })
+      setMsg({ text: 'Hub créé.', type: 'ok' })
       setName('')
       setCity('')
-      setHubId('')
       setAddress('')
-      setPhone('')
       load()
     } catch (e) {
       setMsg({ text: messageErreur(e), type: 'err' })
@@ -102,14 +81,11 @@ export default function AdminPointsRelaisPage() {
     }
   }
 
-  async function handleToggleActive(point: PickupPoint) {
-    setTogglingId(point.id)
+  async function handleToggleActive(hub: Hub) {
+    setTogglingId(hub.id)
     setMsg(null)
     try {
-      const { error } = await supabase
-        .from('pickup_points')
-        .update({ active: !point.active })
-        .eq('id', point.id)
+      const { error } = await supabase.from('hubs').update({ active: !hub.active }).eq('id', hub.id)
       if (error) throw error
       load()
     } catch (e) {
@@ -125,14 +101,14 @@ export default function AdminPointsRelaisPage() {
         <Link href="/dashboard/admin" style={styles.retour}>
           ← Administration
         </Link>
-        <h1 style={styles.titre}>Points relais</h1>
-        <p style={styles.soustitre}>{points.length} point(s) relais enregistré(s).</p>
+        <h1 style={styles.titre}>Hubs</h1>
+        <p style={styles.soustitre}>{hubs.length} hub(s) enregistré(s).</p>
       </div>
 
       {msg && <div style={msg.type === 'ok' ? styles.msgOk : styles.msgErr}>{msg.text}</div>}
 
       <div style={styles.createBox}>
-        <div style={styles.createTitre}>Créer un point relais</div>
+        <div style={styles.createTitre}>Créer un hub</div>
         <input style={styles.input} placeholder="Nom" value={name} onChange={(e) => setName(e.target.value)} />
         <input style={styles.input} placeholder="Ville" value={city} onChange={(e) => setCity(e.target.value)} />
         <select style={styles.input} value={country} onChange={(e) => setCountry(e.target.value)}>
@@ -142,67 +118,50 @@ export default function AdminPointsRelaisPage() {
             </option>
           ))}
         </select>
-        <select style={styles.input} value={hubId} onChange={(e) => setHubId(e.target.value)}>
-          <option value="">Hub de rattachement (optionnel)</option>
-          {hubs.map((h) => (
-            <option key={h.id} value={h.id}>
-              {h.name}
-            </option>
-          ))}
-        </select>
         <input
           style={styles.input}
           placeholder="Adresse (optionnelle)"
           value={address}
           onChange={(e) => setAddress(e.target.value)}
         />
-        <input
-          style={styles.input}
-          placeholder="Téléphone (optionnel)"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-        />
         <button
           style={styles.bouton}
           disabled={!name.trim() || !city.trim() || !country || submitting}
           onClick={handleCreate}
         >
-          {submitting ? 'Création…' : 'Créer le point relais'}
+          {submitting ? 'Création…' : 'Créer le hub'}
         </button>
       </div>
 
       {loading && <p style={styles.vide}>Chargement…</p>}
       {erreur && (
         <div style={styles.erreur}>
-          Impossible de charger les points relais pour le moment.
+          Impossible de charger les hubs pour le moment.
           <br />
           <small>{erreur}</small>
         </div>
       )}
-      {!loading && !erreur && points.length === 0 && (
-        <p style={styles.vide}>Aucun point relais enregistré.</p>
-      )}
+      {!loading && !erreur && hubs.length === 0 && <p style={styles.vide}>Aucun hub enregistré.</p>}
 
       <div style={styles.list}>
-        {points.map((p) => (
-          <div key={p.id} style={styles.card}>
+        {hubs.map((h) => (
+          <div key={h.id} style={styles.card}>
             <div style={styles.cardTop}>
-              <span style={styles.nom}>{p.name}</span>
-              <span style={p.active ? styles.badgeActif : styles.badgeInactif}>
-                {p.active ? 'Actif' : 'Inactif'}
+              <span style={styles.nom}>{h.name}</span>
+              <span style={h.active ? styles.badgeActif : styles.badgeInactif}>
+                {h.active ? 'Actif' : 'Inactif'}
               </span>
             </div>
             <div style={styles.ligne}>
-              {p.city}, {p.country}
+              {h.city}, {h.country}
             </div>
-            {hubName(p.hub_id) && <div style={styles.ligne}>Hub : {hubName(p.hub_id)}</div>}
-            {p.phone && <div style={styles.ligne}>{p.phone}</div>}
+            {h.address && <div style={styles.ligne}>{h.address}</div>}
             <button
               style={styles.boutonSecondaire}
-              disabled={togglingId === p.id}
-              onClick={() => handleToggleActive(p)}
+              disabled={togglingId === h.id}
+              onClick={() => handleToggleActive(h)}
             >
-              {togglingId === p.id ? '…' : p.active ? 'Désactiver' : 'Réactiver'}
+              {togglingId === h.id ? '…' : h.active ? 'Désactiver' : 'Réactiver'}
             </button>
           </div>
         ))}
@@ -238,7 +197,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   list: { display: 'flex', flexDirection: 'column', gap: 14 },
   card: {
     border: '1px solid #E8E2D9', borderRadius: 14, padding: 16,
-    display: 'flex', flexDirection: 'column', gap: 6, background: '#fff',
+    display: 'flex', flexDirection: 'column', gap: 8, background: '#fff',
   },
   cardTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   nom: { fontWeight: 700, fontSize: 15, color: '#0A1A0F' },

@@ -1,0 +1,1684 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<!--
+  ================================================================
+  SENLINK -- Prototype UX (design deliverable, pas de code de prod)
+  ================================================================
+  Prototype HTML/CSS/JS autonome, sans framework ni étape de build,
+  au même titre que le prototype SenMarket à la racine du dépôt
+  (README.md). Aucun appel Supabase ici : données de démonstration
+  codées en dur (SEED_SHIPMENTS), persistance locale via localStorage
+  uniquement. Basé sur le document de référence SENLINK
+  (FlowDynamicsAgency, août 2026) -- voir senlink/docs/blueprint.md
+  pour le cycle de vie complet, les rôles et les preuves requises.
+
+  À ne jamais utiliser comme source de vérité pour le schéma de
+  données ou les règles metier réelles -- c'est un support visuel
+  pour valider l'UX côté client avant de brancher le vrai backend
+  Supabase (voir senlink/README.md, section provisioning).
+-->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0A1A0F">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="description" content="SenLink -- La couche numérique de confiance du corridor logistique Maroc-Sénégal.">
+<title>SenLink -- Prototype UX</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+<!-- Carte du trajet (Map+GPS V1) -- si ce script échoue à charger (réseau
+     restreint), le JS détecte l'absence de window.L et retombe sur la
+     barre stylisée déjà éprouvée -- voir leafletAvailable(). -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+/* ================================================================
+   DESIGN TOKENS
+   ================================================================ */
+:root {
+  --g:      #00C96B;
+  --gm:     #00A65A;
+  --gd:     #0A1A0F;
+  --gdd:    #111F16;
+  --gg:     rgba(0,201,107,.12);
+  --gdim:   rgba(0,201,107,.06);
+  --gold:   #D4A017;
+  --goldb:  #F5B800;
+  --red:    #C41E3A;
+  --redb:   rgba(196,30,58,.08);
+  --amber:  #F5A623;
+  --amberb: rgba(245,166,35,.14);
+  --blue:   #2E7DD1;
+  --blueb:  rgba(46,125,209,.12);
+  --bg:     #F8F6F1;
+  --bgw:    #F0ECE2;
+  --card:   #FFFFFF;
+  --txt:    #1A1A1A;
+  --txt2:   #3D3D3D;
+  --mut:    #7A7A7A;
+  --bdr:    #E8E2D9;
+  --bdrs:   #F0EBE3;
+  --r8:     10px;
+  --r12:    14px;
+  --r16:    18px;
+  --r20:    22px;
+  --r24:    26px;
+  --rpill:  100px;
+  --sh:     0 2px 12px rgba(0,0,0,.07);
+  --shl:    0 8px 32px rgba(0,0,0,.11);
+  --shx:    0 20px 60px rgba(0,0,0,.15);
+  --shg:    0 4px 20px rgba(0,201,107,.25);
+  --ease:   cubic-bezier(.16,1,.3,1);
+  --nav:    60px;
+  --tab:    64px;
+  --safe:   env(safe-area-inset-bottom, 0px);
+  --safeT:  env(safe-area-inset-top, 0px);
+  --z-nav:  100;
+  --z-sh:   200;
+  --z-dlg:  300;
+  --z-tst:  400;
+}
+
+/* ================================================================
+   RESET
+   ================================================================ */
+*,*::before,*::after { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html { height:100%; overscroll-behavior:none; scroll-behavior:smooth; }
+body {
+  font-family:'DM Sans',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  background:var(--bg); color:var(--txt);
+  min-height:100%; overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+  padding-bottom:calc(var(--tab) + var(--safe));
+}
+a { text-decoration:none; color:inherit; }
+button { font-family:inherit; cursor:pointer; border:none; background:none; touch-action:manipulation; }
+img { max-width:100%; display:block; object-fit:cover; }
+input,select,textarea {
+  font-family:inherit; font-size:16px; -webkit-appearance:none; touch-action:manipulation;
+}
+input[type="checkbox"] { -webkit-appearance:checkbox; appearance:checkbox; width:auto; font-size:inherit; }
+.sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); }
+
+/* ================================================================
+   TOP NAVBAR
+   ================================================================ */
+#topnav {
+  position:fixed; top:0; left:0; right:0;
+  height:var(--nav); z-index:var(--z-nav);
+  padding-top:var(--safeT);
+  background:var(--gd);
+  border-bottom:1px solid rgba(255,255,255,.08);
+  display:flex; align-items:center; justify-content:space-between;
+  padding-left:16px; padding-right:16px;
+  transition:box-shadow .25s;
+}
+#topnav.shadow { box-shadow:0 2px 20px rgba(0,0,0,.25); }
+.tn-logo { display:flex; align-items:center; gap:9px; }
+.tn-ico {
+  width:36px; height:36px; border-radius:10px;
+  background:linear-gradient(135deg,var(--g),var(--gm));
+  display:flex; align-items:center; justify-content:center;
+  font-size:18px; box-shadow:var(--shg); flex-shrink:0;
+}
+.tn-name { font-family:'Playfair Display',serif; font-size:20px; font-weight:900; color:#fff; }
+.tn-name span { color:var(--goldb); }
+.tn-acts { display:flex; align-items:center; gap:8px; }
+.tn-btn {
+  width:38px; height:38px; border-radius:var(--r8);
+  background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1);
+  display:flex; align-items:center; justify-content:center;
+  font-size:18px; position:relative; color:#fff;
+  transition:all .2s var(--ease);
+}
+.tn-btn:active { transform:scale(.91); background:var(--gg); border-color:var(--g); }
+.tn-badge {
+  position:absolute; top:-5px; right:-5px;
+  width:18px; height:18px; background:var(--red); color:#fff;
+  font-size:9px; font-weight:700; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  border:2px solid var(--gd); transform:scale(0); transition:transform .2s var(--ease);
+}
+.tn-badge.show { transform:scale(1); }
+
+/* ================================================================
+   BOTTOM TAB BAR
+   ================================================================ */
+#btmnav {
+  position:fixed; bottom:0; left:0; right:0;
+  height:calc(var(--tab) + var(--safe)); z-index:var(--z-nav);
+  background:rgba(250,247,242,.97);
+  backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+  border-top:1px solid var(--bdr);
+  display:flex; align-items:flex-start; justify-content:space-around;
+  padding-top:6px; padding-bottom:var(--safe);
+}
+.tab { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:5px 4px; cursor:pointer; position:relative; transition:all .2s var(--ease); -webkit-user-select:none; user-select:none; }
+.tab:active { transform:scale(.88); }
+.tab-ico { font-size:22px; line-height:1; transition:transform .2s var(--ease); }
+.tab-lbl { font-size:10px; font-weight:600; color:var(--mut); transition:color .2s; }
+.tab.on .tab-ico { transform:scale(1.1); }
+.tab.on .tab-lbl { color:var(--g); }
+.tab.on::before { content:''; position:absolute; top:-6px; left:50%; transform:translateX(-50%); width:28px; height:3px; background:var(--g); border-radius:0 0 3px 3px; }
+
+/* ================================================================
+   PAGES
+   ================================================================ */
+.page { display:none; padding-top:var(--nav); min-height:100vh; }
+.page.on { display:block; }
+
+/* ================================================================
+   HERO BANNER
+   ================================================================ */
+.hero-banner {
+  margin:10px 16px;
+  background:linear-gradient(135deg,var(--gd) 0%,#0d2617 55%,#001a0e 100%);
+  border-radius:var(--r20); padding:22px; position:relative; overflow:hidden;
+}
+.hero-banner::before {
+  content:''; position:absolute; inset:0; pointer-events:none;
+  background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23fff' fill-opacity='0.035'%3E%3Cpath d='M0 0h30v30H0V0zm30 30h30v30H30V30z'/%3E%3C/g%3E%3C/svg%3E");
+}
+.hb-in { position:relative; z-index:1; }
+.hb-tag { display:inline-flex; align-items:center; gap:6px; background:rgba(212,160,23,.18); border:1px solid rgba(212,160,23,.35); color:var(--goldb); font-size:11px; font-weight:700; padding:5px 12px; border-radius:var(--rpill); margin-bottom:10px; letter-spacing:.3px; }
+.hb-h1 { font-family:'Playfair Display',serif; font-size:clamp(22px,5vw,30px); font-weight:900; color:#fff; line-height:1.25; margin-bottom:8px; }
+.hb-h1 em { font-style:normal; color:var(--goldb); }
+.hb-sub { font-size:13px; color:rgba(255,255,255,.72); margin-bottom:16px; line-height:1.6; }
+.hb-stats { display:flex; gap:22px; margin-bottom:6px; }
+.hb-n { font-family:'Playfair Display',serif; font-size:20px; font-weight:900; color:var(--goldb); line-height:1; }
+.hb-l { font-size:10px; color:rgba(255,255,255,.55); margin-top:2px; }
+.hb-demo-tag { font-size:10px; color:rgba(255,255,255,.4); font-style:italic; margin-bottom:16px; }
+.hb-ctas { display:flex; gap:10px; flex-wrap:wrap; }
+.hb-cta {
+  display:inline-flex; align-items:center; gap:6px; background:var(--g); color:#04150c;
+  padding:12px 20px; border-radius:var(--rpill); font-size:13px; font-weight:700;
+  border:none; cursor:pointer; font-family:inherit; transition:all .2s var(--ease);
+}
+.hb-cta:active { transform:scale(.96); }
+.hb-cta2 {
+  display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,.08); color:#fff;
+  border:1px solid rgba(255,255,255,.2);
+  padding:12px 20px; border-radius:var(--rpill); font-size:13px; font-weight:700;
+  cursor:pointer; font-family:inherit; transition:all .2s var(--ease);
+}
+.hb-cta2:active { transform:scale(.96); }
+
+/* ================================================================
+   SEARCH
+   ================================================================ */
+.search-sticky { padding:10px 16px 12px; background:var(--bg); position:sticky; top:var(--nav); z-index:50; border-bottom:1px solid var(--bdrs); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); }
+.search-row { display:flex; gap:8px; align-items:center; }
+.search-inp-w { position:relative; flex:1; }
+.search-inp {
+  width:100%; padding:13px 16px 13px 40px; border-radius:var(--r12);
+  border:1.5px solid var(--bdr); background:var(--card); font-size:14px; outline:none;
+}
+.search-inp:focus { border-color:var(--g); }
+.search-ico { position:absolute; left:14px; top:50%; transform:translateY(-50%); font-size:15px; opacity:.6; }
+.btn-go {
+  padding:13px 18px; border-radius:var(--r12); background:var(--gd); color:#fff;
+  font-size:14px; font-weight:700; border:none; cursor:pointer; font-family:inherit; white-space:nowrap;
+}
+.btn-go:active { transform:scale(.96); }
+
+/* ================================================================
+   SECTION HEADERS / CHIPS
+   ================================================================ */
+.sec-hd { display:flex; align-items:center; justify-content:space-between; padding:20px 16px 10px; }
+.sec-ttl { font-family:'Playfair Display',serif; font-size:17px; font-weight:900; color:var(--txt); }
+.sec-sub { font-size:12px; color:var(--mut); padding:0 16px 4px; line-height:1.5; }
+.hscroll { display:flex; gap:10px; overflow-x:auto; padding:4px 16px 6px; scrollbar-width:none; }
+.hscroll::-webkit-scrollbar { display:none; }
+
+/* ================================================================
+   PARCOURS D'UN COLIS (étapes)
+   ================================================================ */
+.steps-track { display:flex; gap:0; overflow-x:auto; padding:8px 16px 16px; scrollbar-width:none; }
+.steps-track::-webkit-scrollbar { display:none; }
+.step-item { display:flex; flex-direction:column; align-items:center; flex-shrink:0; width:96px; text-align:center; position:relative; }
+.step-item::before {
+  content:''; position:absolute; top:22px; left:-48px; width:96px; height:2px;
+  background:repeating-linear-gradient(90deg,var(--bdr) 0 6px,transparent 6px 12px);
+}
+.step-item:first-child::before { display:none; }
+.step-ico { width:44px; height:44px; border-radius:50%; background:var(--card); border:1.5px solid var(--bdr); display:flex; align-items:center; justify-content:center; font-size:19px; z-index:1; }
+.step-lbl { font-size:10.5px; font-weight:600; color:var(--txt2); margin-top:8px; line-height:1.35; }
+
+/* ================================================================
+   TRANSPARENCE -- CARTES QUESTIONS
+   ================================================================ */
+.qa-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:4px 16px 4px; }
+.qa-card { background:var(--card); border:1px solid var(--bdr); border-radius:var(--r16); padding:14px; }
+.qa-ico { font-size:18px; margin-bottom:8px; }
+.qa-txt { font-size:12.5px; font-weight:700; color:var(--txt); line-height:1.4; }
+.qa-answer { text-align:center; padding:18px 20px; }
+.qa-answer .a1 { font-size:13px; color:var(--mut); text-decoration:line-through; margin-bottom:8px; }
+.qa-answer .a2 { font-family:'Playfair Display',serif; font-size:15px; font-weight:700; color:var(--gm); line-height:1.5; }
+
+/* ================================================================
+   CTA PARTENAIRE
+   ================================================================ */
+.partner-cta { margin:10px 16px 16px; background:var(--card); border:1px solid var(--bdr); border-radius:var(--r20); padding:20px; }
+.pc-h2 { font-family:'Playfair Display',serif; font-size:18px; font-weight:900; line-height:1.3; margin-bottom:6px; }
+.pc-h2 span { color:var(--gm); }
+.pc-sub { font-size:12.5px; color:var(--txt2); line-height:1.6; margin-bottom:14px; }
+.pc-feats { display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
+.pc-feat { display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--txt2); }
+.pc-chk { width:18px; height:18px; border-radius:50%; background:var(--gg); color:var(--gm); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:900; flex-shrink:0; }
+
+/* ================================================================
+   AD SLOTS -- emplacements publicitaires
+   Composants indépendants (ad-slot--hero / --content / --tracking),
+   préparés pour accueillir une vraie campagne plus tard (régie
+   SenLink, gestion depuis Supabase) sans retoucher l'interface.
+   Actuellement remplis d'un contenu de démonstration, toujours
+   étiqueté "Sponsorisé" -- jamais de tromperie sur la nature
+   publicitaire. Volontairement limité à 3 emplacements au total
+   (accueil x2, suivi x1) : SenLink doit rester perçu comme une
+   infrastructure de confiance, pas un site rempli de pubs.
+   ================================================================ */
+.ad-slot { position:relative; border-radius:var(--r16); overflow:hidden; border:1px solid var(--bdr); }
+.ad-label {
+  position:absolute; top:8px; left:10px; z-index:1;
+  font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.5px;
+  color:rgba(255,255,255,.85); background:rgba(0,0,0,.32);
+  padding:3px 8px; border-radius:var(--rpill);
+}
+.ad-content { display:flex; align-items:center; gap:12px; text-decoration:none; color:inherit; }
+.ad-ico { font-size:22px; flex-shrink:0; }
+.ad-txt { flex:1; min-width:0; }
+.ad-ttl { font-size:13px; font-weight:700; line-height:1.35; }
+.ad-sub { font-size:11px; margin-top:2px; line-height:1.4; }
+.ad-cta { font-size:11px; font-weight:700; flex-shrink:0; white-space:nowrap; }
+
+.ad-slot--hero {
+  margin:10px 16px 0; padding:16px 16px 14px;
+  background:linear-gradient(120deg,var(--gdd) 0%,#0d2617 100%);
+}
+.ad-slot--hero .ad-ttl { color:#fff; }
+.ad-slot--hero .ad-sub { color:rgba(255,255,255,.65); }
+.ad-slot--hero .ad-cta { color:var(--goldb); }
+
+.ad-slot--content { margin:6px 16px 16px; padding:14px; background:var(--bgw); }
+.ad-slot--content .ad-label { background:rgba(0,0,0,.18); color:var(--txt2); }
+.ad-slot--content .ad-ttl { color:var(--txt); }
+.ad-slot--content .ad-sub { color:var(--txt2); }
+.ad-slot--content .ad-cta { color:var(--gm); }
+
+.ad-slot--tracking { margin:0 16px 16px; padding:13px 14px; background:var(--card); }
+.ad-slot--tracking .ad-label { background:rgba(0,0,0,.18); color:var(--txt2); }
+.ad-slot--tracking .ad-ttl { color:var(--txt); font-size:12.5px; }
+.ad-slot--tracking .ad-sub { color:var(--mut); font-size:10.5px; }
+.ad-slot--tracking .ad-cta { color:var(--gm); }
+
+@media (min-width:768px) {
+  .ad-slot--hero, .ad-slot--content { max-width:900px; margin-left:auto; margin-right:auto; }
+  .ad-slot--tracking { max-width:640px; margin-left:auto; margin-right:auto; }
+}
+
+/* ================================================================
+   STATUT BADGE
+   ================================================================ */
+.badge { display:inline-flex; align-items:center; gap:5px; padding:5px 12px; border-radius:var(--rpill); font-size:11px; font-weight:700; white-space:nowrap; }
+.badge.st-neutre  { background:var(--bgw); color:var(--txt2); }
+.badge.st-transit { background:var(--amberb); color:#8A5A00; }
+.badge.st-arrive  { background:var(--blueb); color:var(--blue); }
+.badge.st-livre   { background:var(--gg); color:var(--gm); }
+.badge.st-incident{ background:var(--redb); color:var(--red); }
+
+/* ================================================================
+   RÉSULTAT DE SUIVI / TIMELINE
+   ================================================================ */
+.track-empty { text-align:center; padding:60px 24px; color:var(--mut); }
+.track-empty .te-ico { font-size:40px; margin-bottom:12px; }
+.track-empty .te-ttl { font-size:15px; font-weight:700; color:var(--txt); margin-bottom:6px; }
+.track-empty .te-sub { font-size:13px; line-height:1.6; }
+.track-démo { display:flex; gap:6px; flex-wrap:wrap; padding:0 16px 8px; }
+.track-démo button {
+  font-size:11px; font-weight:700; color:var(--gm); background:var(--gg); border:1px solid rgba(0,201,107,.25);
+  padding:6px 12px; border-radius:var(--rpill); font-family:inherit; cursor:pointer;
+}
+.track-result { padding:12px 16px 8px; }
+.tr-head { background:var(--card); border:1px solid var(--bdr); border-radius:var(--r16); padding:16px; margin-bottom:16px; }
+.tr-code { font-family:'Playfair Display',serif; font-size:17px; font-weight:900; margin-bottom:2px; }
+.tr-route { font-size:12.5px; color:var(--mut); margin-bottom:10px; }
+.tr-meta { display:flex; flex-wrap:wrap; gap:8px; font-size:11.5px; color:var(--txt2); }
+.tr-meta span { background:var(--bgw); border-radius:var(--r8); padding:4px 9px; }
+
+.timeline { list-style:none; padding:2px 4px; }
+.tl-item { display:flex; gap:12px; position:relative; padding-bottom:22px; }
+.tl-item:last-child { padding-bottom:0; }
+.tl-item::before {
+  content:''; position:absolute; left:15px; top:32px; bottom:0; width:2px; background:var(--bdr);
+}
+.tl-item:last-child::before { display:none; }
+.tl-item.done::before { background:var(--g); }
+.tl-dot { width:32px; height:32px; border-radius:50%; background:var(--bgw); border:1.5px solid var(--bdr); display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0; z-index:1; }
+.tl-item.done .tl-dot { background:var(--gg); border-color:var(--g); }
+.tl-body { flex:1; padding-top:3px; }
+.tl-lbl { font-size:13.5px; font-weight:700; color:var(--txt); }
+.tl-loc { font-size:12px; color:var(--txt2); margin-top:2px; }
+.tl-meta { font-size:11px; color:var(--mut); margin-top:2px; }
+.tl-proof { display:inline-flex; align-items:center; gap:4px; font-size:10.5px; color:var(--gm); background:var(--gg); border-radius:var(--r8); padding:2px 7px; margin-top:5px; }
+
+/* ================================================================
+   CARTE ENVOI (historique)
+   ================================================================ */
+.ship-list { padding:4px 16px 16px; display:flex; flex-direction:column; gap:10px; }
+.ship-card { background:var(--card); border:1px solid var(--bdr); border-radius:var(--r16); padding:14px 16px; display:flex; align-items:center; gap:12px; cursor:pointer; transition:transform .15s var(--ease); }
+.ship-card:active { transform:scale(.98); }
+.ship-ico { width:42px; height:42px; border-radius:12px; background:var(--gdim); display:flex; align-items:center; justify-content:center; font-size:19px; flex-shrink:0; }
+.ship-mid { flex:1; min-width:0; }
+.ship-code { font-size:13.5px; font-weight:700; color:var(--txt); }
+.ship-route { font-size:11.5px; color:var(--mut); margin-top:2px; }
+.ship-arr { color:var(--mut); font-size:16px; }
+.hist-empty { text-align:center; padding:60px 24px; color:var(--mut); }
+
+/* ================================================================
+   FORMULAIRE
+   ================================================================ */
+.form-wrap { padding:8px 16px 20px; }
+.form-intro { font-size:12.5px; color:var(--txt2); line-height:1.6; padding:0 0 16px; }
+.fieldset { background:var(--card); border:1px solid var(--bdr); border-radius:var(--r16); padding:16px; margin-bottom:14px; }
+.fieldset-lgd { font-size:12px; font-weight:700; color:var(--gm); text-transform:uppercase; letter-spacing:.5px; margin-bottom:12px; }
+.field { margin-bottom:10px; }
+.field:last-child { margin-bottom:0; }
+.field label { display:block; font-size:11.5px; font-weight:600; color:var(--mut); margin-bottom:5px; }
+.field input, .field select, .field textarea {
+  width:100%; padding:11px 13px; border-radius:var(--r8); border:1.5px solid var(--bdr);
+  font-size:14px; color:var(--txt); background:var(--bg); outline:none;
+}
+.field input:focus, .field select:focus, .field textarea:focus { border-color:var(--g); background:var(--card); }
+.field textarea { resize:vertical; min-height:70px; }
+.field-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.field input:disabled { opacity:.5; cursor:not-allowed; }
+.field-hint { font-size:10.5px; color:var(--mut); margin-top:4px; }
+.btn-primary {
+  width:100%; padding:15px; border-radius:var(--r12); background:var(--gd); color:#fff;
+  font-size:15px; font-weight:700; border:none; cursor:pointer; font-family:inherit; margin-top:4px;
+}
+.btn-primary:active { transform:scale(.98); }
+
+/* ================================================================
+   PROFIL
+   ================================================================ */
+.profile-hero { background:var(--gd); padding:32px 20px 24px; text-align:center; color:#fff; }
+.ph-av { width:64px; height:64px; border-radius:50%; background:linear-gradient(135deg,var(--g),var(--gm)); display:flex; align-items:center; justify-content:center; font-size:28px; margin:0 auto 10px; box-shadow:var(--shg); }
+.ph-name { font-family:'Playfair Display',serif; font-size:18px; font-weight:900; }
+.ph-email { font-size:12px; color:rgba(255,255,255,.6); margin-top:4px; }
+.pcard { background:var(--card); border:1px solid var(--bdr); border-radius:var(--r16); margin:14px 16px 0; overflow:hidden; }
+.pcard-ttl { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--mut); padding:14px 16px 6px; }
+.pcard-item { display:flex; align-items:center; gap:12px; padding:13px 16px; border-top:1px solid var(--bdrs); cursor:pointer; }
+.pcard-item:first-of-type { border-top:none; }
+.pi-ico { width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+.pi-g { background:var(--gg); } .pi-b { background:var(--blueb); } .pi-r { background:var(--redb); } .pi-y { background:#25D36622; }
+.pi-txt { flex:1; display:flex; flex-direction:column; }
+.pi-txt strong { font-size:13.5px; }
+.pi-txt span { font-size:11px; color:var(--mut); margin-top:1px; }
+.pi-arr { color:var(--mut); font-size:16px; }
+
+/* ================================================================
+   SHEETS (bas de page modal)
+   ================================================================ */
+.overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:var(--z-sh); opacity:0; pointer-events:none; transition:opacity .25s var(--ease); }
+.overlay.on { opacity:1; pointer-events:auto; }
+.sheet {
+  position:fixed; left:0; right:0; bottom:0; z-index:var(--z-dlg);
+  background:var(--card); border-radius:var(--r24) var(--r24) 0 0;
+  max-height:88vh; overflow-y:auto; transform:translateY(100%);
+  transition:transform .32s var(--ease), opacity .32s var(--ease); padding-bottom:calc(20px + var(--safe));
+}
+.sheet.on { transform:translateY(0); }
+.sheet-hd { position:sticky; top:0; background:var(--card); padding:14px 16px 10px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--bdrs); z-index:1; }
+.sheet-ttl { font-family:'Playfair Display',serif; font-size:16px; font-weight:900; }
+.sheet-x { width:32px; height:32px; border-radius:50%; background:var(--bgw); display:flex; align-items:center; justify-content:center; font-size:15px; color:var(--txt2); }
+.sheet-bd { padding:16px; }
+.qr-box { width:160px; height:160px; margin:8px auto 14px; border-radius:var(--r16); border:1.5px solid var(--bdr); padding:10px; background:#fff; }
+.qr-copy { display:flex; align-items:center; justify-content:center; gap:8px; font-family:'Playfair Display',serif; font-size:18px; font-weight:900; margin-bottom:4px; }
+.qr-sub { text-align:center; font-size:12px; color:var(--mut); margin-bottom:18px; }
+
+/* ================================================================
+   TOASTS
+   ================================================================ */
+#toasts { position:fixed; top:calc(var(--nav) + var(--safeT) + 10px); left:16px; right:16px; z-index:var(--z-tst); display:flex; flex-direction:column; gap:8px; pointer-events:none; }
+.toast {
+  display:flex; align-items:center; gap:10px; background:var(--gd); color:#fff;
+  padding:13px 14px; border-radius:var(--r12); font-size:13px; box-shadow:var(--shx);
+  opacity:0; transform:translateY(-14px); transition:all .3s var(--ease); pointer-events:auto;
+}
+.toast.show { opacity:1; transform:translateY(0); }
+.toast.hiding { opacity:0; transform:translateY(-14px); }
+.toast.e { background:var(--red); }
+.toast.w { background:#8A5A00; }
+.toast-x { cursor:pointer; opacity:.7; font-size:12px; }
+
+/* ================================================================
+   CODE DE RETRAIT (destinataire) -- affiche uniquement côté suivi,
+   jamais côté agent
+   ================================================================ */
+.otp-box { background:var(--gg); border:1.5px dashed var(--g); border-radius:var(--r16); padding:18px; margin-bottom:16px; text-align:center; }
+.otp-lbl { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--gm); margin-bottom:6px; }
+.otp-code { font-family:'Playfair Display',serif; font-size:30px; font-weight:900; letter-spacing:6px; color:var(--gd); margin-bottom:8px; }
+.otp-hint { font-size:11.5px; color:var(--txt2); line-height:1.5; }
+
+/* ================================================================
+   CARTE DE TRAJET (V1 démo) -- représentation stylisée du trajet
+   d'un lot, PAS une vraie carte géographique (round de conception
+   Map+GPS, Option A). Position toujours simulée côté client, jamais
+   lue depuis get_lot_last_location() -- voir commentaire JS.
+   ================================================================ */
+.route-map { background:var(--card); border:1px solid var(--bdr); border-radius:var(--r16); padding:16px; margin-bottom:16px; }
+.route-map--active { border-color:var(--g); background:var(--gg); }
+.route-hd { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--mut); margin-bottom:20px; }
+.route-hd.active { color:var(--gm); }
+.route-dot { width:7px; height:7px; border-radius:50%; background:var(--mut); flex-shrink:0; }
+.route-hd.active .route-dot { background:var(--g); box-shadow:0 0 0 3px var(--gg); }
+.route-track { position:relative; height:4px; background:var(--bdr); border-radius:2px; margin:0 4px 10px; }
+.route-track-fill { position:absolute; left:0; top:0; height:100%; background:var(--g); border-radius:2px; transition:width 1.4s var(--ease); }
+.route-truck { position:absolute; top:50%; transform:translate(-50%,-50%); font-size:18px; transition:left 1.4s var(--ease); }
+.route-map-canvas { height:210px; border-radius:var(--r12); overflow:hidden; margin-bottom:10px; position:relative; z-index:0; background:var(--bgw); box-shadow:inset 0 0 0 1px rgba(0,0,0,.06); }
+.route-map-canvas .leaflet-control-attribution { font-size:8.5px; background:rgba(255,255,255,.8); padding:0 4px; }
+.map-truck-ico { font-size:22px; line-height:1; filter:drop-shadow(0 2px 4px rgba(0,0,0,.4)); transition:transform .3s var(--ease); }
+.route-cities { display:flex; justify-content:space-between; font-size:12px; font-weight:700; color:var(--txt); }
+.route-note { font-size:12px; color:var(--mut); margin-top:10px; }
+.route-note strong { color:var(--txt2); font-weight:700; }
+.route-demo-badge { display:inline-flex; align-items:center; gap:5px; font-size:10px; font-weight:700; color:var(--gold); background:var(--amberb); border-radius:var(--rpill); padding:4px 9px; margin-top:10px; }
+
+/* ================================================================
+   ÉCRAN AGENT (démo)
+   ================================================================ */
+.agent-back { display:inline-flex; align-items:center; gap:4px; font-size:12.5px; font-weight:600; color:var(--gm); padding:0 16px 4px; }
+.field-check { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--txt2); padding:4px 0; }
+.field-check input { margin:0; }
+.pp-row { display:flex; align-items:center; gap:10px; padding:12px 16px; border-top:1px solid var(--bdrs); font-size:13px; }
+.pp-row:first-child { border-top:none; }
+.pp-row .pp-ico { font-size:16px; }
+.pp-row .pp-city { margin-left:auto; color:var(--mut); font-size:11.5px; }
+
+/* ================================================================
+   DESKTOP
+   ================================================================ */
+@media (min-width:768px) {
+  #btmnav { display:none; }
+  #topnav { height:68px; padding:0 clamp(24px,5%,80px); }
+  .page { padding-top:68px; }
+  body { padding-bottom:0; }
+  .qa-grid { grid-template-columns:repeat(3,1fr); max-width:900px; margin:0 auto; }
+  .ship-list, .form-wrap, .track-result { max-width:640px; margin:0 auto; }
+  .hero-banner, .partner-cta { max-width:900px; margin-left:auto; margin-right:auto; }
+  .sheet { left:50%; right:auto; bottom:auto; top:50%; transform:translate(-50%,-46%); width:min(480px,92vw); border-radius:var(--r24); max-height:85vh; opacity:0; visibility:hidden; pointer-events:none; }
+  .sheet.on { transform:translate(-50%,-50%); opacity:1; visibility:visible; pointer-events:auto; }
+}
+</style>
+</head>
+<body>
+
+<!-- TOP NAVBAR -->
+<header id="topnav" role="banner">
+  <div class="tn-logo" onclick="navigate('accueil')" style="cursor:pointer">
+    <div class="tn-ico" aria-hidden="true">📦</div>
+    <span class="tn-name">Sen<span>Link</span></span>
+  </div>
+  <div class="tn-acts">
+    <button class="tn-btn" id="btnNotif" aria-label="Notifications">
+      🔔
+      <span class="tn-badge" id="notifBadge" aria-live="polite">0</span>
+    </button>
+    <button class="tn-btn" id="btnProfilNav" aria-label="Mon profil">👤</button>
+  </div>
+</header>
+
+<!-- BOTTOM TAB BAR -->
+<nav id="btmnav" role="navigation" aria-label="Navigation principale">
+  <div class="tab on" id="tab-accueil" role="tab" aria-selected="true" aria-label="Accueil">
+    <div class="tab-ico" aria-hidden="true">🏠</div><div class="tab-lbl">Accueil</div>
+  </div>
+  <div class="tab" id="tab-suivi" role="tab" aria-selected="false" aria-label="Suivre">
+    <div class="tab-ico" aria-hidden="true">🔍</div><div class="tab-lbl">Suivre</div>
+  </div>
+  <div class="tab" id="tab-expedier" role="tab" aria-selected="false" aria-label="Expédier">
+    <div class="tab-ico" aria-hidden="true">✉️</div><div class="tab-lbl">Expédier</div>
+  </div>
+  <div class="tab" id="tab-historique" role="tab" aria-selected="false" aria-label="Historique">
+    <div class="tab-ico" aria-hidden="true">🕐</div><div class="tab-lbl">Historique</div>
+  </div>
+  <div class="tab" id="tab-profil" role="tab" aria-selected="false" aria-label="Profil">
+    <div class="tab-ico" aria-hidden="true">👤</div><div class="tab-lbl">Profil</div>
+  </div>
+</nav>
+
+<!-- ================================================================
+     PAGE ACCUEIL
+     ================================================================ -->
+<main class="page on" id="page-accueil">
+  <!-- Emplacement publicitaire : hero, sous le header, avant le bloc principal -->
+  <section class="ad-slot ad-slot--hero" aria-label="Publicité partenaire">
+    <span class="ad-label">Sponsorisé</span>
+    <a href="#" class="ad-content" onclick="return false">
+      <span class="ad-ico" aria-hidden="true">🛡️</span>
+      <span class="ad-txt">
+        <span class="ad-ttl">SenLink Assurance — protégez vos envois dès 15 MAD</span>
+        <span class="ad-sub">Remboursement intégral en cas de perte ou de dommage.</span>
+      </span>
+      <span class="ad-cta">En savoir plus ›</span>
+    </a>
+  </section>
+  <div style="padding:10px 16px 0">
+    <div class="hero-banner">
+      <div class="hb-in">
+        <div class="hb-tag">🇲🇦 ↔ 🇸🇳 Corridor Casablanca-Dakar</div>
+        <div class="hb-h1">La couche numérique de <em>confiance</em> du corridor logistique Maroc-Sénégal</div>
+        <div class="hb-sub">Chaque colis. Chaque étape. Dépôt, contrôle, transport, douane, hub, point relais, livraison -- tout est tracé et prouvé.</div>
+        <div class="hb-stats">
+          <div><div class="hb-n" id="statColis">--</div><div class="hb-l">Colis suivis</div></div>
+          <div><div class="hb-n" id="statRelais">--</div><div class="hb-l">Points relais</div></div>
+          <div><div class="hb-n" id="statTaux">--</div><div class="hb-l">Livrés à temps</div></div>
+        </div>
+        <div class="hb-demo-tag">Chiffres de démonstration, recalcules en direct depuis les colis ci-dessous -- pas des données réelles.</div>
+        <div class="hb-ctas">
+          <button class="hb-cta" id="btnHeroSuivre">🔍 Suivre mon colis</button>
+          <button class="hb-cta2" id="btnHeroExpedier">✉️ Expédier un colis</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Parcours d'un colis -->
+  <div class="sec-hd"><span class="sec-ttl">Le parcours d'un colis</span></div>
+  <div class="sec-sub">Exemple : Casablanca 🇲🇦 → Dakar 🇸🇳. Chaque étape génère un événement numérique traçable.</div>
+  <div class="steps-track" id="stepsTrack" role="list" aria-label="Étapes du parcours"></div>
+
+  <!-- Emplacement publicitaire : entre sections -->
+  <section class="ad-slot ad-slot--content" aria-label="Publicité partenaire">
+    <span class="ad-label">Sponsorisé</span>
+    <a href="#" class="ad-content" onclick="return false">
+      <span class="ad-ico" aria-hidden="true">🚚</span>
+      <span class="ad-txt">
+        <span class="ad-ttl">Partenaire transport — tarifs préférentiels Casablanca ↔ Dakar</span>
+        <span class="ad-sub">Réservez votre prochain envoi groupé.</span>
+      </span>
+      <span class="ad-cta">Découvrir ›</span>
+    </a>
+  </section>
+
+  <!-- Transparence -->
+  <div class="sec-hd"><span class="sec-ttl">La transparence, au coeur du produit</span></div>
+  <div class="sec-sub">On remplace « Ton colis est parti, attends » par une preuve à chaque étape.</div>
+  <div class="qa-grid" id="qaGrid"></div>
+  <div class="partner-cta" style="margin-top:14px">
+    <div class="qa-answer" style="padding:14px 4px 4px">
+      <div class="a1">« Ton colis est parti, attends. »</div>
+      <div class="a2">« Voici exactement où se trouve ton colis, son historique et la dernière preuve enregistrée. »</div>
+    </div>
+  </div>
+
+  <!-- CTA Partenaire -->
+  <div class="partner-cta">
+    <div class="pc-h2">Vous êtes transporteur ou gérant de point relais ?<br>Rejoignez le <span>réseau SenLink</span></div>
+    <div class="pc-sub">SenLink orchestre le corridor Casablanca → Dakar sans devenir lui-même transporteur : nous digitalisons votre activité existante.</div>
+    <div class="pc-feats">
+      <div class="pc-feat"><span class="pc-chk">✓</span> Preuve numérique a chaque scan</div>
+      <div class="pc-feat"><span class="pc-chk">✓</span> Manifestes et lots gérés depuis un dashboard</div>
+      <div class="pc-feat"><span class="pc-chk">✓</span> Score de confiance public (à terme)</div>
+    </div>
+    <button class="hb-cta" style="width:100%;justify-content:center;background:var(--gd);color:#fff" id="btnOuvrirPartenaire">🤝 Devenir partenaire</button>
+  </div>
+</main>
+
+<!-- ================================================================
+     PAGE SUIVI
+     ================================================================ -->
+<section class="page" id="page-suivi" aria-label="Suivre un colis">
+  <div class="search-sticky">
+    <div class="search-row">
+      <div class="search-inp-w">
+        <input class="search-inp" type="search" id="searchSuivi" placeholder="Ex : SL-MA-SN-847291" autocomplete="off" aria-label="Code de suivi">
+        <span class="search-ico" aria-hidden="true">🔍</span>
+      </div>
+      <button class="btn-go" id="btnSuivre">Suivre</button>
+    </div>
+  </div>
+  <div class="track-démo" id="trackDemo"></div>
+  <div id="trackOutput">
+    <div class="track-empty">
+      <div class="te-ico">📮</div>
+      <div class="te-ttl">Entrez un code de suivi</div>
+      <div class="te-sub">Ou essayez un des codes de démonstration ci-dessus.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================
+     PAGE EXPEDIER
+     ================================================================ -->
+<section class="page" id="page-expedier" aria-label="Créer un envoi">
+  <div class="form-wrap">
+    <div class="form-intro">Casablanca → Dakar -- pilote contrôle. Renseignez l'expéditeur, le destinataire et le colis ; SenLink génère le code de suivi et le QR code.</div>
+    <form id="formExpedier">
+      <div class="fieldset">
+        <div class="fieldset-lgd">Expéditeur</div>
+        <div class="field"><label for="expSenderName">Nom complet</label><input id="expSenderName" required placeholder="Youssef El Amrani"></div>
+        <div class="field"><label for="expSenderPhone">Téléphone</label><input id="expSenderPhone" required placeholder="+212 6 61 23 45 67"></div>
+        <div class="field"><label for="expOriginCity">Ville de départ</label><input id="expOriginCity" required value="Casablanca"></div>
+      </div>
+      <div class="fieldset">
+        <div class="fieldset-lgd">Destinataire</div>
+        <div class="field"><label for="expRecipientName">Nom complet</label><input id="expRecipientName" required placeholder="Aissatou Diallo"></div>
+        <div class="field"><label for="expRecipientPhone">Téléphone</label><input id="expRecipientPhone" required placeholder="+221 77 123 45 67"></div>
+        <div class="field"><label for="expDestCity">Ville d'arrivée</label><input id="expDestCity" required value="Dakar"></div>
+      </div>
+      <div class="fieldset">
+        <div class="fieldset-lgd">Colis</div>
+        <div class="field-row">
+          <div class="field"><label for="expCategory">Catégorie</label>
+            <select id="expCategory">
+              <option>Textile</option><option>Documents</option><option>Électronique</option>
+              <option>Alimentaire</option><option>Cosmétique</option><option>Autre</option>
+            </select>
+          </div>
+          <div class="field"><label for="expWeight">Poids déclaré (kg)</label><input id="expWeight" type="number" min="0" step="0.1" placeholder="3.2"></div>
+        </div>
+        <div class="field"><label for="expValue">Valeur déclarée (MAD)</label><input id="expValue" type="number" min="0" placeholder="450"></div>
+        <div class="field">
+          <label for="expPhoto">Photo du colis</label>
+          <input id="expPhoto" type="file" accept="image/*" disabled>
+          <div class="field-hint">Aperçu uniquement dans ce prototype -- pas d'upload réel.</div>
+        </div>
+      </div>
+      <button class="btn-primary" type="submit">Créer l'envoi</button>
+    </form>
+  </div>
+</section>
+
+<!-- ================================================================
+     PAGE HISTORIQUE
+     ================================================================ -->
+<section class="page" id="page-historique" aria-label="Mes envois">
+  <div class="sec-hd"><span class="sec-ttl">Mes envois</span></div>
+  <div class="ship-list" id="shipList"></div>
+</section>
+
+<!-- ================================================================
+     PAGE AGENT (démo) -- écran de scan/preuve, hors barre d'onglets
+     client (persona différente), accessible depuis le Profil
+     ================================================================ -->
+<section class="page" id="page-agent" aria-label="Espace agent (démo)">
+  <div class="agent-back" onclick="navigate('profil')" role="button" style="cursor:pointer">← Retour au profil</div>
+  <div class="sec-hd"><span class="sec-ttl">🚚 Espace agent (démo)</span></div>
+  <div class="sec-sub">Simulation du scan et de la preuve à chaque étape -- aucune donnée réelle, aucun appel réseau. Le code de retrait n'est jamais affiché ici : seul le destinataire le voit, sur la page Suivre.</div>
+  <div class="ship-list" id="agentPicker" role="list"></div>
+  <div id="agentStepWrap"></div>
+</section>
+
+<!-- ================================================================
+     PAGE PROFIL
+     ================================================================ -->
+<section class="page" id="page-profil" aria-label="Mon profil">
+  <div class="profile-hero">
+    <div class="ph-av" aria-hidden="true">👤</div>
+    <div class="ph-name">Mon profil</div>
+    <div class="ph-email">Connectez-vous pour retrouver tous vos envois</div>
+  </div>
+  <div class="pcard">
+    <div class="pcard-ttl">Mon compte</div>
+    <div class="pcard-item" id="btnMenuHistorique">
+      <div class="pi-ico pi-g" aria-hidden="true">🕐</div>
+      <div class="pi-txt"><strong>Mes envois</strong><span id="shipCountMenu">0 envoi</span></div>
+      <span class="pi-arr" aria-hidden="true">›</span>
+    </div>
+    <div class="pcard-item">
+      <div class="pi-ico pi-b" aria-hidden="true">🔔</div>
+      <div class="pi-txt"><strong>Notifications</strong><span>Colis enregistré, départ, arrivée, livraison</span></div>
+      <span class="pi-arr" aria-hidden="true">›</span>
+    </div>
+    <div class="pcard-item" id="btnMenuIncident">
+      <div class="pi-ico pi-r" aria-hidden="true">⚠️</div>
+      <div class="pi-txt"><strong>Signaler un incident</strong><span>Colis endommagé, retard, adresse...</span></div>
+      <span class="pi-arr" aria-hidden="true">›</span>
+    </div>
+    <div class="pcard-item" id="btnMenuAgentDemo">
+      <div class="pi-ico pi-g" aria-hidden="true">🚚</div>
+      <div class="pi-txt"><strong>Écran agent (démo)</strong><span>Scan, preuve, code de retrait -- simulation</span></div>
+      <span class="pi-arr" aria-hidden="true">›</span>
+    </div>
+  </div>
+  <div class="pcard">
+    <div class="pcard-ttl">Points relais (démo)</div>
+    <div id="pickupPointsList"></div>
+  </div>
+  <div class="pcard">
+    <div class="pcard-ttl">Devenir partenaire</div>
+    <div class="pcard-item" id="btnMenuAgent">
+      <div class="pi-ico pi-g" aria-hidden="true">🏪</div>
+      <div class="pi-txt"><strong>Devenir agent point relais</strong><span>Dépôt, scan, remise des colis</span></div>
+      <span class="pi-arr" aria-hidden="true">›</span>
+    </div>
+    <div class="pcard-item" id="btnMenuTransporteur">
+      <div class="pi-ico pi-g" aria-hidden="true">🚚</div>
+      <div class="pi-txt"><strong>Devenir transporteur</strong><span>Lots, départs, arrivées, manifestes</span></div>
+      <span class="pi-arr" aria-hidden="true">›</span>
+    </div>
+  </div>
+  <div class="pcard">
+    <div class="pcard-ttl">Aide</div>
+    <div class="pcard-item" id="btnSupportWa">
+      <div class="pi-ico pi-y" aria-hidden="true">💬</div>
+      <div class="pi-txt"><strong>Support WhatsApp</strong><span>Réponse en moins de 2h</span></div>
+      <span class="pi-arr" aria-hidden="true">›</span>
+    </div>
+    <div class="pcard-item">
+      <div class="pi-ico pi-g" aria-hidden="true">📄</div>
+      <div class="pi-txt"><strong>Conditions d'utilisation</strong><span>Politique de confidentialité</span></div>
+      <span class="pi-arr" aria-hidden="true">›</span>
+    </div>
+  </div>
+  <div style="text-align:center;padding:20px 16px 4px">
+    <button id="btnResetDemo" style="font-size:12px;color:var(--mut);text-decoration:underline">Réinitialiser les données de démo</button>
+  </div>
+  <div style="height:16px"></div>
+</section>
+
+<!-- SHEET -- Détail d'un envoi -->
+<div class="overlay" id="detailOverlay" onclick="closeSheet('detail')"></div>
+<div class="sheet" id="detailSheet" role="dialog" aria-modal="true" aria-label="Détail du colis">
+  <div class="sheet-hd">
+    <span class="sheet-ttl">Suivi du colis</span>
+    <button class="sheet-x" onclick="closeSheet('detail')" aria-label="Fermer">✕</button>
+  </div>
+  <div class="sheet-bd" id="detailBody"></div>
+</div>
+
+<!-- SHEET -- Devenir partenaire -->
+<div class="overlay" id="partnerOverlay" onclick="closeSheet('partner')"></div>
+<div class="sheet" id="partnerSheet" role="dialog" aria-modal="true" aria-label="Devenir partenaire">
+  <div class="sheet-hd">
+    <span class="sheet-ttl">Devenir partenaire SenLink</span>
+    <button class="sheet-x" onclick="closeSheet('partner')" aria-label="Fermer">✕</button>
+  </div>
+  <div class="sheet-bd">
+    <form id="formPartner">
+      <div class="field"><label for="pName">Nom complet</label><input id="pName" required></div>
+      <div class="field"><label for="pPhone">Téléphone</label><input id="pPhone" required></div>
+      <div class="field"><label for="pCity">Ville</label><input id="pCity" required></div>
+      <div class="field">
+        <label for="pType">Type de partenariat</label>
+        <select id="pType">
+          <option value="agent_point_relais">Agent point relais</option>
+          <option value="transporteur">Transporteur</option>
+        </select>
+      </div>
+      <div class="field"><label for="pMsg">Message (optionnel)</label><textarea id="pMsg" placeholder="Zone couverte, capacité, disponibilité..."></textarea></div>
+      <button class="btn-primary" type="submit">Envoyer ma candidature</button>
+    </form>
+  </div>
+</div>
+
+<!-- SHEET -- Signaler un incident -->
+<div class="overlay" id="incidentOverlay" onclick="closeSheet('incident')"></div>
+<div class="sheet" id="incidentSheet" role="dialog" aria-modal="true" aria-label="Signaler un incident">
+  <div class="sheet-hd">
+    <span class="sheet-ttl">Signaler un incident</span>
+    <button class="sheet-x" onclick="closeSheet('incident')" aria-label="Fermer">✕</button>
+  </div>
+  <div class="sheet-bd">
+    <form id="formIncident">
+      <div class="field"><label for="incCode">Code de suivi</label><input id="incCode" required placeholder="SL-MA-SN-847291"></div>
+      <div class="field">
+        <label for="incType">Type d'incident</label>
+        <select id="incType">
+          <option value="colis_endommage">Colis endommagé</option>
+          <option value="colis_manquant">Colis manquant</option>
+          <option value="retard">Retard</option>
+          <option value="probleme_douanier">Problème douanier</option>
+          <option value="mauvaise_adresse">Mauvaise adresse</option>
+          <option value="destinataire_absent">Destinataire absent</option>
+          <option value="autre">Autre</option>
+        </select>
+      </div>
+      <div class="field"><label for="incDesc">Description</label><textarea id="incDesc" required placeholder="Décrivez le problème..."></textarea></div>
+      <div class="field"><label for="incPhoto">Photo</label><input id="incPhoto" type="file" accept="image/*" disabled>
+        <div class="field-hint">Aperçu uniquement dans ce prototype.</div>
+      </div>
+      <button class="btn-primary" type="submit" style="background:var(--red)">Signaler</button>
+    </form>
+  </div>
+</div>
+
+<!-- SHEET -- Nouvel envoi créé -->
+<div class="overlay" id="createdOverlay" onclick="closeSheet('created')"></div>
+<div class="sheet" id="createdSheet" role="dialog" aria-modal="true" aria-label="Envoi créé">
+  <div class="sheet-hd">
+    <span class="sheet-ttl">Envoi créé ✅</span>
+    <button class="sheet-x" onclick="closeSheet('created')" aria-label="Fermer">✕</button>
+  </div>
+  <div class="sheet-bd" style="text-align:center">
+    <div class="qr-box" id="createdQr"></div>
+    <div class="qr-copy" id="createdCode">SL-MA-SN-000000</div>
+    <div class="qr-sub">Présentez ce code (ou le QR) au point relais lors du dépôt.</div>
+    <button class="btn-primary" id="btnCreatedSuivre">Voir le suivi</button>
+  </div>
+</div>
+
+<div id="toasts" role="status" aria-live="polite" aria-atomic="true"></div>
+
+<!-- ================================================================
+     JS -- données de démo + logique d'affichage (aucun appel réseau)
+     ================================================================ -->
+<script>
+(function() {
+'use strict';
+
+/* ----------------------------------------------------------------
+   PARCOURS (section 1/2 du document de référence)
+   ---------------------------------------------------------------- */
+var STEPS = [
+  { ico:'✉️', lbl:'Expéditeur' },
+  { ico:'📥', lbl:'Dépôt' },
+  { ico:'🔍', lbl:'Contrôle' },
+  { ico:'📦', lbl:'Consolidation' },
+  { ico:'🚚', lbl:'Transport' },
+  { ico:'🌍', lbl:'Transit' },
+  { ico:'🛃', lbl:'Douane' },
+  { ico:'🏢', lbl:'Hub' },
+  { ico:'📍', lbl:'Point relais' },
+  { ico:'✅', lbl:'Livraison' }
+];
+
+/* ----------------------------------------------------------------
+   TRANSPARENCE (section 4)
+   ---------------------------------------------------------------- */
+var QA = [
+  { ico:'📍', txt:"Où est le colis ?" },
+  { ico:'🧑', txt:"Qui l'a eu en dernier ?" },
+  { ico:'⏱️', txt:"Quand a-t-il été scanné ?" },
+  { ico:'📌', txt:"Où a-t-il été scanné ?" },
+  { ico:'📦', txt:"Quel était son état ?" },
+  { ico:'❓', txt:"Pourquoi est-il bloqué ?" }
+];
+
+/* ----------------------------------------------------------------
+   STATUTS (miroir de lib/shipment-status.ts)
+   ---------------------------------------------------------------- */
+var STATUS_META = {
+  created:                    { label:'Créé',                   cls:'st-neutre'  },
+  dropped_off:                { label:'Déposé au point relais', cls:'st-neutre'  },
+  inspected:                  { label:'Contrôle',                cls:'st-neutre'  },
+  departed_origin:            { label:'Départ',                  cls:'st-transit' },
+  in_transit_international:   { label:'Transit international',   cls:'st-transit' },
+  customs_clearance:          { label:'Contrôle douanier',        cls:'st-transit' },
+  arrived_destination:        { label:'Arrivé à destination',     cls:'st-arrive'  },
+  at_hub:                     { label:'Au hub',                   cls:'st-arrive'  },
+  at_pickup_point:            { label:'Au point relais',          cls:'st-arrive'  },
+  out_for_delivery:           { label:'En cours de livraison',    cls:'st-arrive'  },
+  delivered:                  { label:'Livré',                    cls:'st-livre'   },
+  incident:                   { label:'Incident',                 cls:'st-incident'},
+  cancelled:                  { label:'Annulé',                   cls:'st-incident'}
+};
+
+/* ----------------------------------------------------------------
+   POINTS RELAIS (démo) -- référence du document : 2-3 à Casablanca,
+   quelques-uns à Dakar + 1 hub
+   ---------------------------------------------------------------- */
+var PICKUP_POINTS = [
+  { name:'Point relais Maarif', city:'Casablanca' },
+  { name:'Point relais Gauthier', city:'Casablanca' },
+  { name:'Point relais Ain Sebaa', city:'Casablanca' },
+  { name:'Point relais Sandaga', city:'Dakar' },
+  { name:'Point relais Plateau', city:'Dakar' }
+];
+
+/* ----------------------------------------------------------------
+   MACHINE À ÉTATS (miroir simplifié, côté démo uniquement -- la
+   version qui fait autorite est celle de Migration 1, côté SQL,
+   jamais appliquée. Ne pas utiliser ceci comme source de vérité.)
+   ---------------------------------------------------------------- */
+var TRANSITIONS = {
+  created: ['dropped_off'],
+  dropped_off: ['inspected'],
+  inspected: ['departed_origin'],
+  departed_origin: ['in_transit_international'],
+  in_transit_international: ['customs_clearance', 'arrived_destination'],
+  customs_clearance: ['arrived_destination'],
+  arrived_destination: ['at_hub'],
+  at_hub: ['at_pickup_point'],
+  at_pickup_point: ['delivered']
+};
+var PROOF_REQUIRED = ['dropped_off','inspected','departed_origin','arrived_destination','at_hub','at_pickup_point','delivered'];
+
+function locForStatus(s, status) {
+  if (status === 'dropped_off' || status === 'inspected') return s.originCity;
+  if (status === 'departed_origin' || status === 'in_transit_international' || status === 'customs_clearance') return 'En transit';
+  return s.destCity;
+}
+
+/* ----------------------------------------------------------------
+   DONNÉES DE DÉMO -- colis (codées en dur, jamais issues d'un backend)
+   Mutables une fois chargées dans ST.shipments (voir plus bas) --
+   ce tableau-ci n'est que le "seed" initial, jamais modifié lui-même.
+   ---------------------------------------------------------------- */
+var SEED_SHIPMENTS = [
+  {
+    code:'SL-MA-SN-847291', status:'delivered',
+    originCity:'Casablanca', destCity:'Dakar',
+    senderName:'Youssef El Amrani', recipientName:'Aissatou Diallo',
+    category:'Textile', weight:3.2, value:450, deliveryOtp:null,
+    timeline:[
+      { key:'created', lbl:'Créé', ico:'✅', loc:'Casablanca', actor:'Youssef (expéditeur)', time:'12 août, 09:14', proof:false },
+      { key:'dropped_off', lbl:'Déposé à Casablanca', ico:'✅', loc:'Point relais Maarif', actor:'Agent Karim B.', time:'12 août, 11:02', proof:true },
+      { key:'inspected', lbl:'Contrôle', ico:'✅', loc:'Point relais Maarif', actor:'Agent Karim B.', time:'12 août, 11:05', proof:true },
+      { key:'departed_origin', lbl:'Départ Maroc', ico:'🚚', loc:'Hub Casablanca', actor:'Atlas Cargo', time:'13 août, 07:40', proof:false },
+      { key:'in_transit_international', lbl:'Transit international', ico:'🌍', loc:'En route', actor:'Atlas Cargo', time:'13 août, 22:10', proof:false },
+      { key:'customs_clearance', lbl:'Contrôle douane', ico:'🛃', loc:'Douane Dakar-Port', actor:'—', time:'15 août, 06:30', proof:false },
+      { key:'arrived_destination', lbl:'Arrivé au Sénégal', ico:'🇸🇳', loc:'Dakar', actor:'—', time:'15 août, 08:15', proof:true },
+      { key:'at_hub', lbl:'Hub Dakar', ico:'📍', loc:'Hub Dakar Plateau', actor:'Agent Moussa T.', time:'15 août, 09:00', proof:false },
+      { key:'at_pickup_point', lbl:'Point relais', ico:'📦', loc:'Point relais Sandaga', actor:'Agent Ndeye F.', time:'15 août, 14:20', proof:true },
+      { key:'delivered', lbl:'Livré', ico:'✅', loc:'Point relais Sandaga', actor:'Ndeye F.', time:'16 août, 10:47', proof:true }
+    ]
+  },
+  {
+    code:'SL-MA-SN-118420', status:'in_transit_international',
+    originCity:'Casablanca', destCity:'Dakar',
+    senderName:'Salma Bennis', recipientName:'Cheikh Fall',
+    category:'Électronique', weight:1.4, value:1200, deliveryOtp:null,
+    timeline:[
+      { key:'created', lbl:'Créé', ico:'✅', loc:'Casablanca', actor:'Salma (expéditeur)', time:'22 août, 08:02', proof:false },
+      { key:'dropped_off', lbl:'Déposé à Casablanca', ico:'✅', loc:'Point relais Gauthier', actor:'Agent Rania S.', time:'22 août, 10:30', proof:true },
+      { key:'inspected', lbl:'Contrôle', ico:'✅', loc:'Point relais Gauthier', actor:'Agent Rania S.', time:'22 août, 10:33', proof:true },
+      { key:'departed_origin', lbl:'Départ Maroc', ico:'🚚', loc:'Hub Casablanca', actor:'Atlas Cargo', time:'23 août, 07:15', proof:false },
+      { key:'in_transit_international', lbl:'Transit international', ico:'🌍', loc:'En route', actor:'Atlas Cargo', time:'23 août, 21:45', proof:false }
+    ]
+  },
+  {
+    code:'SL-MA-SN-556310', status:'customs_clearance',
+    originCity:'Casablanca', destCity:'Dakar',
+    senderName:'Hamza Idrissi', recipientName:'Fatou Ndiaye',
+    category:'Documents', weight:0.4, value:0, deliveryOtp:null,
+    timeline:[
+      { key:'created', lbl:'Créé', ico:'✅', loc:'Casablanca', actor:'Hamza (expéditeur)', time:'24 août, 13:20', proof:false },
+      { key:'dropped_off', lbl:'Déposé à Casablanca', ico:'✅', loc:'Point relais Maarif', actor:'Agent Karim B.', time:'24 août, 15:10', proof:true },
+      { key:'inspected', lbl:'Contrôle', ico:'✅', loc:'Point relais Maarif', actor:'Agent Karim B.', time:'24 août, 15:12', proof:true },
+      { key:'departed_origin', lbl:'Départ Maroc', ico:'🚚', loc:'Hub Casablanca', actor:'Atlas Cargo', time:'25 août, 07:50', proof:false },
+      { key:'in_transit_international', lbl:'Transit international', ico:'🌍', loc:'En route', actor:'Atlas Cargo', time:'25 août, 23:05', proof:false },
+      { key:'customs_clearance', lbl:'Contrôle douane', ico:'🛃', loc:'Douane Dakar-Port', actor:'—', time:'27 août, 09:12', proof:false }
+    ]
+  },
+  {
+    code:'SL-MA-SN-902174', status:'created',
+    originCity:'Casablanca', destCity:'Dakar',
+    senderName:'Nadia Alaoui', recipientName:'Ousmane Sarr',
+    category:'Cosmétique', weight:2.0, value:300, deliveryOtp:null,
+    timeline:[
+      { key:'created', lbl:'Créé', ico:'✅', loc:'Casablanca', actor:'Nadia (expéditeur)', time:'29 août, 17:40', proof:false }
+    ]
+  },
+  {
+    code:'SL-MA-SN-334187', status:'at_pickup_point',
+    originCity:'Casablanca', destCity:'Dakar',
+    senderName:'Omar Benjelloun', recipientName:'Mariama Sow',
+    category:'Textile', weight:1.8, value:280, deliveryOtp:'618452',
+    timeline:[
+      { key:'created', lbl:'Créé', ico:'✅', loc:'Casablanca', actor:'Omar (expéditeur)', time:'26 août, 10:05', proof:false },
+      { key:'dropped_off', lbl:'Déposé à Casablanca', ico:'✅', loc:'Point relais Ain Sebaa', actor:'Agent Youssra L.', time:'26 août, 12:40', proof:true },
+      { key:'inspected', lbl:'Contrôle', ico:'✅', loc:'Point relais Ain Sebaa', actor:'Agent Youssra L.', time:'26 août, 12:42', proof:true },
+      { key:'departed_origin', lbl:'Départ Maroc', ico:'🚚', loc:'Hub Casablanca', actor:'Atlas Cargo', time:'27 août, 07:20', proof:false },
+      { key:'in_transit_international', lbl:'Transit international', ico:'🌍', loc:'En route', actor:'Atlas Cargo', time:'27 août, 22:00', proof:false },
+      { key:'arrived_destination', lbl:'Arrivé au Sénégal', ico:'🇸🇳', loc:'Dakar', actor:'—', time:'29 août, 07:30', proof:true },
+      { key:'at_hub', lbl:'Hub Dakar', ico:'📍', loc:'Hub Dakar Plateau', actor:'Agent Moussa T.', time:'29 août, 08:15', proof:false },
+      { key:'at_pickup_point', lbl:'Point relais', ico:'📦', loc:'Point relais Plateau', actor:'Agent Aminata D.', time:'29 août, 13:50', proof:true }
+    ]
+  }
+];
+
+/* ----------------------------------------------------------------
+   ETAT + PERSISTANCE LOCALE (localStorage uniquement, pas de réseau)
+   ---------------------------------------------------------------- */
+var ST = { page:'accueil', shipments:[], _toastMap:{} };
+
+function lsGet(k) { try { return JSON.parse(localStorage.getItem(k)); } catch(e) { return null; } }
+function lsSet(k,v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {} }
+function h(s) { var d = document.createElement('div'); d.textContent = String(s == null ? '' : s); return d.innerHTML; }
+
+function saveShipments() { lsSet('sl_shipments', ST.shipments); }
+
+function resetDemo() {
+  ST.shipments = JSON.parse(JSON.stringify(SEED_SHIPMENTS));
+  saveShipments();
+  renderHeroStats();
+  renderHistorique();
+  renderAgentPicker();
+  document.getElementById('agentStepWrap').innerHTML = '';
+  if (ST.page === 'suivi') runSearch('');
+  showToast('Données de démonstration réinitialisées','i');
+}
+
+function allShipments() {
+  return ST.shipments;
+}
+function findShipment(code) {
+  var all = allShipments();
+  for (var i = 0; i < all.length; i++) {
+    if (all[i].code.toLowerCase() === String(code).toLowerCase().trim()) return all[i];
+  }
+  return null;
+}
+
+/* ----------------------------------------------------------------
+   NAVIGATION
+   ---------------------------------------------------------------- */
+function navigate(page) {
+  if (ST.page === 'suivi' && page !== 'suivi') stopGpsRouteRefresh();
+  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('on'); });
+  document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('on'); t.setAttribute('aria-selected','false'); });
+  var pg = document.getElementById('page-'+page);
+  var tab = document.getElementById('tab-'+page);
+  if (pg) pg.classList.add('on');
+  if (tab) { tab.classList.add('on'); tab.setAttribute('aria-selected','true'); }
+  ST.page = page;
+  window.scrollTo(0,0);
+}
+window.navigate = navigate;
+
+function bindNav() {
+  document.getElementById('btmnav').addEventListener('click', function(e) {
+    var tab = e.target.closest('.tab');
+    if (!tab) return;
+    navigate(tab.id.replace('tab-',''));
+  });
+  document.getElementById('btnProfilNav').addEventListener('click', function(){ navigate('profil'); });
+  document.getElementById('btnNotif').addEventListener('click', function(){ showToast('Aucune nouvelle notification (démo)','i'); });
+  document.getElementById('btnHeroSuivre').addEventListener('click', function(){ navigate('suivi'); });
+  document.getElementById('btnHeroExpedier').addEventListener('click', function(){ navigate('expedier'); });
+  document.getElementById('btnOuvrirPartenaire').addEventListener('click', function(){ openSheet('partner'); });
+  document.getElementById('btnMenuHistorique').addEventListener('click', function(){ navigate('historique'); });
+  document.getElementById('btnMenuIncident').addEventListener('click', function(){ openSheet('incident'); });
+  document.getElementById('btnMenuAgent').addEventListener('click', function(){
+    document.getElementById('pType').value = 'agent_point_relais'; openSheet('partner');
+  });
+  document.getElementById('btnMenuTransporteur').addEventListener('click', function(){
+    document.getElementById('pType').value = 'transporteur'; openSheet('partner');
+  });
+  document.getElementById('btnMenuAgentDemo').addEventListener('click', function(){ navigate('agent'); });
+  document.getElementById('btnResetDemo').addEventListener('click', resetDemo);
+  document.getElementById('btnSupportWa').addEventListener('click', function(){
+    window.open('https://wa.me/212600000000?text=' + encodeURIComponent('Bonjour SenLink, j\'ai besoin d\'aide.'), '_blank');
+  });
+  document.getElementById('btnCreatedSuivre').addEventListener('click', function(){
+    closeSheet('created'); navigate('suivi');
+    document.getElementById('searchSuivi').value = document.getElementById('createdCode').textContent;
+    runSearch(document.getElementById('createdCode').textContent);
+  });
+}
+
+/* ----------------------------------------------------------------
+   RENDU -- ÉTAPES / TRANSPARENCE
+   ---------------------------------------------------------------- */
+function renderSteps() {
+  var el = document.getElementById('stepsTrack');
+  el.innerHTML = STEPS.map(function(s){
+    return '<div class="step-item" role="listitem"><div class="step-ico">'+s.ico+'</div><div class="step-lbl">'+h(s.lbl)+'</div></div>';
+  }).join('');
+}
+function renderQa() {
+  var el = document.getElementById('qaGrid');
+  el.innerHTML = QA.map(function(q){
+    return '<div class="qa-card"><div class="qa-ico">'+q.ico+'</div><div class="qa-txt">'+h(q.txt)+'</div></div>';
+  }).join('');
+}
+
+/* ----------------------------------------------------------------
+   STATISTIQUES D'ACCUEIL -- toujours recalculees depuis les données
+   de démo visibles (jamais une constante en dur, cf. audit). Ces
+   chiffres restent des données d'exemple, jamais une performance
+   réelle -- voir le libelle "hb-démo-tag" affiche a côté.
+   ---------------------------------------------------------------- */
+function renderHeroStats() {
+  var all = ST.shipments;
+  var delivered = all.filter(function(s){ return s.status === 'delivered'; }).length;
+  document.getElementById('statColis').textContent = all.length;
+  document.getElementById('statRelais').textContent = PICKUP_POINTS.length;
+  document.getElementById('statTaux').textContent = all.length ? Math.round(delivered / all.length * 100) + '%' : '--';
+}
+
+function renderPickupPoints() {
+  var el = document.getElementById('pickupPointsList');
+  el.innerHTML = PICKUP_POINTS.map(function(pp){
+    return '<div class="pp-row"><span class="pp-ico" aria-hidden="true">📍</span><span>'+h(pp.name)+'</span><span class="pp-city">'+h(pp.city)+'</span></div>';
+  }).join('');
+}
+
+/* ----------------------------------------------------------------
+   BADGE DE STATUT
+   ---------------------------------------------------------------- */
+function statusBadge(status) {
+  var m = STATUS_META[status] || { label:status, cls:'st-neutre' };
+  return '<span class="badge '+m.cls+'">'+h(m.label)+'</span>';
+}
+
+/* ----------------------------------------------------------------
+   EMPLACEMENT PUBLICITAIRE -- page Suivi uniquement (pas la sheet
+   Détail de l'historique, pour ne pas répéter la pub dans une modale)
+   ---------------------------------------------------------------- */
+function trackingAdHtml() {
+  return '<section class="ad-slot ad-slot--tracking" aria-label="Publicité partenaire">'
+    + '<span class="ad-label">Sponsorisé</span>'
+    + '<a href="#" class="ad-content" onclick="return false">'
+    +   '<span class="ad-ico" aria-hidden="true">📦</span>'
+    +   '<span class="ad-txt">'
+    +     '<span class="ad-ttl">Emballage renforcé SenLink Pro</span>'
+    +     '<span class="ad-sub">Protégez les colis fragiles pour 20 MAD.</span>'
+    +   '</span>'
+    +   '<span class="ad-cta">Ajouter ›</span>'
+    + '</a></section>';
+}
+
+/* ----------------------------------------------------------------
+   CARTE DE TRAJET -- Map + GPS temps réel, V1 démo.
+   Rendu par une vraie carte Leaflet/OpenStreetMap quand la librairie a
+   pu se charger (voir <head>) ; repli automatique sur une barre de
+   trajet stylisée sinon (réseau restreint, ou ville hors CITY_COORDS
+   -- ex. ville tapée librement dans le formulaire Nouvel envoi).
+   // DEMO ONLY -- position GPS simulée localement (progression le long
+   // du segment origine->destination).
+   // Aucun appel Supabase / record_lot_location() / get_lot_last_location().
+   Visible uniquement pour la page Suivi (pas la sheet Détail
+   Historique), même périmètre que ad-slot--tracking.
+   ---------------------------------------------------------------- */
+var GPS_DEMO = {};           // état de simulation par code de colis
+var gpsRouteInterval = null;
+var routeLeafletMap = null;
+var PRE_TRANSIT_STATUSES = ['created','dropped_off','inspected'];
+var GPS_TRANSIT_STATUSES = ['departed_origin','in_transit_international','customs_clearance'];
+var CITY_COORDS = { 'Casablanca': [33.5731, -7.5898], 'Dakar': [14.7167, -17.4677] };
+
+function gpsDemoState(code) {
+  if (!GPS_DEMO[code]) {
+    GPS_DEMO[code] = { progress: 8 + Math.random() * 10, lastPos: Date.now() };
+  }
+  return GPS_DEMO[code];
+}
+function tickGpsDemo(code) {
+  var st = gpsDemoState(code);
+  st.progress = Math.min(94, st.progress + 2 + Math.random() * 3);
+  st.lastPos = Date.now();
+  return st;
+}
+function timeAgoShort(ts) {
+  var s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+  if (s < 60) return 'il y a ' + s + ' s';
+  return 'il y a ' + Math.round(s / 60) + ' min';
+}
+function leafletAvailable() { return typeof window.L !== 'undefined'; }
+function canUseRealRouteMap(shipment) {
+  return leafletAvailable() && !!CITY_COORDS[shipment.originCity] && !!CITY_COORDS[shipment.destCity];
+}
+function lerpLatLng(a, b, t) {
+  return [ a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t ];
+}
+function destroyRouteMap() {
+  if (routeLeafletMap) { routeLeafletMap.remove(); routeLeafletMap = null; }
+}
+function mountRouteMap(shipment, active) {
+  var el = document.getElementById('routeMapCanvas-' + shipment.code);
+  if (!el) return;
+  var oc = CITY_COORDS[shipment.originCity], dc = CITY_COORDS[shipment.destCity];
+  destroyRouteMap();
+  var map = L.map(el, { zoomControl:false, scrollWheelZoom:false, dragging:false, tap:false, attributionControl:true });
+  routeLeafletMap = map;
+  // Fond de carte CartoDB Positron (clair, épuré) plutôt que le style OSM par défaut
+  // (trop chargé en couleurs/routes secondaires pour une petite carte de statut) --
+  // même service de tuiles, double attribution requise (OSM + CARTO).
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    minZoom: 2, maxZoom: 12, subdomains: 'abcd',
+    attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+  }).addTo(map);
+  L.circleMarker(oc, { radius:7, color:'#fff', weight:2, fillColor:'#0A1A0F', fillOpacity:1 }).addTo(map);
+  L.circleMarker(dc, { radius:7, color:'#fff', weight:2, fillColor:'#D4A017', fillOpacity:1 }).addTo(map);
+  L.polyline([oc, dc], { color:'#00C96B', weight:3, opacity:.75, dashArray:'1,9', lineCap:'round' }).addTo(map);
+  map.setView(oc, 4); // vue provisoire -- le conteneur peut ne pas encore avoir sa taille
+                       // finale ici (juste après l'injection HTML), donc fitBounds() est
+                       // recalculé plus bas une fois la mise en page stabilisée, sinon
+                       // Leaflet peut se caler sur maxZoom au lieu du bon niveau de zoom.
+  if (active) {
+    var st = gpsDemoState(shipment.code);
+    var truckIcon = L.divIcon({ html:'<div class="map-truck-ico">🚚</div>', className:'', iconSize:[24,24], iconAnchor:[12,12] });
+    map._truckMarker = L.marker(lerpLatLng(oc, dc, st.progress / 100), { icon: truckIcon }).addTo(map);
+  }
+  setTimeout(function () {
+    if (routeLeafletMap !== map) return;
+    map.invalidateSize();
+    map.fitBounds(L.latLngBounds([oc, dc]), { padding:[32,32] });
+  }, 350);
+}
+function stopGpsRouteRefresh() {
+  if (gpsRouteInterval) { clearInterval(gpsRouteInterval); gpsRouteInterval = null; }
+  destroyRouteMap();
+}
+function startGpsRouteRefresh(shipment) {
+  stopGpsRouteRefresh();
+  var useMap = canUseRealRouteMap(shipment);
+  if (useMap) mountRouteMap(shipment, GPS_TRANSIT_STATUSES.indexOf(shipment.status) > -1);
+  if (GPS_TRANSIT_STATUSES.indexOf(shipment.status) === -1) return;
+  gpsRouteInterval = setInterval(function () {
+    var el = document.getElementById('routeMap-' + shipment.code);
+    if (!el) { stopGpsRouteRefresh(); return; }
+    var st = tickGpsDemo(shipment.code);
+    var noteStrong = el.querySelector('.route-note strong');
+    if (noteStrong) noteStrong.textContent = timeAgoShort(st.lastPos);
+    if (routeLeafletMap && routeLeafletMap._truckMarker) {
+      var oc = CITY_COORDS[shipment.originCity], dc = CITY_COORDS[shipment.destCity];
+      routeLeafletMap._truckMarker.setLatLng(lerpLatLng(oc, dc, st.progress / 100));
+    } else {
+      var fill = el.querySelector('.route-track-fill'), truck = el.querySelector('.route-truck');
+      if (fill) fill.style.width = st.progress + '%';
+      if (truck) truck.style.left = st.progress + '%';
+    }
+  }, 10000);
+}
+function routeMapHtml(shipment) {
+  var pre = PRE_TRANSIT_STATUSES.indexOf(shipment.status) > -1;
+  var active = GPS_TRANSIT_STATUSES.indexOf(shipment.status) > -1;
+  if (!pre && !active) return '';
+  var useMap = canUseRealRouteMap(shipment);
+  var st = active ? gpsDemoState(shipment.code) : null;
+
+  var canvasHtml = useMap
+    ? '<div class="route-map-canvas" id="routeMapCanvas-' + h(shipment.code) + '"></div>'
+    : '<div class="route-track"><div class="route-track-fill" style="width:' + (active ? st.progress : 0) + '%"></div>'
+      + (active ? '<div class="route-truck" style="left:' + st.progress + '%">🚚</div>' : '') + '</div>';
+
+  return '<div class="route-map' + (active ? ' route-map--active' : '') + '" id="routeMap-' + h(shipment.code) + '">'
+    + '<div class="route-hd' + (active ? ' active' : '') + '"><span class="route-dot"></span>' + (pre ? 'Trajet prévu' : 'Transport en cours') + '</div>'
+    + canvasHtml
+    + '<div class="route-cities"><span>' + h(shipment.originCity) + '</span><span>' + h(shipment.destCity) + '</span></div>'
+    + (pre
+        ? '<div class="route-note">Le transport n\'a pas encore démarré.</div>'
+        : '<div class="route-note">Dernière position : <strong>' + timeAgoShort(st.lastPos) + '</strong></div>'
+          + '<div class="route-demo-badge">🧪 MODE DÉMO · Position simulée</div>')
+    + '</div>';
+}
+
+/* ----------------------------------------------------------------
+   TIMELINE (réutilisée par la page Suivi et la sheet Détail)
+   ---------------------------------------------------------------- */
+function timelineHtml(shipment) {
+  var items = shipment.timeline.map(function(ev){
+    return '<li class="tl-item done">'
+      + '<div class="tl-dot" aria-hidden="true">'+ev.ico+'</div>'
+      + '<div class="tl-body">'
+      +   '<div class="tl-lbl">'+h(ev.lbl)+'</div>'
+      +   '<div class="tl-loc">'+h(ev.loc)+' -- '+h(ev.actor)+'</div>'
+      +   '<div class="tl-meta">'+h(ev.time)+'</div>'
+      +   (ev.proof ? '<div class="tl-proof">📷 Preuve enregistrée</div>' : '')
+      + '</div></li>';
+  }).join('');
+  return '<ul class="timeline">'+items+'</ul>';
+}
+
+function shipmentHeadHtml(shipment) {
+  return '<div class="tr-head">'
+    + '<div class="tr-code">'+h(shipment.code)+'</div>'
+    + '<div class="tr-route">'+h(shipment.originCity)+' → '+h(shipment.destCity)+'</div>'
+    + statusBadge(shipment.status)
+    + '<div class="tr-meta" style="margin-top:10px">'
+    +   '<span>'+h(shipment.category)+'</span>'
+    +   '<span>'+shipment.weight+' kg</span>'
+    +   (shipment.value ? '<span>'+shipment.value+' MAD déclarés</span>' : '')
+    + '</div></div>';
+}
+
+/* ----------------------------------------------------------------
+   CODE DE RETRAIT -- expérience destinataire (section 2 du document :
+   "retrait avec QR Code ou OTP"). Visible uniquement ici (page Suivre
+   / détail d'un envoi), jamais dans l'écran agent -- l'agent ne doit
+   jamais pouvoir lire ce code, seulement verifier ce que le
+   destinataire lui communique.
+   ---------------------------------------------------------------- */
+function otpRevealHtml(shipment) {
+  if (shipment.status !== 'at_pickup_point' || !shipment.deliveryOtp) return '';
+  return '<div class="otp-box">'
+    + '<div class="otp-lbl">Code de retrait</div>'
+    + '<div class="otp-code">'+h(shipment.deliveryOtp)+'</div>'
+    + '<div class="otp-hint">Présentez ce code (ou cet écran) à l\'agent du point relais pour récupérer le colis. Il n\'est jamais visible côté agent -- seul vous, le destinataire, le connaissez.</div>'
+    + '</div>';
+}
+
+/* ----------------------------------------------------------------
+   PAGE SUIVI
+   ---------------------------------------------------------------- */
+function renderTrackDemo() {
+  var el = document.getElementById('trackDemo');
+  el.innerHTML = SEED_SHIPMENTS.map(function(s){
+    return '<button data-code="'+h(s.code)+'">'+h(s.code)+'</button>';
+  }).join('');
+}
+function runSearch(code) {
+  var out = document.getElementById('trackOutput');
+  stopGpsRouteRefresh();
+  if (!code || !code.trim()) {
+    out.innerHTML = '<div class="track-empty"><div class="te-ico">📮</div><div class="te-ttl">Entrez un code de suivi</div><div class="te-sub">Ou essayez un des codes de démonstration ci-dessus.</div></div>';
+    return;
+  }
+  var s = findShipment(code);
+  if (!s) {
+    out.innerHTML = '<div class="track-empty"><div class="te-ico">🔎</div><div class="te-ttl">Aucun colis trouvé</div><div class="te-sub">Vérifiez le code « '+h(code)+' » ou essayez un code de démonstration.</div></div>';
+    return;
+  }
+  out.innerHTML = '<div class="track-result">'+shipmentHeadHtml(s)+routeMapHtml(s)+otpRevealHtml(s)+trackingAdHtml()+timelineHtml(s)+'</div>';
+  startGpsRouteRefresh(s);
+}
+function bindSuivi() {
+  document.getElementById('btnSuivre').addEventListener('click', function(){
+    runSearch(document.getElementById('searchSuivi').value);
+  });
+  document.getElementById('searchSuivi').addEventListener('keydown', function(e){
+    if (e.key === 'Enter') runSearch(e.target.value);
+  });
+  document.getElementById('trackDemo').addEventListener('click', function(e){
+    var btn = e.target.closest('button[data-code]');
+    if (!btn) return;
+    document.getElementById('searchSuivi').value = btn.dataset.code;
+    runSearch(btn.dataset.code);
+  });
+}
+
+/* ----------------------------------------------------------------
+   PAGE HISTORIQUE
+   ---------------------------------------------------------------- */
+function renderHistorique() {
+  var all = allShipments();
+  var el = document.getElementById('shipList');
+  document.getElementById('shipCountMenu').textContent = all.length + (all.length > 1 ? ' envois' : ' envoi');
+  if (!all.length) {
+    el.innerHTML = '<div class="hist-empty">Aucun envoi pour le moment.</div>';
+    return;
+  }
+  el.innerHTML = all.map(function(s){
+    return '<div class="ship-card" data-code="'+h(s.code)+'" role="listitem">'
+      + '<div class="ship-ico">📦</div>'
+      + '<div class="ship-mid">'
+      +   '<div class="ship-code">'+h(s.code)+'</div>'
+      +   '<div class="ship-route">'+h(s.originCity)+' → '+h(s.destCity)+'</div>'
+      + '</div>'
+      + statusBadge(s.status)
+      + '<span class="ship-arr" aria-hidden="true">›</span>'
+      + '</div>';
+  }).join('');
+}
+function bindHistorique() {
+  document.getElementById('shipList').addEventListener('click', function(e){
+    var card = e.target.closest('.ship-card');
+    if (!card) return;
+    var s = findShipment(card.dataset.code);
+    if (!s) return;
+    document.getElementById('detailBody').innerHTML = shipmentHeadHtml(s) + otpRevealHtml(s) + timelineHtml(s);
+    openSheet('detail');
+  });
+}
+
+/* ----------------------------------------------------------------
+   PAGE AGENT (démo) -- scan simulé + preuve. Miroir volontairement
+   simplifié de record_shipment_event() (Migration 1, jamais
+   appliquée) : matrice rôle/statut et machine à états réelles restent
+   côté SQL, ceci n'est qu'une démonstration visuelle.
+   ---------------------------------------------------------------- */
+function renderAgentPicker() {
+  var el = document.getElementById('agentPicker');
+  if (!el) return;
+  el.innerHTML = ST.shipments.map(function(s){
+    return '<div class="ship-card" data-code="'+h(s.code)+'" role="listitem">'
+      + '<div class="ship-ico">📦</div>'
+      + '<div class="ship-mid"><div class="ship-code">'+h(s.code)+'</div><div class="ship-route">'+h(s.originCity)+' → '+h(s.destCity)+'</div></div>'
+      + statusBadge(s.status)
+      + '<span class="ship-arr" aria-hidden="true">›</span></div>';
+  }).join('');
+}
+
+function renderAgentStep(code) {
+  var s = findShipment(code);
+  var wrap = document.getElementById('agentStepWrap');
+  if (!s) { wrap.innerHTML = ''; return; }
+  var next = TRANSITIONS[s.status] || [];
+  if (!next.length) {
+    wrap.innerHTML = '<div class="form-wrap">' + shipmentHeadHtml(s)
+      + '<p style="text-align:center;color:var(--mut);padding:16px 0;font-size:13px">Statut terminal ou hors flux du pilote -- aucune action agent possible sur ce colis.</p></div>';
+    return;
+  }
+  var opts = next.map(function(st){
+    var lbl = STATUS_META[st] ? STATUS_META[st].label : st;
+    return '<option value="'+st+'">'+h(lbl)+'</option>';
+  }).join('');
+  wrap.innerHTML = '<div class="form-wrap">'
+    + shipmentHeadHtml(s)
+    + '<div class="fieldset">'
+    +   '<div class="fieldset-lgd">Prochaine étape</div>'
+    +   '<div class="field"><label for="agentNextStatus">Statut à enregistrer</label>'
+    +     '<select id="agentNextStatus">'+opts+'</select></div>'
+    +   '<div class="field" id="agentPhotoField"></div>'
+    +   '<div class="field" id="agentOtpField"></div>'
+    + '</div>'
+    + '<button class="btn-primary" id="btnAgentConfirm">Valider cette étape</button>'
+    + '</div>';
+  updateAgentFields();
+  document.getElementById('agentNextStatus').addEventListener('change', updateAgentFields);
+  document.getElementById('btnAgentConfirm').addEventListener('click', function(){ confirmAgentStep(code); });
+}
+
+function updateAgentFields() {
+  var sel = document.getElementById('agentNextStatus');
+  if (!sel) return;
+  var status = sel.value;
+  var photoField = document.getElementById('agentPhotoField');
+  var otpField = document.getElementById('agentOtpField');
+  photoField.innerHTML = PROOF_REQUIRED.indexOf(status) > -1
+    ? '<label class="field-check"><input type="checkbox" id="agentPhotoTaken"> 📷 Photo prise (preuve obligatoire pour ce statut)</label>'
+    : '<div class="field-hint">Aucune preuve requise pour ce statut (transit déclaratif).</div>';
+  otpField.innerHTML = status === 'delivered'
+    ? '<label for="agentOtpInput">Code de retrait fourni par le destinataire</label><input id="agentOtpInput" placeholder="6 chiffres" maxlength="6">'
+    : '';
+}
+
+function confirmAgentStep(code) {
+  var s = findShipment(code);
+  if (!s) return;
+  var status = document.getElementById('agentNextStatus').value;
+  var needsPhoto = PROOF_REQUIRED.indexOf(status) > -1;
+
+  if (needsPhoto) {
+    var chk = document.getElementById('agentPhotoTaken');
+    if (!chk || !chk.checked) { showToast('Photo requise pour cette étape (démo)','e'); return; }
+  }
+  if (status === 'delivered') {
+    var otpInput = document.getElementById('agentOtpInput');
+    var otp = otpInput ? otpInput.value.trim() : '';
+    if (!otp) { showToast('Code de retrait requis','e'); return; }
+    if (otp !== s.deliveryOtp) { showToast('Code de retrait incorrect','e'); return; }
+  }
+
+  var meta = STATUS_META[status] || { label: status };
+  s.timeline.push({
+    key: status, lbl: meta.label, ico:'✅',
+    loc: locForStatus(s, status), actor:'Agent (démo)', time:'à l\'instant', proof: needsPhoto
+  });
+  s.status = status;
+  if (status === 'at_pickup_point') {
+    s.deliveryOtp = String(Math.floor(100000 + Math.random() * 900000));
+  } else if (status === 'delivered') {
+    s.deliveryOtp = null; // consommation immédiate, comme dans Migration 1
+  }
+
+  saveShipments();
+  renderHeroStats();
+  renderHistorique();
+  renderAgentPicker();
+  renderAgentStep(code);
+  showToast('Étape enregistrée : ' + meta.label, 's');
+}
+
+function bindAgent() {
+  document.getElementById('agentPicker').addEventListener('click', function(e){
+    var card = e.target.closest('.ship-card');
+    if (!card) return;
+    renderAgentStep(card.dataset.code);
+  });
+}
+
+/* ----------------------------------------------------------------
+   QR DE DÉMONSTRATION (motif déterministe, PAS un vrai QR scannable)
+   ---------------------------------------------------------------- */
+function fakeQrSvg(seed) {
+  var n = 11, cell = 160 / n, cells = '';
+  var h1 = 0;
+  for (var i = 0; i < seed.length; i++) h1 = (h1 * 31 + seed.charCodeAt(i)) >>> 0;
+  for (var y = 0; y < n; y++) {
+    for (var x = 0; x < n; x++) {
+      h1 = (h1 * 1103515245 + 12345) >>> 0;
+      var isFinder = (x < 3 && y < 3) || (x > n-4 && y < 3) || (x < 3 && y > n-4);
+      var on = isFinder ? ((x+y) % 3 !== 2) : ((h1 >>> 16) % 2 === 0);
+      if (on) cells += '<rect x="'+(x*cell)+'" y="'+(y*cell)+'" width="'+cell+'" height="'+cell+'" fill="#0A1A0F"/>';
+    }
+  }
+  return '<svg viewBox="0 0 160 160" width="100%" height="100%" role="img" aria-label="QR code de démonstration">'+cells+'</svg>';
+}
+
+/* ----------------------------------------------------------------
+   SHEETS
+   ---------------------------------------------------------------- */
+function openSheet(id) {
+  document.getElementById(id+'Overlay').classList.add('on');
+  document.getElementById(id+'Sheet').classList.add('on');
+  document.body.style.overflow = 'hidden';
+}
+function closeSheet(id) {
+  document.getElementById(id+'Overlay').classList.remove('on');
+  document.getElementById(id+'Sheet').classList.remove('on');
+  document.body.style.overflow = '';
+}
+window.closeSheet = closeSheet;
+
+/* ----------------------------------------------------------------
+   FORMULAIRE -- NOUVEL ENVOI
+   ---------------------------------------------------------------- */
+function genTrackingCode() {
+  var n = Math.floor(100000 + Math.random() * 900000);
+  return 'SL-MA-SN-' + n;
+}
+function bindExpedier() {
+  document.getElementById('formExpedier').addEventListener('submit', function(e){
+    e.preventDefault();
+    var senderName = document.getElementById('expSenderName').value.trim();
+    var recipientName = document.getElementById('expRecipientName').value.trim();
+    if (!senderName || !recipientName) { showToast('Expéditeur et destinataire sont requis','e'); return; }
+
+    var code = genTrackingCode();
+    var shipment = {
+      code: code, status:'created',
+      originCity: document.getElementById('expOriginCity').value.trim() || 'Casablanca',
+      destCity: document.getElementById('expDestCity').value.trim() || 'Dakar',
+      senderName: senderName, recipientName: recipientName,
+      category: document.getElementById('expCategory').value,
+      weight: parseFloat(document.getElementById('expWeight').value) || 0,
+      value: parseFloat(document.getElementById('expValue').value) || 0,
+      deliveryOtp: null,
+      timeline: [
+        { key:'created', lbl:'Créé', ico:'✅', loc: document.getElementById('expOriginCity').value.trim() || 'Casablanca', actor: senderName+' (expéditeur)', time:'à l\'instant', proof:false }
+      ]
+    };
+    ST.shipments.unshift(shipment);
+    saveShipments();
+    renderHeroStats();
+    renderHistorique();
+
+    document.getElementById('createdCode').textContent = code;
+    document.getElementById('createdQr').innerHTML = fakeQrSvg(code);
+    e.target.reset();
+    document.getElementById('expOriginCity').value = 'Casablanca';
+    document.getElementById('expDestCity').value = 'Dakar';
+    openSheet('created');
+    showToast('Envoi créé : '+code,'s');
+  });
+}
+
+/* ----------------------------------------------------------------
+   FORMULAIRES -- PARTENAIRE / INCIDENT (démo, aucun réseau)
+   ---------------------------------------------------------------- */
+function bindPartner() {
+  document.getElementById('formPartner').addEventListener('submit', function(e){
+    e.preventDefault();
+    closeSheet('partner');
+    e.target.reset();
+    showToast('Merci ! Notre équipe vous recontactera sous peu.','s');
+  });
+}
+function bindIncident() {
+  document.getElementById('formIncident').addEventListener('submit', function(e){
+    e.preventDefault();
+    closeSheet('incident');
+    e.target.reset();
+    showToast('Incident signalé. Nous revenons vers vous rapidement.','s');
+  });
+}
+
+/* ----------------------------------------------------------------
+   TOASTS
+   ---------------------------------------------------------------- */
+function showToast(msg, type, dur) {
+  var key = msg + type;
+  if (ST._toastMap[key]) return;
+  ST._toastMap[key] = true;
+  setTimeout(function(){ delete ST._toastMap[key]; }, 1800);
+
+  var c = document.getElementById('toasts');
+  var t = document.createElement('div');
+  t.className = 'toast' + (type === 'e' ? ' e' : type === 'w' ? ' w' : '');
+  var icons = { s:'✅', e:'❌', w:'⚠️', i:'ℹ️' };
+  t.innerHTML = '<span>'+(icons[type]||'ℹ️')+'</span><span style="flex:1">'+h(msg)+'</span><span class="toast-x" role="button" tabindex="0" aria-label="Fermer">✕</span>';
+  t.querySelector('.toast-x').addEventListener('click', function(){ dismiss(t); });
+  c.appendChild(t);
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){ t.classList.add('show'); }); });
+  setTimeout(function(){ dismiss(t); }, dur || 3200);
+}
+function dismiss(t) {
+  if (!t.parentNode) return;
+  t.classList.add('hiding'); t.classList.remove('show');
+  setTimeout(function(){ if (t.parentNode) t.remove(); }, 380);
+}
+
+/* ----------------------------------------------------------------
+   SCROLL SHADOW SUR LA TOPNAV
+   ---------------------------------------------------------------- */
+function bindScroll() {
+  window.addEventListener('scroll', function(){
+    document.getElementById('topnav').classList.toggle('shadow', window.scrollY > 20);
+  });
+}
+
+/* ----------------------------------------------------------------
+   INIT
+   ---------------------------------------------------------------- */
+document.addEventListener('DOMContentLoaded', function() {
+  ST.shipments = lsGet('sl_shipments') || JSON.parse(JSON.stringify(SEED_SHIPMENTS));
+  renderSteps();
+  renderQa();
+  renderTrackDemo();
+  renderHistorique();
+  renderHeroStats();
+  renderPickupPoints();
+  renderAgentPicker();
+  bindNav();
+  bindSuivi();
+  bindHistorique();
+  bindExpedier();
+  bindPartner();
+  bindIncident();
+  bindAgent();
+  bindScroll();
+});
+
+})(); /* end IIFE */
+</script>
+
+</body>
+</html>

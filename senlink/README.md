@@ -28,17 +28,23 @@ codées en dur, persistance uniquement via `localStorage`, **aucun appel
 réseau/Supabase**. Même précédent que le prototype SenMarket (`README.md` à
 la racine du dépôt), mais écrit proprement (pas de guillemets typographiques
 ni de tiret cadratin corrompant les `var(--x)` CSS comme dans ce dernier).
-À ouvrir directement dans un navigateur — sert de référence visuelle avant
-de brancher les vraies pages Next.js (`app/`) au backend Supabase.
+À ouvrir directement dans un navigateur — sert de référence visuelle.
+
+**Statut** : la vraie app Next.js (`app/`) est maintenant branchée à un
+projet Supabase réel et en production (voir plus bas) — les tableaux de
+bord client/agent/transporteur/admin y sont largement plus avancés que ce
+prototype. Deux choses du prototype n'ont en revanche **aucun équivalent
+réel** : la candidature partenaire et le scan QR caméra (voir « Hors
+périmètre » plus bas).
 
 ## SenLink est un produit séparé de SenMarket
 
 Ce répertoire vit dans le même dépôt git que SenMarket (même précédent que
 `flowdynamicsagency-portfolio/`), mais **SenLink est technique­ment et
 commercialement un produit distinct** : sa propre app Next.js autonome,
-son propre projet Supabase (à provisionner séparément — voir plus bas), son
-propre schéma de données. Il ne doit jamais lire ni écrire dans le schéma
-Supabase de SenMarket, et inversement. Une intégration future
+son propre projet Supabase (provisionné et en production — voir plus bas),
+son propre schéma de données. Il ne doit jamais lire ni écrire dans le
+schéma Supabase de SenMarket, et inversement. Une intégration future
 (commande SenMarket → SenLink → tracking → livraison) est envisagée à
 terme, mais les deux produits restent séparés au démarrage.
 
@@ -47,60 +53,97 @@ terme, mais les deux produits restent séparés au démarrage.
 - Next.js 14 (App Router), React 18, TypeScript — mêmes versions que
   SenMarket, mêmes conventions (pas de `src/`, pas de framework CSS,
   objets `style` inline, copie UI en français).
-- Supabase (PostgreSQL, Auth, Storage, RLS) — **projet dédié, à créer**,
-  distinct de celui de SenMarket.
+- Supabase (PostgreSQL, Auth, Storage, RLS) — projet dédié `senlink`
+  (ref `thduksfosaylbjimrgrn`), distinct de celui de SenMarket, **en
+  production** : schéma appliqué, RLS active sur toutes les tables,
+  données réelles (colis, événements, positions GPS).
+- Déployé sur Vercel (projet git-lié, build depuis cette branche) —
+  accessible sur `senlink.vercel.app`. `leaflet` (`components/LiveMap.tsx`)
+  pour la carte de suivi GPS en direct (OpenStreetMap, sans clé API).
 
 ## Démarrage
 
 ```bash
 cd senlink
 npm install
-cp .env.local.example .env.local   # puis renseigner les clés d'un projet Supabase SenLink dédié
+cp .env.local.example .env.local   # renseigner NEXT_PUBLIC_SUPABASE_URL et
+                                    # NEXT_PUBLIC_SUPABASE_ANON_KEY du projet
+                                    # Supabase "senlink" (thduksfosaylbjimrgrn)
 npm run dev
 ```
 
-Le schéma initial est écrit dans
-`supabase/migrations/20260829120000_senlink_init_schema.sql` mais **n'est
-pas appliqué automatiquement**. Une fois un projet Supabase SenLink
-provisionné (décision distincte, potentiellement facturable — non prise
-dans ce scaffold), appliquez-le via la CLI Supabase ou l'outil MCP
-`apply_migration`.
+Le schéma vit dans `supabase/migrations/` (un fichier par évolution,
+appliqué via l'outil MCP `apply_migration` ou la CLI Supabase — jamais à la
+main dans le dashboard). Toute nouvelle migration doit être écrite en
+fichier ET appliquée au projet réel, les deux à la fois : un fichier non
+appliqué ne sert que de trace, une application sans fichier n'est pas
+traçable.
 
 ## Routes
 
 | Route | Description |
 |---|---|
 | `/` | Landing page + recherche de suivi |
-| `/suivi/[code]` | Page de suivi publique (sans authentification) |
-| `/envois/nouveau` | Création d'un envoi (coquille) |
+| `/suivi` | Formulaire de recherche d'un colis par code |
+| `/suivi/[code]` | Page de suivi publique (sans authentification), code de retrait affiché à `at_pickup_point` |
+| `/envois/nouveau` | Création d'un envoi, avec upload photo optionnel |
 | `/login` | Connexion / inscription / lien magique / reset |
 | `/dashboard` | Routeur selon le(s) rôle(s) de l'utilisateur |
-| `/dashboard/client` | Espace client |
-| `/dashboard/agent` | Interface agent point relais |
-| `/dashboard/transporteur` | Dashboard transporteur |
-| `/dashboard/admin` | Dashboard admin |
 
-## Hors périmètre pour ce scaffold
+| Espace client | Description |
+|---|---|
+| `/dashboard/client` | Accueil espace client |
+| `/dashboard/client/historique` | Ses colis, avec lien vers le suivi GPS en direct si en transit |
+| `/dashboard/client/suivi-gps/[lotId]` | Carte en direct de son colis en transit |
+| `/dashboard/client/incidents` | Signaler et suivre un incident sur ses colis |
+| `/dashboard/client/notifications` | Notifications in-app (une par changement de statut) |
+| `/dashboard/client/points-relais` | Annuaire des points relais actifs |
 
-Volontairement non implémenté à ce stade (cf. l'avertissement du document
-de référence : « Ne pas créer inutilement une architecture gigantesque
-avant validation terrain ») :
+| Espace agent point relais | Description |
+|---|---|
+| `/dashboard/agent` | Accueil espace agent |
+| `/dashboard/agent/point-relais` | Recherche d'un colis par code, dépôt/contrôle/remise avec preuve photo + OTP |
+| `/dashboard/agent/hub` | Réception/expédition au niveau hub |
 
-- GPS temps réel / carte live.
-- Intégration WhatsApp Business API (le canal existe comme valeur de schéma
-  `notifications.channel`, pas de client Twilio/WhatsApp Cloud API).
-- Scan QR caméra réel (champs texte en attendant).
-- Paiement / calcul de commission.
-- Calcul du SenLink Trust Score (`transporters.trust_score` reste `null`).
-- Manifeste PWA / service worker.
-- Edge Functions d'envoi de notifications.
+| Espace transporteur | Description |
+|---|---|
+| `/dashboard/transporteur` | Accueil espace transporteur |
+| `/dashboard/transporteur/lots`, `/departs`, `/arrivees` | Gestion des lots de colis |
+| `/dashboard/transporteur/scans` | Scan d'étape avec preuve photo |
+| `/dashboard/transporteur/gps` | Partage automatique de la position pendant qu'un lot est en transit |
+| `/dashboard/transporteur/colis`, `/manifestes`, `/planning`, `/performance`, `/equipe`, `/profil`, `/incidents` | Suivi opérationnel et gestion d'équipe |
 
-Mise à jour Storage (8 septembre 2026) : le bucket `shipment-proofs` existe
-désormais (migration `shipment_proofs_storage`), avec ses policies RLS
-(lecture publique, écriture réservée à `authenticated`). Le flux transporteur
-(`app/dashboard/transporteur/scans/page.tsx`) uploade une vraie preuve photo
-avant de la passer à `record_shipment_event()`. Reste hors périmètre : la
-prise de photo côté formulaire client (`app/envois/nouveau/page.tsx`), dont
-le champ fichier est toujours désactivé.
+| Espace admin | Description |
+|---|---|
+| `/dashboard/admin` | Accueil espace admin |
+| `/dashboard/admin/colis`, `/flux`, `/analytics`, `/audit` | Vue globale, flux Maroc/Sénégal, analytics, journal d'audit |
+| `/dashboard/admin/hubs`, `/points-relais`, `/transporteurs` | Gestion (création + activation/désactivation) du réseau |
+| `/dashboard/admin/incidents`, `/retards` | Suivi des incidents et retards |
+| `/dashboard/admin/gps` (+ `/[lotId]`) | Suivi GPS en direct de tous les lots en transit |
 
-Chaque point est marqué `// TODO` dans le code au niveau pertinent.
+## Hors périmètre
+
+Écarts encore réels avec la vision produit du document de référence — pas
+des TODO ponctuels, des chantiers pas commencés :
+
+- **Intégration WhatsApp Business API / SMS** : `notifications.channel`
+  accepte `whatsapp`/`sms`/`email`/`push` en plus de `in_app`, mais aucun
+  client Twilio/WhatsApp Cloud API n'existe. Seules les notifications
+  `in_app` sont réellement envoyées (déclenchées par un trigger sur
+  `shipment_events`, voir migration `notify_client_on_shipment_status_change`).
+- **Scan QR caméra réel** : `qr_scan_ref` existe en base mais rien ne le
+  peuple, pas même une saisie manuelle — toute preuve passe par photo.
+- **Paiement / calcul de commission** : aucune trace dans le schéma.
+- **Calcul du SenLink Trust Score** (`transporters.trust_score` reste
+  `null`, affiché `—` dans le dashboard admin).
+- **Manifeste PWA / service worker** : pas de mode hors-ligne pour les
+  agents/transporteurs terrain.
+- **Candidature partenaire** : existe dans `prototype.html`, aucune route
+  équivalente dans `app/`.
+- **Multi-organisation** : le schéma le permet (`organizations`,
+  `organization_id` un peu partout) mais aucune UI ne le gère — un seul
+  pilote, une seule organisation en pratique aujourd'hui.
+- **Étude terrain (chantier 1 du document de référence)** : jamais menée.
+  Voir `docs/blueprint.md` section 6 — tant qu'elle n'a pas eu lieu, le
+  cycle de vie codé ici reste une hypothèse de travail, pas une vérité
+  opérationnelle validée sur le terrain.

@@ -13,10 +13,17 @@ export async function createClient() {
           return cookieStore.get(name)?.value
         },
         set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set({ name, value, ...options })
+          // Écriture impossible depuis un Server Component (seulement Server
+          // Action/Route Handler) — sans risque de l'ignorer ici, le
+          // middleware rafraîchit déjà et persiste la session à chaque requête.
+          try {
+            cookieStore.set({ name, value, ...options })
+          } catch {}
         },
         remove(name: string, options: CookieOptions) {
-          cookieStore.set({ name, value: '', ...options })
+          try {
+            cookieStore.set({ name, value: '', ...options })
+          } catch {}
         },
       },
     }

@@ -2,15 +2,15 @@
 
 import { messageErreur } from '@/lib/errors'
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { ShipmentQrCode } from '@/components/ShipmentQrCode'
 
 export default function NouvelEnvoiPage() {
-  const router = useRouter()
   const supabase = createClient()
 
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState<{ text: string; type: 'ok' | 'err' } | null>(null)
+  const [created, setCreated] = useState<string | null>(null)
 
   const [senderName, setSenderName] = useState('')
   const [senderPhone, setSenderPhone] = useState('')
@@ -50,33 +50,62 @@ export default function NouvelEnvoiPage() {
       }
 
       // tracking_code et qr_code_data sont générés côté base par un trigger
-      // (voir supabase/migrations) : on ne les envoie jamais depuis le client.
+      // (voir supabase/migrations) : on ne les envoie jamais depuis le client,
+      // on les relit juste après insertion pour afficher le QR au client.
       const { data: userData } = await supabase.auth.getUser()
-      const { error } = await supabase.from('shipments').insert({
-        client_user_id: userData.user?.id ?? null,
-        created_by: userData.user?.id ?? null,
-        sender_name: senderName,
-        sender_phone: senderPhone,
-        origin_city: originCity,
-        origin_country: 'MA',
-        recipient_name: recipientName,
-        recipient_phone: recipientPhone,
-        destination_city: destinationCity,
-        destination_country: 'SN',
-        category: category || null,
-        weight_declared_kg: weight ? Number(weight) : null,
-        declared_value: declaredValue ? Number(declaredValue) : null,
-        photo_url: photoUrl,
-      })
+      const { data: inserted, error } = await supabase
+        .from('shipments')
+        .insert({
+          client_user_id: userData.user?.id ?? null,
+          created_by: userData.user?.id ?? null,
+          sender_name: senderName,
+          sender_phone: senderPhone,
+          origin_city: originCity,
+          origin_country: 'MA',
+          recipient_name: recipientName,
+          recipient_phone: recipientPhone,
+          destination_city: destinationCity,
+          destination_country: 'SN',
+          category: category || null,
+          weight_declared_kg: weight ? Number(weight) : null,
+          declared_value: declaredValue ? Number(declaredValue) : null,
+          photo_url: photoUrl,
+        })
+        .select('tracking_code')
+        .single()
       if (error) throw error
 
-      setMsg({ text: 'Envoi créé ! Vous recevrez le code de suivi par notification.', type: 'ok' })
+      setCreated(inserted.tracking_code)
+      setMsg(null)
       setPhoto(null)
     } catch (e) {
       setMsg({ text: messageErreur(e), type: 'err' })
     } finally {
       setLoading(false)
     }
+  }
+
+  if (created) {
+    return (
+      <main style={styles.page}>
+        <h1 style={styles.titre}>Envoi créé</h1>
+        <div style={styles.succesBox}>
+          <ShipmentQrCode value={created} size={160} />
+          <div style={styles.succesCode}>{created}</div>
+          <p style={styles.succesHelp}>
+            Présentez ce code (ou ce QR) au point relais lors du dépôt.
+            Retrouvez le suivi complet sur{' '}
+            <a href={`/suivi/${created}`} style={styles.lien}>
+              /suivi/{created}
+            </a>
+            .
+          </p>
+        </div>
+        <button style={styles.bouton} onClick={() => setCreated(null)}>
+          Créer un autre envoi
+        </button>
+      </main>
+    )
   }
 
   return (
@@ -189,4 +218,11 @@ const styles: { [key: string]: React.CSSProperties } = {
   msgOk: { padding: 12, borderRadius: 8, background: '#EAFBF2', color: '#00875A', fontSize: 13 },
   msgErr: { padding: 12, borderRadius: 8, background: '#FFF3F3', color: '#C41E3A', fontSize: 13 },
   photoNom: { fontSize: 12, color: '#6A8572' },
+  succesBox: {
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12,
+    padding: 24, borderRadius: 14, border: '1px solid #E8E2D9', marginBottom: 20,
+  },
+  succesCode: { fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 900, letterSpacing: 1 },
+  succesHelp: { fontSize: 13, color: '#3D3D3D', textAlign: 'center', margin: 0, lineHeight: 1.6 },
+  lien: { color: '#00875A', fontWeight: 600 },
 }

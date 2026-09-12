@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { SHIPMENT_STATUS_LABELS, type ShipmentStatus } from '@/lib/shipment-status'
+import { QrScanner } from '@/components/QrScanner'
 
 type LookedUpShipment = {
   id: string
@@ -58,6 +59,8 @@ export default function PointRelaisPage() {
   const [otp, setOtp] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const fileInput = useRef<HTMLInputElement | null>(null)
+  const [scanning, setScanning] = useState(false)
+  const [scannedRef, setScannedRef] = useState<string | null>(null)
 
   const [ici, setIci] = useState<LocalShipment[]>([])
 
@@ -99,14 +102,15 @@ export default function PointRelaisPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  async function handleSearch() {
-    if (!code.trim()) return
+  async function handleSearch(codeOverride?: string) {
+    const searched = (codeOverride ?? code).trim()
+    if (!searched) return
     setSearching(true)
     setMsg(null)
     setShipment(null)
     setOtp('')
     const { data, error } = await supabase.rpc('agent_lookup_shipment', {
-      p_tracking_code: code.trim(),
+      p_tracking_code: searched,
       p_acting_role: 'agent_point_relais',
     })
     setSearching(false)
@@ -119,6 +123,13 @@ export default function PointRelaisPage() {
       return
     }
     setShipment(data[0] as LookedUpShipment)
+  }
+
+  function handleScan(value: string) {
+    setScanning(false)
+    setCode(value)
+    setScannedRef(value)
+    handleSearch(value)
   }
 
   async function handleConfirm(action: Exclude<Action, null>, file: File) {
@@ -140,6 +151,7 @@ export default function PointRelaisPage() {
         p_new_status: action,
         p_acting_role: 'agent_point_relais',
         p_photo_url: publicUrlData.publicUrl,
+        p_qr_scan_ref: scannedRef === shipment.tracking_code ? scannedRef : null,
         p_otp: action === 'delivered' ? otp.trim() : null,
       })
       if (error) throw error
@@ -148,6 +160,7 @@ export default function PointRelaisPage() {
       setShipment(null)
       setCode('')
       setOtp('')
+      setScannedRef(null)
       if (myPickupPointId) {
         const { data: iciData } = await supabase
           .from('shipments')
@@ -191,13 +204,21 @@ export default function PointRelaisPage() {
               style={styles.input}
               placeholder="Code de suivi (ex : SL-MA-SN-847291)"
               value={code}
-              onChange={(e) => setCode(e.target.value)}
+              onChange={(e) => {
+                setCode(e.target.value)
+                setScannedRef(null)
+              }}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             />
-            <button style={styles.bouton} disabled={!code.trim() || searching} onClick={handleSearch}>
+            <button style={styles.bouton} disabled={!code.trim() || searching} onClick={() => handleSearch()}>
               {searching ? 'Recherche…' : 'Rechercher'}
             </button>
+            <button style={styles.boutonSecondaire} onClick={() => setScanning(true)}>
+              📷 Scanner
+            </button>
           </div>
+
+          {scanning && <QrScanner onScan={handleScan} onClose={() => setScanning(false)} />}
 
           {msg && <div style={msg.type === 'ok' ? styles.msgOk : styles.msgErr}>{msg.text}</div>}
 
@@ -278,9 +299,13 @@ const styles: { [key: string]: React.CSSProperties } = {
   erreur: { padding: 16, borderRadius: 10, background: '#FFF3F3', color: '#C41E3A', fontSize: 14 },
   msgOk: { padding: 12, borderRadius: 8, background: '#EAFBF2', color: '#00875A', fontSize: 13, marginBottom: 16 },
   msgErr: { padding: 12, borderRadius: 8, background: '#FFF3F3', color: '#C41E3A', fontSize: 13, marginBottom: 16 },
-  searchBox: { display: 'flex', gap: 8, marginBottom: 16 },
-  input: { flex: 1, padding: '12px 14px', borderRadius: 8, border: '1px solid #E8E2D9', fontSize: 14, marginBottom: 10 },
+  searchBox: { display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' },
+  input: { flex: 1, padding: '12px 14px', borderRadius: 8, border: '1px solid #E8E2D9', fontSize: 14, marginBottom: 10, minWidth: 180 },
   bouton: { padding: '12px 18px', borderRadius: 10, border: 'none', background: '#0A1A0F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' },
+  boutonSecondaire: {
+    padding: '12px 18px', borderRadius: 10, border: '1px solid #E8E2D9',
+    background: '#fff', color: '#0A1A0F', fontWeight: 700, fontSize: 14, cursor: 'pointer',
+  },
   card: {
     border: '1px solid #E8E2D9', borderRadius: 14, padding: 16, marginBottom: 28,
     display: 'flex', flexDirection: 'column', gap: 10, background: '#fff',

@@ -1,6 +1,7 @@
 import { messageErreur } from '@/lib/errors'
 import { createClient } from '@/lib/supabase/server'
 import { SHIPMENT_STATUS_LABELS, type ShipmentStatus } from '@/lib/shipment-status'
+import { ShipmentQrCode } from '@/components/ShipmentQrCode'
 
 type TrackingRow = {
   tracking_code: string
@@ -68,6 +69,14 @@ export default async function SuiviPage({ params }: { params: { code: string } }
         {SHIPMENT_STATUS_LABELS[shipment.status] ?? shipment.status}
       </div>
 
+      <div style={styles.qrBox}>
+        <ShipmentQrCode value={shipment.tracking_code} size={140} />
+        <p style={styles.qrHelp}>
+          Présentez ce QR au point relais lors du dépôt ou du retrait — il
+          contient votre code de suivi.
+        </p>
+      </div>
+
       {shipment.delivery_otp && (
         <div style={styles.otpBox}>
           <div style={styles.otpLabel}>Code de retrait</div>
@@ -130,6 +139,11 @@ const styles: { [key: string]: React.CSSProperties } = {
     letterSpacing: 4,
   },
   otpHelp: { fontSize: 12.5, color: '#C9D6CE', marginTop: 10, lineHeight: 1.5 },
+  qrBox: {
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
+    padding: 20, borderRadius: 14, border: '1px solid #E8E2D9', marginBottom: 32,
+  },
+  qrHelp: { fontSize: 12.5, color: '#3D3D3D', textAlign: 'center', margin: 0, lineHeight: 1.5 },
   sousTitre: { fontSize: 18, fontWeight: 700, marginBottom: 16 },
   timeline: { listStyle: 'none', padding: 0, margin: 0 },
   timelineItem: { display: 'flex', gap: 12, marginBottom: 20 },

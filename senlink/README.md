@@ -131,15 +131,27 @@ des TODO ponctuels, des chantiers pas commencés :
   client Twilio/WhatsApp Cloud API n'existe. Seules les notifications
   `in_app` sont réellement envoyées (déclenchées par un trigger sur
   `shipment_events`, voir migration `notify_client_on_shipment_status_change`).
-- **Scan QR caméra réel** : `qr_scan_ref` existe en base mais rien ne le
-  peuple, pas même une saisie manuelle — toute preuve passe par photo.
-- **Paiement / calcul de commission** : aucune trace dans le schéma.
+- **Paiement / calcul de commission** : aucune trace dans le schéma —
+  décision produit (fournisseur, modèle de commission) à prendre avant
+  toute implémentation.
 - **Calcul du SenLink Trust Score** (`transporters.trust_score` reste
-  `null`, affiché `—` dans le dashboard admin).
+  `null`, affiché `—` dans le dashboard admin) — la formule (facteurs,
+  pondération) est une décision produit, pas encore prise.
 - **Manifeste PWA / service worker** : pas de mode hors-ligne pour les
   agents/transporteurs terrain.
 - **Candidature partenaire** : existe dans `prototype.html`, aucune route
   équivalente dans `app/`.
+- **Scan QR caméra** : réellement implémenté (composants `QrScanner` /
+  `ShipmentQrCode`, jsQR + génération QR sur `/suivi/[code]` et
+  `/envois/nouveau`) — l'agent point relais peut scanner le QR d'un colis
+  pour le retrouver, ce qui renseigne `qr_scan_ref` en plus de la photo.
+  **Point non tranché** : `record_shipment_event()` contient le
+  commentaire explicite "le QR n'est jamais une preuve" et exige toujours
+  une photo aux statuts critiques, alors que `docs/blueprint.md` (section 1,
+  citant le document de référence) affirme que la preuve requise est
+  "Photo **ou** scan QR". Cette contradiction n'a pas été résolue — la
+  règle actuellement appliquée est "photo obligatoire, QR en plus" tant
+  qu'une décision produit explicite ne dit pas le contraire.
 - **Multi-organisation** : le schéma le permet (`organizations`,
   `organization_id` un peu partout) mais aucune UI ne le gère — un seul
   pilote, une seule organisation en pratique aujourd'hui.

@@ -1,0 +1,18 @@
+-- P23b : correction immediate d'une regression introduite par P23.
+--
+-- CREATE OR REPLACE FUNCTION avec un parametre supplementaire (meme avec
+-- une valeur par defaut) ne remplace PAS une fonction existante en
+-- Postgres si la liste d'arguments differe -- ca cree une surcharge
+-- (overload) distincte. P23 a donc laisse vivre DEUX versions de
+-- creer_mon_operateur : l'ancienne (8 arguments, ne fixait jamais
+-- country_id) et la nouvelle (9 arguments, correcte) -- constate en
+-- direct juste apres application (pg_proc en montrait deux, avec deux
+-- jeux de GRANT distincts). Tout appelant qui n'envoie pas p_pays_code
+-- (l'ancien frontend, avant deploiement) aurait continue de heurter le
+-- bug que P23 pretendait corriger.
+--
+-- Supprime explicitement l'ancienne signature -- la nouvelle (avec
+-- p_pays_code default 'MA') est desormais la seule a exister, ses
+-- GRANT (anon/authenticated/service_role/postgres) verifies intacts
+-- apres coup.
+drop function public.creer_mon_operateur(text, text, text, text, text, text, numeric, numeric);

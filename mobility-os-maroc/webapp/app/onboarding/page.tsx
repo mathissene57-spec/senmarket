@@ -16,6 +16,8 @@ function slugifier(texte: string): string {
     .replace(/^-+|-+$/g, '')
 }
 
+type PaysDisponible = { code: string; name: string; currency: string }
+
 export default function OnboardingPage() {
   const supabase = createClient()
   const [chargement, setChargement] = useState(true)
@@ -25,6 +27,8 @@ export default function OnboardingPage() {
   const [motDePasse, setMotDePasse] = useState('')
   const [erreurAuth, setErreurAuth] = useState<string | null>(null)
 
+  const [paysDisponibles, setPaysDisponibles] = useState<PaysDisponible[]>([])
+  const [paysCode, setPaysCode] = useState('MA')
   const [nom, setNom] = useState('')
   const [slug, setSlug] = useState('')
   const [slugModifieManuellement, setSlugModifieManuellement] = useState(false)
@@ -43,6 +47,20 @@ export default function OnboardingPage() {
     const { data: listener } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
     return () => listener.subscription.unsubscribe()
   }, [])
+
+  // P23 : le pays n'est plus fige a 'MA' -- charge la liste des pays
+  // actifs (countries.is_active) pour laisser l'operateur choisir son
+  // marche des l'inscription, desormais transmis a creer_mon_operateur().
+  useEffect(() => {
+    supabase.from('countries').select('code,name,currency').eq('is_active', true).order('name')
+      .then(({ data }) => {
+        if (!data || data.length === 0) return
+        setPaysDisponibles(data)
+        if (!data.some((p) => p.code === 'MA')) setPaysCode(data[0].code)
+      })
+  }, [])
+
+  const deviseSelectionnee = paysDisponibles.find((p) => p.code === paysCode)?.currency ?? 'MAD'
 
   useEffect(() => {
     if (!slugModifieManuellement) setSlug(slugifier(nom))
@@ -73,6 +91,7 @@ export default function OnboardingPage() {
       p_zone_nom: zoneNom,
       p_zone_tarif_base: zoneTarifBase,
       p_zone_tarif_km: zoneTarifKm,
+      p_pays_code: paysCode,
     })
     setEnvoi(false)
     if (error) { setErreur(error.message); return }
@@ -123,6 +142,12 @@ export default function OnboardingPage() {
 
       {session && !slugCree && (
         <div className="card" style={{ marginTop: 24, padding: 20 }}>
+          <label className="field-label">Pays</label>
+          <select value={paysCode} onChange={(e) => setPaysCode(e.target.value)} style={{ width: '100%', padding: '13px 14px', borderRadius: 12, border: '1px solid #D9C9B5', fontSize: 15, marginBottom: 12, fontFamily: 'inherit' }}>
+            {paysDisponibles.map((p) => (
+              <option key={p.code} value={p.code}>{p.name} ({p.currency})</option>
+            ))}
+          </select>
           <label className="field-label">Nom de l&apos;opérateur</label>
           <input type="text" value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Ex : Casa Rapide" />
           <label className="field-label">Adresse de vos apps (généré, modifiable)</label>
@@ -145,11 +170,11 @@ export default function OnboardingPage() {
           <input type="text" value={zoneNom} onChange={(e) => setZoneNom(e.target.value)} />
           <div style={{ display: 'flex', gap: 12 }}>
             <div style={{ flex: 1 }}>
-              <label className="field-label">Prix de base (DH)</label>
+              <label className="field-label">Prix de base ({deviseSelectionnee})</label>
               <input type="number" min="0" step="0.5" value={zoneTarifBase} onChange={(e) => setZoneTarifBase(parseFloat(e.target.value) || 0)} />
             </div>
             <div style={{ flex: 1 }}>
-              <label className="field-label">Prix / km (DH)</label>
+              <label className="field-label">Prix / km ({deviseSelectionnee})</label>
               <input type="number" min="0" step="0.1" value={zoneTarifKm} onChange={(e) => setZoneTarifKm(parseFloat(e.target.value) || 0)} />
             </div>
           </div>

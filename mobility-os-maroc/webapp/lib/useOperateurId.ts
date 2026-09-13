@@ -22,11 +22,25 @@ export function useOperateurId() {
     setChargement(true)
     setErreur(null)
     const supabase = createClient()
-    supabase.from('operateurs').select('id').eq('slug', slug).single().then(({ data, error }) => {
-      if (error || !data) { setErreur('Opérateur introuvable.'); setChargement(false); return }
-      setOperateurId(data.id)
-      setChargement(false)
-    })
+    supabase.from('operateurs').select('id').eq('slug', slug).single().then(
+      ({ data, error }) => {
+        if (error || !data) { setErreur('Opérateur introuvable.'); setChargement(false); return }
+        setOperateurId(data.id)
+        setChargement(false)
+      },
+      // Sans ce second bras, une requete qui echoue au niveau reseau (pas
+      // une simple erreur logique Supabase, deja geree ci-dessus, mais une
+      // vraie promesse rejetee -- coupure reseau, timeout) ne resout jamais
+      // le .then() ci-dessus : chargement reste bloque a true
+      // indefiniment, et la page appelante (qui affiche `return null` tant
+      // que chargement est vrai) reste blanche pour toujours, sans le
+      // moindre message d'erreur. Constate en conditions reelles sur le
+      // lancement du Senegal.
+      () => {
+        setErreur('Connexion impossible. Vérifiez votre réseau et réessayez.')
+        setChargement(false)
+      }
+    )
   }, [slug])
 
   return { operateurId, chargement, erreur }

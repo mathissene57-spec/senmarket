@@ -164,16 +164,24 @@ export default function ChauffeurPage() {
     const sauvegarde = typeof window !== 'undefined' ? localStorage.getItem('mos_chauffeur_telephone') : null
     if (!sauvegarde) { setVerificationSession(false); return }
     setTelephone(sauvegarde)
-    supabase.rpc('connexion_chauffeur', { p_operateur_id: OPERATEUR_ID, p_telephone: sauvegarde }).then(({ data, error }) => {
-      const trouve = data && data.length > 0 ? data[0] : null
-      if (!error && trouve) {
-        setChauffeur(trouve)
-        setEcran('accueil')
-        chargerHistorique(trouve.id, trouve.telephone)
-        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') subscribeToPush(supabase, trouve.telephone)
-      }
-      setVerificationSession(false)
-    })
+    supabase.rpc('connexion_chauffeur', { p_operateur_id: OPERATEUR_ID, p_telephone: sauvegarde }).then(
+      ({ data, error }) => {
+        const trouve = data && data.length > 0 ? data[0] : null
+        if (!error && trouve) {
+          setChauffeur(trouve)
+          setEcran('accueil')
+          chargerHistorique(trouve.id, trouve.telephone)
+          if (typeof Notification !== 'undefined' && Notification.permission === 'granted') subscribeToPush(supabase, trouve.telephone)
+        }
+        setVerificationSession(false)
+      },
+      // Sans ce second bras, une requete rejetee au niveau reseau (pas une
+      // simple erreur logique Supabase, deja geree ci-dessus) laisse
+      // verificationSession bloque a true indefiniment -- l'ecran reste
+      // blanc pour toujours (voir le return null plus bas tant que ce
+      // drapeau est vrai), sans aucun message.
+      () => setVerificationSession(false)
+    )
   }, [OPERATEUR_ID])
 
   // P1.4 : suit la position du chauffeur pendant qu'il est connecte, et la

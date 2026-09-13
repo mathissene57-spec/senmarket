@@ -225,13 +225,19 @@ export default function PassagerPage() {
     const sauvegarde = typeof window !== 'undefined' ? localStorage.getItem('mos_passager_telephone') : null
     if (!sauvegarde) { setVerificationSession(false); return }
     setTelephone(sauvegarde)
-    supabase.rpc('historique_passager', { p_telephone: sauvegarde }).then(({ error }) => {
-      if (!error) {
-        setEcran('accueil')
-        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') subscribeToPush(supabase, sauvegarde)
-      }
-      setVerificationSession(false)
-    })
+    supabase.rpc('historique_passager', { p_telephone: sauvegarde }).then(
+      ({ error }) => {
+        if (!error) {
+          setEcran('accueil')
+          if (typeof Notification !== 'undefined' && Notification.permission === 'granted') subscribeToPush(supabase, sauvegarde)
+        }
+        setVerificationSession(false)
+      },
+      // Meme filet que cote chauffeur (voir lib/useOperateurId.ts) : une
+      // requete rejetee au niveau reseau laissait sinon verificationSession
+      // bloque a true indefiniment -- ecran blanc permanent.
+      () => setVerificationSession(false)
+    )
   }, [])
 
   useEffect(() => {

@@ -16,6 +16,21 @@ const Carte = dynamic(() => import('@/components/Carte'), { ssr: false })
 const POINT_DEPART_DEFAUT = { lat: 33.5883, lng: -7.6114 }
 const POINT_ARRIVEE_DEFAUT = { lat: 33.5885, lng: -7.5719 }
 
+// Voir app/chauffeur/page.tsx pour l'explication -- meme risque de
+// numero d'un operateur qui deborde sur l'ecran de connexion d'un autre
+// (toutes les routes /o/<slug>/passager partagent la meme origine).
+const PREFIXE_CLE_TELEPHONE_PASSAGER = 'mos_passager_telephone_'
+function cleTelephonePassager(operateurId: string) {
+  return PREFIXE_CLE_TELEPHONE_PASSAGER + operateurId
+}
+function uneSessionPassagerEstSauvegardee(): boolean {
+  if (typeof window === 'undefined') return false
+  for (let i = 0; i < localStorage.length; i++) {
+    if (localStorage.key(i)?.startsWith(PREFIXE_CLE_TELEPHONE_PASSAGER)) return true
+  }
+  return false
+}
+
 // Geocodage via /api/geocoder (proxy serveur vers Nominatim/OpenStreetMap,
 // voir app/api/geocoder/route.ts -- correctif M-2 du 2026-09-05 : l'appel
 // direct au navigateur ne pouvait pas identifier l'application aupres de
@@ -183,9 +198,7 @@ export default function PassagerPage() {
   // mobile ; au retour, React remonte de zero et l'ecran "connexion"
   // s'affichait un instant avant que la sonde silencieuse (ci-dessous) ne
   // bascule sur "accueil", donnant l'impression d'une deconnexion.
-  const [verificationSession, setVerificationSession] = useState(
-    () => typeof window !== 'undefined' && !!localStorage.getItem('mos_passager_telephone')
-  )
+  const [verificationSession, setVerificationSession] = useState(uneSessionPassagerEstSauvegardee)
   const [finEnCours, setFinEnCours] = useState(false)
   // Appel interne (demande produit) : audio WebRTC direct avec le chauffeur,
   // sans jamais exposer le vrai numero de l'un a l'autre -- voir
@@ -222,7 +235,8 @@ export default function PassagerPage() {
   // seule) avec le dernier telephone connu : si le serveur le considere
   // toujours verifie, on saute directement a l'accueil.
   useEffect(() => {
-    const sauvegarde = typeof window !== 'undefined' ? localStorage.getItem('mos_passager_telephone') : null
+    if (!OPERATEUR_ID) return
+    const sauvegarde = typeof window !== 'undefined' ? localStorage.getItem(cleTelephonePassager(OPERATEUR_ID)) : null
     if (!sauvegarde) { setVerificationSession(false); return }
     setTelephone(sauvegarde)
     supabase.rpc('historique_passager', { p_telephone: sauvegarde }).then(
@@ -238,7 +252,7 @@ export default function PassagerPage() {
       // bloque a true indefiniment -- ecran blanc permanent.
       () => setVerificationSession(false)
     )
-  }, [])
+  }, [OPERATEUR_ID])
 
   useEffect(() => {
     if (!OPERATEUR_ID) return
@@ -642,7 +656,7 @@ export default function PassagerPage() {
     setOtpEnCours(false)
     if (error) { setOtpErreur(error.message); return }
     if (!data) { setOtpErreur('Code incorrect.'); return }
-    if (typeof window !== 'undefined') localStorage.setItem('mos_passager_telephone', telephone)
+    if (typeof window !== 'undefined' && OPERATEUR_ID) localStorage.setItem(cleTelephonePassager(OPERATEUR_ID), telephone)
     setEcran('accueil')
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') subscribeToPush(supabase, telephone)
   }

@@ -62,6 +62,27 @@ function Marque({ nom, logoUrl, grande }: { nom?: string | null; logoUrl?: strin
   return <span className={classe}>{nom?.[0] || 'M'}</span>
 }
 
+// Le meme navigateur peut servir plusieurs operateurs (routes /o/<slug>/...
+// toutes sur la meme origine) -- une cle non scopee par operateur faisait
+// deborder le numero d'un operateur sur l'ecran de connexion d'un autre
+// (ex: numero marocain TransAtlas pre-rempli sur la page Senegal), menant a
+// une tentative de connexion silencieuse avec le mauvais numero. La
+// reconnexion elle-meme (dans l'effet ci-dessous, qui connait deja
+// OPERATEUR_ID) utilise desormais une cle par operateur ; ce prefixe sert
+// uniquement a la verification synchrone initiale (evite un flash de
+// l'ecran de connexion), sans avoir besoin de connaitre l'operateur courant.
+const PREFIXE_CLE_TELEPHONE_CHAUFFEUR = 'mos_chauffeur_telephone_'
+function cleTelephoneChauffeur(operateurId: string) {
+  return PREFIXE_CLE_TELEPHONE_CHAUFFEUR + operateurId
+}
+function uneSessionChauffeurEstSauvegardee(): boolean {
+  if (typeof window === 'undefined') return false
+  for (let i = 0; i < localStorage.length; i++) {
+    if (localStorage.key(i)?.startsWith(PREFIXE_CLE_TELEPHONE_CHAUFFEUR)) return true
+  }
+  return false
+}
+
 export default function ChauffeurPage() {
   const supabase = createClient()
   const router = useRouter()
@@ -111,9 +132,7 @@ export default function ChauffeurPage() {
   // que la session (verifiee 24h) etait toujours valide. Ce drapeau retarde
   // l'affichage de l'ecran connexion tant qu'on n'a pas la reponse de la
   // tentative de reconnexion silencieuse, quand un numero est deja enregistre.
-  const [verificationSession, setVerificationSession] = useState(
-    () => typeof window !== 'undefined' && !!localStorage.getItem('mos_chauffeur_telephone')
-  )
+  const [verificationSession, setVerificationSession] = useState(uneSessionChauffeurEstSauvegardee)
   // Appel interne (demande produit) : audio WebRTC direct avec le passager,
   // sans jamais exposer le vrai numero de l'un a l'autre -- voir
   // lib/useAppelInterne.ts.
@@ -161,7 +180,7 @@ export default function ChauffeurPage() {
   // pre-rempli), sans afficher d'erreur pour cette tentative automatique.
   useEffect(() => {
     if (!OPERATEUR_ID) return
-    const sauvegarde = typeof window !== 'undefined' ? localStorage.getItem('mos_chauffeur_telephone') : null
+    const sauvegarde = typeof window !== 'undefined' ? localStorage.getItem(cleTelephoneChauffeur(OPERATEUR_ID)) : null
     if (!sauvegarde) { setVerificationSession(false); return }
     setTelephone(sauvegarde)
     supabase.rpc('connexion_chauffeur', { p_operateur_id: OPERATEUR_ID, p_telephone: sauvegarde }).then(
@@ -368,7 +387,7 @@ export default function ChauffeurPage() {
       if (!silencieux) setErreur("Chauffeur non reconnu. Contactez votre opérateur pour être ajouté à la flotte.")
       return false
     }
-    if (typeof window !== 'undefined') localStorage.setItem('mos_chauffeur_telephone', telephone.replace(/\s/g, ''))
+    if (typeof window !== 'undefined' && OPERATEUR_ID) localStorage.setItem(cleTelephoneChauffeur(OPERATEUR_ID), telephone.replace(/\s/g, ''))
     setChauffeur(trouve)
     setEcran('accueil')
     chargerHistorique(trouve.id, trouve.telephone)
@@ -601,7 +620,7 @@ export default function ChauffeurPage() {
   // main a un collegue sans vider le stockage du navigateur a la main.
   // Bloque si une course est en cours pour ne pas perdre l'ecran de suivi.
   function seDeconnecter() {
-    if (typeof window !== 'undefined') localStorage.removeItem('mos_chauffeur_telephone')
+    if (typeof window !== 'undefined' && OPERATEUR_ID) localStorage.removeItem(cleTelephoneChauffeur(OPERATEUR_ID))
     setChauffeur(null)
     setTelephone('')
     setHistorique([])

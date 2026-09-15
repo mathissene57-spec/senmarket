@@ -257,7 +257,24 @@ export default function PassagerPage() {
   useEffect(() => {
     if (!OPERATEUR_ID) return
     supabase.from('operateurs').select('id,nom,couleur_primaire,couleur_secondaire,logo_url,ville,countries(name)').eq('id', OPERATEUR_ID).single()
-      .then(({ data }) => setOperateur(data as unknown as Operateur))
+      .then(({ data }) => {
+        if (!data) return
+        // Sans FK unique sur operateurs.country_id, Supabase renvoie la
+        // relation embarquee countries comme un TABLEAU (meme sans jointure
+        // many-to-many reelle), jamais comme un objet -- un simple cast
+        // TypeScript (pose lors du chantier devise) faisait taire l'erreur
+        // de compilation sans corriger la vraie forme des donnees : `.name`
+        // sur un tableau vaut toujours undefined. Consequence concrete
+        // decouverte en direct : le biais pays du geocodeur (ci-dessous,
+        // `operateur.countries?.name`) etait donc TOUJOURS undefined, quel
+        // que soit l'operateur -- repli silencieux sur "Maroc" pour un
+        // operateur senegalais, qui rend une recherche texte ("Plateau,
+        // Dakar, Maroc") introuvable par Nominatim. Seul le picker carte
+        // (qui ne depend jamais du geocodage direct) fonctionnait encore.
+        const paysBrut = data.countries as unknown
+        const pays = Array.isArray(paysBrut) ? (paysBrut[0] ?? null) : paysBrut
+        setOperateur({ ...data, countries: pays } as Operateur)
+      })
     supabase.from('zones_operateur').select('id,nom,tarif_base,tarif_km,currency').eq('operateur_id', OPERATEUR_ID).order('nom')
       .then(({ data }) => {
         setZones(data || [])

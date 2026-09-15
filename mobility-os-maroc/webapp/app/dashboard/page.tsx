@@ -9,6 +9,20 @@ import { useOperateurId } from '@/lib/useOperateurId'
 const Carte = dynamic(() => import('@/components/Carte'), { ssr: false })
 
 type Operateur = { id: string; nom: string; couleur_primaire: string; couleur_secondaire: string; ville: string | null; owner_user_id: string | null; logo_url: string | null; countries: { currency: string } | null }
+
+// Sans FK unique sur operateurs.country_id, Supabase renvoie la relation
+// embarquee countries(...) comme un TABLEAU, jamais comme un objet -- un
+// simple cast TypeScript (pose lors du chantier devise) faisait taire
+// l'erreur de compilation sans corriger la vraie forme des donnees :
+// `.currency` sur un tableau vaut toujours undefined. Consequence
+// decouverte en direct (memes symptomes cote passager, voir
+// app/passager/page.tsx) : deviseOperateur retombait silencieusement sur
+// le repli 'MAD' pour tout operateur, Senegal inclus.
+function normaliserOperateur(data: Record<string, unknown>): Operateur {
+  const paysBrut = data.countries as unknown
+  const pays = Array.isArray(paysBrut) ? (paysBrut[0] ?? null) : paysBrut
+  return { ...data, countries: pays } as Operateur
+}
 type ChauffeurRow = { id: string; nom: string; telephone: string; vehicule: string | null; plaque: string | null; note_moyenne: number; statut: string; position_lat: number | null; position_lng: number | null; position_recente: boolean; type_vehicule: string }
 type TrajetInterville = { id: string; ville_depart: string; ville_arrivee: string; prix: number; currency: string; actif: boolean }
 type CourseRow = { id: string; statut: string; adresse_depart: string; adresse_arrivee: string; prix_estime: number; prix_final: number | null; currency: string; created_at: string; chauffeur_id: string | null; depart_lat: number | null; depart_lng: number | null; bloquee: boolean }
@@ -155,12 +169,12 @@ export default function DashboardPage() {
   async function resoudreOperateur() {
     const { data } = await supabase.from('operateurs').select('id,nom,couleur_primaire,couleur_secondaire,ville,owner_user_id,logo_url,countries(currency)').eq('id', OPERATEUR_ID).single()
     if (!data) return
-    if (data.owner_user_id === session.user.id) { setOperateur(data as unknown as Operateur); return }
+    if (data.owner_user_id === session.user.id) { setOperateur(normaliserOperateur(data)); return }
     if (data.owner_user_id === null) {
       const { data: ok } = await supabase.rpc('reclamer_operateur', { p_operateur_id: OPERATEUR_ID })
       if (ok) {
         const { data: refetched } = await supabase.from('operateurs').select('id,nom,couleur_primaire,couleur_secondaire,ville,owner_user_id,logo_url,countries(currency)').eq('id', OPERATEUR_ID).single()
-        setOperateur(refetched as unknown as Operateur)
+        if (refetched) setOperateur(normaliserOperateur(refetched))
         return
       }
     }

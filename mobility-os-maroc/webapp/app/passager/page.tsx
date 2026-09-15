@@ -11,10 +11,13 @@ import { useAppelInterne } from '@/lib/useAppelInterne'
 
 const Carte = dynamic(() => import('@/components/Carte'), { ssr: false })
 
-// Points de repli tant que l'adresse tapee n'a pas encore ete geocodee
-// (ou si le geocodage echoue) — centre de Casablanca par defaut.
-const POINT_DEPART_DEFAUT = { lat: 33.5883, lng: -7.6114 }
-const POINT_ARRIVEE_DEFAUT = { lat: 33.5885, lng: -7.5719 }
+// Point de repli purement technique, avant meme que l'operateur (donc son
+// pays/sa ville) ne soit charge -- jamais montre comme une adresse, juste
+// la position initiale de la carte le temps d'un instant. Remplace des que
+// possible par le centre-ville de l'operateur (voir l'effet plus bas) :
+// utiliser Casablanca comme repli fixe, quel que soit l'operateur affiche,
+// donnait une carte centree sur le Maroc pour un operateur senegalais.
+const POINT_REPLI_TECHNIQUE = { lat: 33.5883, lng: -7.6114 }
 
 // Voir app/chauffeur/page.tsx pour l'explication -- meme risque de
 // numero d'un operateur qui deborde sur l'ecran de connexion d'un autre
@@ -139,8 +142,16 @@ export default function PassagerPage() {
   const [ecran, setEcran] = useState<'connexion' | 'accueil' | 'recherche' | 'course' | 'fin' | 'historique' | 'sans_chauffeur' | 'avis' | 'messages'>('connexion')
   const [telephone, setTelephone] = useState('06 61 22 33 44')
   const [nom, setNom] = useState('')
-  const [depart, setDepart] = useState('Position actuelle — Boulevard Zerktouni')
-  const [arrivee, setArrivee] = useState('Gare Casa-Voyageurs')
+  // Foundation V1 (multi-pays) : ces deux champs partaient auparavant pre-
+  // remplis en dur avec une fausse "position actuelle" et une destination
+  // par defaut, toutes deux a Casablanca -- coherent tant qu'un seul pays
+  // existait, mais incoherent des qu'un operateur d'un autre pays (ex.
+  // Senegal) affiche une carte et des adresses marocaines par defaut.
+  // Vides par defaut ; departLocalise se met a jour honnetement si la
+  // vraie geolocalisation de l'appareil reussit (voir plus bas), sinon le
+  // passager tape ou choisit sur la carte comme n'importe quelle adresse.
+  const [depart, setDepart] = useState('')
+  const [arrivee, setArrivee] = useState('')
   const [course, setCourse] = useState<Course | null>(null)
   const [chauffeur, setChauffeur] = useState<Chauffeur | null>(null)
   const [contactChauffeur, setContactChauffeur] = useState<Contact | null>(null)
@@ -160,8 +171,8 @@ export default function PassagerPage() {
   const [historique, setHistorique] = useState<Course[]>([])
   const [erreur, setErreur] = useState<string | null>(null)
   const [chargement, setChargement] = useState(false)
-  const [pointDepart, setPointDepart] = useState(POINT_DEPART_DEFAUT)
-  const [pointArrivee, setPointArrivee] = useState(POINT_ARRIVEE_DEFAUT)
+  const [pointDepart, setPointDepart] = useState(POINT_REPLI_TECHNIQUE)
+  const [pointArrivee, setPointArrivee] = useState(POINT_REPLI_TECHNIQUE)
   const [repereEnCours, setRepereEnCours] = useState(false)
   // Foundation V1 (modele d'adresse) : le systeme accepte deja une adresse
   // imprecise (quartier, ville) grace au geocodage existant -- mais avant ce
@@ -174,8 +185,8 @@ export default function PassagerPage() {
   // reellement a un point resolu -- "Commander" se bloque sinon, avec un
   // message clair invitant a preciser l'adresse ou choisir sur la carte
   // (qui, elle, ne depend jamais du geocodage pour fixer le point).
-  const [departLocalise, setDepartLocalise] = useState(true)
-  const [arriveeLocalise, setArriveeLocalise] = useState(true)
+  const [departLocalise, setDepartLocalise] = useState(false)
+  const [arriveeLocalise, setArriveeLocalise] = useState(false)
   // Picker "choisir sur la carte" : le passager glisse la carte (repere
   // fixe au centre) au lieu de taper une adresse -- plus precis pour un
   // point de depart/arrivee sans adresse formelle (portail, coin de rue...).
@@ -286,6 +297,44 @@ export default function PassagerPage() {
         if (data && data.length > 0) setTrajetIntervilleId(data[0].id)
       })
   }, [OPERATEUR_ID])
+
+  // Recentre la carte sur la ville de L'OPERATEUR affiche des qu'elle est
+  // connue, au lieu de laisser le repli technique (Casablanca) visible --
+  // c'est ce qui donnait une carte marocaine pour un operateur senegalais.
+  // Purement pour la vue initiale de la carte : n'ecrit jamais depart/
+  // arrivee (le passager n'a encore rien choisi), et departLocalise reste
+  // donc a false tant qu'aucune vraie adresse/position n'est resolue.
+  useEffect(() => {
+    if (!operateur?.ville) return
+    geocoder(operateur.ville, operateur.ville, operateur.countries?.name).then((point) => {
+      if (point) { setPointDepart(point); setPointArrivee(point) }
+    })
+  }, [operateur?.ville, operateur?.countries?.name])
+
+  // Vraie position actuelle de l'appareil (jamais simulee) : si l'utilisateur
+  // l'autorise, pre-remplit honnetement le depart avec sa position reelle
+  // reverse-geocodee. Sans autorisation (ou navigateur incompatible), le
+  // champ reste vide -- jamais une fausse adresse par defaut -- et le
+  // passager tape ou choisit sur la carte comme n'importe quelle adresse.
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const point = { lat: position.coords.latitude, lng: position.coords.longitude }
+        let libelle = `Position actuelle (${point.lat.toFixed(5)}, ${point.lng.toFixed(5)})`
+        try {
+          const reponse = await fetch(`/api/geocoder?lat=${point.lat}&lng=${point.lng}`)
+          const data = await reponse.json()
+          if (data.adresse) libelle = `Position actuelle — ${data.adresse}`
+        } catch { /* repli sur les coordonnees brutes ci-dessus */ }
+        departDepuisPickerRef.current = true
+        setPointDepart(point)
+        setDepart(libelle)
+        setDepartLocalise(true)
+      },
+      () => { /* refuse ou indisponible : le champ reste vide, comportement normal */ }
+    )
+  }, [])
 
   useEffect(() => { courseRef.current = course }, [course])
 
@@ -805,12 +854,12 @@ export default function PassagerPage() {
                 <>
                   {repereEnCours && <p className="muted" style={{ marginTop: 0, marginBottom: 12 }}>Repérage de l&apos;adresse…</p>}
                   <label className="field-label">Point de départ</label>
-                  <input type="text" value={depart} onChange={(e) => setDepart(e.target.value)} />
+                  <input type="text" value={depart} onChange={(e) => setDepart(e.target.value)} placeholder="Adresse ou quartier de départ" />
                   <button type="button" className="btn ghost" style={{ width: 'auto', padding: '4px 0', fontSize: 13, marginBottom: 12 }} onClick={() => ouvrirPickerCarte('depart')}>
                     📍 Choisir sur la carte
                   </button>
                   <label className="field-label">Destination</label>
-                  <input type="text" value={arrivee} onChange={(e) => setArrivee(e.target.value)} />
+                  <input type="text" value={arrivee} onChange={(e) => setArrivee(e.target.value)} placeholder="Adresse ou quartier de destination" />
                   <button type="button" className="btn ghost" style={{ width: 'auto', padding: '4px 0', fontSize: 13, marginBottom: 12 }} onClick={() => ouvrirPickerCarte('arrivee')}>
                     📍 Choisir sur la carte
                   </button>

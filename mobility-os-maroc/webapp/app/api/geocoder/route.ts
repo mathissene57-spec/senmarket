@@ -93,24 +93,55 @@ export async function GET(request: Request) {
     return Response.json(enCache.resultat ?? { lat: null, lng: null })
   }
 
-  const params = new URLSearchParams({ q: `${adresse}, ${ville}, ${pays}`, format: 'json', limit: '1' })
+  // Correctif "recherche toujours en echec" (constate en prod : le passager
+  // ne pouvait jamais commander via une adresse tapee, seulement via la
+  // carte). Cause reelle, invisible jusqu'ici car le catch ci-dessous
+  // avalait silencieusement toute erreur sans jamais logger ni le statut
+  // HTTP de Nominatim ni la requete qui echouait : une seule requete
+  // stricte "adresse, ville, pays" -- Nominatim renvoie souvent 0 resultat
+  // des que le libelle de ville de l'operateur ne correspond pas exactement
+  // a son indexation (ex. "Casablanca-Settat" au lieu de "Casablanca"), ou
+  // que l'adresse tapee contient deja sa propre ville/quartier. On essaie
+  // maintenant une requete plus large si la premiere echoue, et chaque
+  // etape est loggee (visible dans les logs runtime Vercel) pour pouvoir
+  // diagnostiquer un futur echec au lieu de deviner.
+  const requetes = [
+    `${adresse}, ${ville}, ${pays}`,
+    `${adresse}, ${pays}`,
+  ]
 
-  try {
+  async function interrogerNominatim(q: string): Promise<Array<{ lat: string; lon: string }> | null> {
+    const params = new URLSearchParams({ q, format: 'json', limit: '1' })
     const reponse = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
       headers: {
         // Requis par la politique d'usage Nominatim : identifie clairement
         // l'application appelante (jamais un User-Agent de navigateur).
         'User-Agent': 'MobilityOSMaroc/1.0 (pilote transport Casablanca)',
       },
+      signal: AbortSignal.timeout(5000),
     })
+    if (!reponse.ok) {
+      console.error(`[geocoder] Nominatim a repondu ${reponse.status} ${reponse.statusText} pour "${q}"`)
+      return null
+    }
     const resultats = await reponse.json()
-    const point = Array.isArray(resultats) && resultats.length > 0
-      ? { lat: parseFloat(resultats[0].lat), lng: parseFloat(resultats[0].lon) }
-      : null
-
-    cache.set(cle, { at: Date.now(), resultat: point })
-    return Response.json(point ?? { lat: null, lng: null })
-  } catch {
-    return Response.json({ lat: null, lng: null })
+    return Array.isArray(resultats) ? resultats : null
   }
+
+  let point: { lat: number; lng: number } | null = null
+  for (const q of requetes) {
+    try {
+      const resultats = await interrogerNominatim(q)
+      if (resultats && resultats.length > 0) {
+        point = { lat: parseFloat(resultats[0].lat), lng: parseFloat(resultats[0].lon) }
+        break
+      }
+      console.log(`[geocoder] aucun resultat Nominatim pour "${q}"`)
+    } catch (e) {
+      console.error(`[geocoder] echec reseau pour "${q}" :`, e instanceof Error ? e.message : e)
+    }
+  }
+
+  cache.set(cle, { at: Date.now(), resultat: point })
+  return Response.json(point ?? { lat: null, lng: null })
 }

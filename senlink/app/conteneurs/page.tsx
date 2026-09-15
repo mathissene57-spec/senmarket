@@ -47,6 +47,55 @@ type ResultatTracking = {
   eta?: string | null
   current_status?: string | null
   events: EvenementConteneur[]
+  verifieManuellement: boolean
+}
+
+// Ligne brute renvoyee par public_track_container (une ligne par evenement,
+// champs conteneur repetes -- meme forme que get_public_tracking pour les
+// colis). null si le conteneur n'a jamais eu d'evenement enregistre.
+type LigneTrackingBrute = {
+  container_number: string
+  container_type: string | null
+  carrier_name: string | null
+  vessel_name: string | null
+  voyage_number: string | null
+  current_status: string | null
+  eta: string | null
+  event_type: string | null
+  event_location: string | null
+  event_time: string | null
+  event_source: string | null
+}
+
+function formatDate(iso: string | null): string {
+  if (!iso) return ''
+  return new Date(iso).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })
+}
+
+function regrouper(lignes: LigneTrackingBrute[]): ResultatTracking {
+  const premiere = lignes[0]
+  return {
+    container_number: premiere.container_number,
+    // Aucun flux fournisseur automatise n'est encore branche (demande
+    // d'accès API en cours) — ces donnees ont ete verifiees a la main le
+    // 15/09/2026 directement sur les sites Maersk et Visiwise, jamais
+    // inventees. `provider` reste honnete sur cette origine.
+    provider: 'SenLink — vérifié manuellement (API fournisseur en attente d’accès)',
+    recognized: true,
+    carrier_name: premiere.carrier_name,
+    vessel: premiere.vessel_name,
+    voyage: premiere.voyage_number,
+    eta: formatDate(premiere.eta),
+    current_status: premiere.current_status,
+    verifieManuellement: lignes.every((l) => l.event_source === 'manual'),
+    events: lignes
+      .filter((l) => l.event_type !== null)
+      .map((l) => ({
+        type: l.event_type as string,
+        lieu: l.event_location ?? '',
+        date: formatDate(l.event_time),
+      })),
+  }
 }
 
 export default function TrackerConteneurPage() {
@@ -72,12 +121,22 @@ export default function TrackerConteneurPage() {
     setResultat(null)
 
     try {
-      const { data, error } = await supabase.functions.invoke<ResultatTracking>('track-container', {
-        body: { container_number: propre },
+      const { data, error } = await supabase.rpc('public_track_container', {
+        p_container_number: propre,
       })
       if (error) throw error
-      if (!data) throw new Error('Réponse vide du service de tracking.')
-      setResultat(data)
+      const lignes = (data ?? []) as LigneTrackingBrute[]
+      if (lignes.length === 0) {
+        setResultat({
+          container_number: propre,
+          provider: '',
+          recognized: false,
+          events: [],
+          verifieManuellement: false,
+        })
+      } else {
+        setResultat(regrouper(lignes))
+      }
     } catch (e) {
       setErreur(messageUtilisateur(e))
     } finally {
@@ -118,6 +177,12 @@ export default function TrackerConteneurPage() {
 
       {resultat && resultat.recognized && (
         <div className="sl-fade-in" style={styles.resultCard}>
+          {resultat.verifieManuellement && (
+            <div style={styles.avisManuel}>
+              Donnée vérifiée manuellement le 15/09/2026 auprès du transporteur — la connexion à un flux
+              fournisseur automatisé est en cours de mise en place.
+            </div>
+          )}
           <div style={styles.resultHead}>
             <div>
               <p style={styles.resultKicker}>Conteneur</p>
@@ -198,6 +263,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   input: { ...shared.input, flex: 1, textTransform: 'uppercase', fontFamily: 'monospace', letterSpacing: 1 },
   bouton: shared.boutonPrimaire,
   msgErr: { padding: 12, borderRadius: 8, background: color.dangerTint, color: color.danger, fontSize: 13, marginBottom: 20 },
+  avisManuel: { padding: 12, borderRadius: 8, background: color.goldTint, color: '#8A6100', fontSize: 12.5, marginBottom: 18 },
   resultCard: { ...shared.card, padding: 24 },
   resultHead: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 20, flexWrap: 'wrap' },
   resultKicker: { fontSize: 11, fontWeight: 700, color: color.muted, textTransform: 'uppercase', letterSpacing: 0.5, margin: '0 0 2px' },

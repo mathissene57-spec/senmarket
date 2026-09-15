@@ -250,7 +250,7 @@ export default function PassagerPage() {
     const sauvegarde = typeof window !== 'undefined' ? localStorage.getItem(cleTelephonePassager(OPERATEUR_ID)) : null
     if (!sauvegarde) { setVerificationSession(false); return }
     setTelephone(sauvegarde)
-    supabase.rpc('historique_passager', { p_telephone: sauvegarde }).then(
+    supabase.rpc('historique_passager', { p_telephone: sauvegarde, p_operateur_id: OPERATEUR_ID }).then(
       ({ error }) => {
         if (!error) {
           setEcran('accueil')
@@ -683,7 +683,7 @@ export default function PassagerPage() {
   }
 
   async function chargerHistorique() {
-    const { data } = await supabase.rpc('historique_passager', { p_telephone: telephone })
+    const { data } = await supabase.rpc('historique_passager', { p_telephone: telephone, p_operateur_id: OPERATEUR_ID })
     setHistorique(data || [])
   }
 

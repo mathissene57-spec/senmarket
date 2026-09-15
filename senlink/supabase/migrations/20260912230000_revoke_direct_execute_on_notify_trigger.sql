@@ -1,0 +1,11 @@
+-- notify_client_on_shipment_event() (migration
+-- notify_client_on_shipment_status_change) n'est censée s'exécuter qu'en
+-- tant que trigger — elle lit `new`, inutilisable en appel direct — mais
+-- restait exécutable via /rest/v1/rpc/notify_client_on_shipment_event par
+-- anon/authenticated (relevé par les advisors sécurité juste après son
+-- ajout). Un trigger s'exécute sans avoir besoin qu'EXECUTE soit accordé à
+-- l'appelant, donc ce revoke ne change rien à son fonctionnement — juste
+-- une surface d'appel RPC en moins. Vérifié par simulation SQL
+-- rollback-safe : le trigger insère toujours bien la notification après
+-- ce revoke.
+revoke execute on function public.notify_client_on_shipment_event() from public, anon, authenticated;

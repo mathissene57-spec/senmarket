@@ -29,7 +29,7 @@ type StatsGlobales = {
   nb_passagers: number
   nb_courses: number
   nb_courses_terminees: number
-  ca_total: number
+  ca_par_devise: Record<string, number>
 }
 
 export default function AdminPage() {
@@ -124,14 +124,21 @@ export default function AdminPage() {
           <div className="kpi-card"><div className="muted">Opérateurs</div><div className="value">{stats.nb_operateurs_actifs} / {stats.nb_operateurs}</div></div>
           <div className="kpi-card"><div className="muted">Chauffeurs</div><div className="value">{stats.nb_chauffeurs}</div></div>
           <div className="kpi-card"><div className="muted">Courses (terminées)</div><div className="value">{stats.nb_courses} ({stats.nb_courses_terminees})</div></div>
-          {/* "DH" volontairement laisse en dur ici : admin_stats_globales agrege
-              le CA de TOUS les operateurs (donc potentiellement plusieurs pays/
-              devises a la fois), contrairement aux autres montants de cette page
-              qui restent chacun scopes a un seul operateur/une seule devise.
-              Un vrai second pays actif rendra cette somme fausse quelle que soit
-              l'etiquette -- decision produit a prendre a ce moment-la (repartition
-              par devise, ou conversion), pas une simple substitution de texte. */}
-          <div className="kpi-card"><div className="muted">CA plateforme</div><div className="value">{stats.ca_total} DH</div></div>
+          {/* P32 : admin_stats_globales agrege le CA de TOUS les operateurs, donc
+              potentiellement plusieurs devises a la fois -- une seule somme
+              numerique n'a pas de sens des que deux devises coexistent. Le RPC
+              retourne desormais un total par devise (jsonb), affiche ici comme
+              une ligne par devise plutot qu'un chiffre unique. */}
+          <div className="kpi-card">
+            <div className="muted">CA plateforme</div>
+            {Object.keys(stats.ca_par_devise).length === 0 ? (
+              <div className="value">0</div>
+            ) : (
+              Object.entries(stats.ca_par_devise).map(([devise, montant]) => (
+                <div className="value" key={devise}>{montant} {devise}</div>
+              ))
+            )}
+          </div>
         </div>
       )}
 

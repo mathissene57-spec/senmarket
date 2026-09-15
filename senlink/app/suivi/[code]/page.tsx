@@ -15,7 +15,6 @@ type TrackingRow = {
   event_type: string | null
   event_location: string | null
   event_created_at: string | null
-  delivery_otp: string | null
 }
 
 async function getTracking(code: string): Promise<TrackingRow[] | null> {
@@ -84,17 +83,6 @@ export default async function SuiviPage({ params }: { params: { code: string } }
         </p>
       </div>
 
-      {shipment.delivery_otp && (
-        <div className="sl-fade-in" style={styles.otpBox}>
-          <div style={styles.otpLabel}>Code de retrait</div>
-          <div style={styles.otpCode}>{shipment.delivery_otp}</div>
-          <p style={styles.otpHelp}>
-            Présentez ce code au point relais pour récupérer votre colis.
-            Ne le communiquez à personne d&apos;autre.
-          </p>
-        </div>
-      )}
-
       <div style={styles.sousTitre}>Historique détaillé</div>
       {historique.length === 0 ? (
         <p style={styles.vide}>Aucun événement enregistré pour l&apos;instant.</p>
@@ -121,19 +109,6 @@ const styles: { [key: string]: React.CSSProperties } = {
   entete: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 24, flexWrap: 'wrap' },
   kicker: { fontSize: 11.5, fontWeight: 700, color: color.green600, textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 4px' },
   trajet: { color: color.muted, fontSize: 14.5, margin: 0, fontWeight: 600 },
-  otpBox: {
-    padding: '20px 24px', borderRadius: 16, background: `linear-gradient(135deg, ${color.green900}, ${color.green800})`,
-    color: '#fff', marginBottom: 24, textAlign: 'center',
-  },
-  otpLabel: {
-    fontSize: 12, fontWeight: 700, color: color.gold, textTransform: 'uppercase',
-    letterSpacing: 0.6, marginBottom: 8,
-  },
-  otpCode: {
-    fontFamily: "'Playfair Display', serif", fontSize: 36, fontWeight: 900,
-    letterSpacing: 4,
-  },
-  otpHelp: { fontSize: 12.5, color: '#C9D6CE', marginTop: 10, lineHeight: 1.5 },
   qrBox: {
     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
     padding: 20, borderRadius: 16, marginBottom: 24, ...shared.card,

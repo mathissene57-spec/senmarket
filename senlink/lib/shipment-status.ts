@@ -76,13 +76,14 @@ export const INCIDENT_STATUS_LABELS: Record<IncidentStatus, string> = {
   closed: 'Clôturé',
 }
 
-export type UserRole = 'client' | 'agent_point_relais' | 'transporteur' | 'admin'
+export type UserRole = 'client' | 'agent_point_relais' | 'transporteur' | 'admin' | 'transitaire'
 
 export const USER_ROLE_LABELS: Record<UserRole, string> = {
   client: 'Client',
   agent_point_relais: 'Agent point relais',
   transporteur: 'Transporteur',
   admin: 'Admin',
+  transitaire: 'Transitaire partenaire',
 }
 
 export type IncidentType =

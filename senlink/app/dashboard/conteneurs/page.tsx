@@ -19,7 +19,7 @@ const OPTIONS_DOUANE: { value: string; label: string }[] = [
   { value: 'cleared', label: 'Dédouané' },
 ]
 
-export default function AdminConteneursPage() {
+export default function ConteneursDouanePage() {
   const supabase = createClient()
   const [loading, setLoading] = useState(true)
   const [conteneurs, setConteneurs] = useState<Container[]>([])
@@ -78,14 +78,15 @@ export default function AdminConteneursPage() {
   return (
     <main style={styles.page}>
       <div style={styles.head}>
-        <Link href="/dashboard/admin" style={styles.retour}>
-          ← Administration
+        <Link href="/dashboard" style={styles.retour}>
+          ← Tableau de bord
         </Link>
         <h1 style={styles.titre}>Statut douanier des conteneurs</h1>
         <p style={styles.soustitre}>
-          Saisie manuelle du statut de dédouanement — dès qu'un transitaire ou correspondant SenLink vous
-          informe qu'un conteneur est en attente, bloqué ou dédouané, enregistrez-le ici. Visible
-          immédiatement sur la page publique de suivi.
+          Saisie manuelle du statut de dédouanement — dès que vous apprenez (du courtier, du terminal, ou
+          directement de la douane) qu'un conteneur est en attente, bloqué ou dédouané, enregistrez-le ici.
+          Visible immédiatement sur la page publique de suivi. Seuls les conteneurs de votre organisation
+          apparaissent ci-dessous.
         </p>
       </div>
 

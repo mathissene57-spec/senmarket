@@ -18,6 +18,8 @@ const CARTES_LIENS: { label: string; href: string }[] = [
   { label: 'Incidents', href: '/dashboard/admin/incidents' },
   { label: 'Audit logs', href: '/dashboard/admin/audit' },
   { label: 'Suivi GPS', href: '/dashboard/admin/gps' },
+  { label: 'Conteneurs (douane)', href: '/dashboard/conteneurs' },
+  { label: 'Transitaires', href: '/dashboard/admin/transitaires' },
 ]
 
 const CARTES_STATIQUES = ['Revenus']

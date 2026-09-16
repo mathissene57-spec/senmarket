@@ -9,6 +9,7 @@ const ROLE_ROUTES: Record<UserRole, string> = {
   agent_point_relais: '/dashboard/agent',
   transporteur: '/dashboard/transporteur',
   admin: '/dashboard/admin',
+  transitaire: '/dashboard/transitaire',
 }
 
 const ROLE_DESC: Record<UserRole, string> = {
@@ -16,6 +17,7 @@ const ROLE_DESC: Record<UserRole, string> = {
   agent_point_relais: 'Dépôt, contrôle, retrait',
   transporteur: 'Lots, scans, corridor',
   admin: 'Réseau, audit, supervision',
+  transitaire: 'Statut douanier des conteneurs',
 }
 
 export default async function DashboardPage() {

@@ -10,6 +10,7 @@ const ROLE_ROUTES: Record<UserRole, string> = {
   transporteur: '/dashboard/transporteur',
   admin: '/dashboard/admin',
   transitaire: '/dashboard/transitaire',
+  org_viewer: '/dashboard/org_viewer',
 }
 
 const ROLE_DESC: Record<UserRole, string> = {
@@ -18,6 +19,7 @@ const ROLE_DESC: Record<UserRole, string> = {
   transporteur: 'Lots, scans, corridor',
   admin: 'Réseau, audit, supervision',
   transitaire: 'Statut douanier des conteneurs',
+  org_viewer: 'Suivi de vos conteneurs',
 }
 
 export default async function DashboardPage() {

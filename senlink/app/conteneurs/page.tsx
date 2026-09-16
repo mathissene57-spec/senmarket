@@ -46,8 +46,15 @@ type ResultatTracking = {
   destination_port?: string | null
   eta?: string | null
   current_status?: string | null
+  customsStatus?: string | null
   events: EvenementConteneur[]
   verifieManuellement: boolean
+}
+
+const LABELS_DOUANE: Record<string, string> = {
+  pending: 'En attente de dédouanement',
+  on_hold: 'Bloqué en douane',
+  cleared: 'Dédouané',
 }
 
 // Ligne brute renvoyee par public_track_container (une ligne par evenement,
@@ -60,6 +67,7 @@ type LigneTrackingBrute = {
   vessel_name: string | null
   voyage_number: string | null
   current_status: string | null
+  customs_status: string | null
   eta: string | null
   event_type: string | null
   event_location: string | null
@@ -87,6 +95,7 @@ function regrouper(lignes: LigneTrackingBrute[]): ResultatTracking {
     voyage: premiere.voyage_number,
     eta: formatDate(premiere.eta),
     current_status: premiere.current_status,
+    customsStatus: premiere.customs_status,
     verifieManuellement: lignes.every((l) => l.event_source === 'manual'),
     events: lignes
       .filter((l) => l.event_type !== null)
@@ -188,7 +197,20 @@ export default function TrackerConteneurPage() {
               <p style={styles.resultKicker}>Conteneur</p>
               <h2 style={styles.resultNumero}>{resultat.container_number}</h2>
             </div>
-            {resultat.current_status && <span style={styles.statutBadge}>{resultat.current_status}</span>}
+            <div style={styles.badges}>
+              {resultat.current_status && <span style={styles.statutBadge}>{resultat.current_status}</span>}
+              {resultat.customsStatus && (
+                <span
+                  style={{
+                    ...styles.statutBadge,
+                    ...(resultat.customsStatus === 'on_hold' ? styles.badgeDanger : {}),
+                    ...(resultat.customsStatus === 'cleared' ? styles.badgeSucces : {}),
+                  }}
+                >
+                  Douane : {LABELS_DOUANE[resultat.customsStatus] ?? resultat.customsStatus}
+                </span>
+              )}
+            </div>
           </div>
 
           <div style={styles.grille}>
@@ -268,10 +290,13 @@ const styles: { [key: string]: React.CSSProperties } = {
   resultHead: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 20, flexWrap: 'wrap' },
   resultKicker: { fontSize: 11, fontWeight: 700, color: color.muted, textTransform: 'uppercase', letterSpacing: 0.5, margin: '0 0 2px' },
   resultNumero: { fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 900, color: color.inkStrong, margin: 0 },
+  badges: { display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' },
   statutBadge: {
     padding: '6px 14px', borderRadius: 999, background: color.goldTint, color: '#8A6100',
     fontWeight: 700, fontSize: 12.5, whiteSpace: 'nowrap',
   },
+  badgeDanger: { background: color.dangerTint, color: color.danger },
+  badgeSucces: { background: color.greenTint, color: color.green600 },
   grille: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 24 },
   champ: { display: 'flex', flexDirection: 'column', gap: 2 },
   champLabel: { fontSize: 10.5, fontWeight: 700, color: color.muted, textTransform: 'uppercase', letterSpacing: 0.4 },

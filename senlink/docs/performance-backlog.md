@@ -97,6 +97,27 @@ fait ni n'est recommandé sur la base de ce constat. Migrations 1 à 5 restent v
 Reste soumis à la même règle d'engagement que le reste de ce document (benchmark préalable
 requis, base actuellement vide).
 
+### 6. Constats additionnels après Logistics Core (11 étapes, 14 septembre 2026) — priorité basse
+
+Audit du 16 septembre 2026 : mêmes catégories déjà listées ci-dessus (§1 et §3), aucune
+nouvelle catégorie, sur les 4 nouvelles tables du socle conteneurs/multi-tenant
+(`containers`, `container_events`, `ports`, `transport_legs`) :
+
+- **Clés étrangères non indexées** (catégorie §1) : `container_events` (2 : vers `ports`
+  et `tracking_providers`), `containers` (3 : vers `carrier_prefixes`, `ports` ×2, plus
+  `created_by`), `ports` (1 : vers `countries`), `transport_legs` (5 : vers `hubs` ×2,
+  `ports` ×2, `organizations`) — 11 des 12 occurrences actuelles de ce constat viennent
+  de ces 4 tables.
+- **Index inutilisés** (catégorie §3) : `containers` (3), `transport_legs` (2),
+  `shipment_containers` (2) — attendu, ces tables sont vides ou quasi vides
+  (`containers` : 1 ligne réelle au 16/09, le pilote MSKU7478609 ; `container_events` :
+  6 lignes ; `ports`, `tracking_providers`, `transport_legs`, `shipment_containers` :
+  0 ligne). Un index ne peut pas montrer d'usage sans requêtes réelles en volume.
+
+Aucune modification SQL, aucune indexation, aucun changement de policy ou de grant n'a
+été fait ni n'est recommandé sur la base de ce constat. Même règle d'engagement que le
+reste de ce document (benchmark préalable requis, volume quasi nul à ce jour).
+
 ## Quand revisiter ce backlog
 
 - Quand le Core (Foundation ou autre) commence à recevoir des volumes réels de données

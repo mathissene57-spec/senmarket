@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 type Notification = {
   id: string
   shipment_id: string | null
+  container_id: string | null
   channel: string
   type: string
   message: string | null
@@ -16,12 +17,14 @@ type Notification = {
 }
 
 type ShipmentOption = { id: string; tracking_code: string }
+type ContainerOption = { id: string; container_number: string }
 
 export default function NotificationsPage() {
   const supabase = createClient()
   const [loading, setLoading] = useState(true)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [shipments, setShipments] = useState<ShipmentOption[]>([])
+  const [containers, setContainers] = useState<ContainerOption[]>([])
   const [erreur, setErreur] = useState<string | null>(null)
 
   useEffect(() => {
@@ -35,18 +38,22 @@ export default function NotificationsPage() {
         if (!user) throw new Error('Non authentifié')
 
         // notifications_self_select : user_id = auth.uid() suffit.
-        const [notifRes, shipmentsRes] = await Promise.all([
+        const [notifRes, shipmentsRes, containersRes] = await Promise.all([
           supabase
             .from('notifications')
-            .select('id, shipment_id, channel, type, message, status, created_at')
+            .select('id, shipment_id, container_id, channel, type, message, status, created_at')
             .eq('user_id', user.id)
             .order('created_at', { ascending: false }),
           supabase.from('shipments').select('id, tracking_code').eq('client_user_id', user.id),
+          // containers_org_select couvre déjà tous les rôles affiliés à l'organisation.
+          supabase.from('containers').select('id, container_number'),
         ])
         if (notifRes.error) throw notifRes.error
         if (shipmentsRes.error) throw shipmentsRes.error
+        if (containersRes.error) throw containersRes.error
         setNotifications((notifRes.data ?? []) as Notification[])
         setShipments((shipmentsRes.data ?? []) as ShipmentOption[])
+        setContainers((containersRes.data ?? []) as ContainerOption[])
       } catch (e) {
         setErreur(messageUtilisateur(e))
       } finally {
@@ -59,6 +66,11 @@ export default function NotificationsPage() {
   function trackingCode(id: string | null) {
     if (!id) return null
     return shipments.find((s) => s.id === id)?.tracking_code ?? null
+  }
+
+  function containerNumber(id: string | null) {
+    if (!id) return null
+    return containers.find((c) => c.id === id)?.container_number ?? null
   }
 
   return (
@@ -94,6 +106,7 @@ export default function NotificationsPage() {
             <div style={styles.meta}>
               {n.channel} · {n.status}
               {trackingCode(n.shipment_id) && ` · ${trackingCode(n.shipment_id)}`}
+              {containerNumber(n.container_id) && ` · ${containerNumber(n.container_id)}`}
             </div>
           </div>
         ))}

@@ -1,0 +1,35 @@
+-- P33 : trouve pendant l'audit rigoureux du 16/09 -- bug reel, en production,
+-- depuis la creation de operateurs.country_id (foundation_v1_operateurs_
+-- country_id, 06/09), jamais detecte car impossible a tester en direct
+-- depuis ce sandbox (reseau bloque vers le domaine de prod).
+--
+-- Constat (verifie par emulation de role SQL, methode equivalente a ce que
+-- PostgREST execute reellement) : le role anon n'a JAMAIS eu de GRANT
+-- SELECT sur operateurs.country_id. H1/H2 (05/09) avait durci operateurs
+-- pour anon en table RLS "deny by default" + allowlist de colonnes non
+-- sensibles -- mais country_id a ete ajoute le lendemain (06/09) et n'a
+-- jamais ete ajoute a cette allowlist.
+--
+-- Consequence reelle : app/passager/page.tsx (role anon -- authentification
+-- par telephone, pas de session Supabase Auth) fait
+--   .from('operateurs').select('...,countries(name)')
+-- L'embed countries(name) referme la clause JOIN sur operateurs.country_id,
+-- meme sans le demander explicitement dans la liste de colonnes -- Postgres
+-- verifie les privileges sur TOUTE colonne referencee dans la requete, pas
+-- seulement celles renvoyees. Sans le GRANT, TOUTE la requete echoue (pas
+-- seulement l'embed) : `operateur` ne se charge JAMAIS cote passager, pour
+-- AUCUN operateur (Maroc ou Senegal) -- ni nom, ni couleurs, ni logo, ni
+-- ville. Le correctif P29 (differencier tableau vs objet pour countries)
+-- etait reel mais secondaire : le vrai blocage etait ce GRANT manquant, en
+-- amont de la question de forme des donnees.
+--
+-- Verifie en direct (emulation SQL du role anon) : la requete echoue avant
+-- ce correctif ("permission denied for table operateurs"), le probleme
+-- disparait des que la colonne est ajoutee a l'allowlist -- comme les
+-- autres colonnes non sensibles deja exposees (nom, ville, logo_url...).
+-- country_id lui-meme n'est pas sensible (juste un id de pays, deja
+-- indirectement devinable via ville/devise affichees) -- pas de risque a
+-- l'exposer, contrairement a owner_user_id/invitation_token/
+-- otp_dispense_chauffeurs qui restent volontairement non-grantes.
+
+grant select (country_id) on public.operateurs to anon;

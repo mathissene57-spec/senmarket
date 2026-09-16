@@ -13,16 +13,46 @@ type Container = {
   customs_status: string | null
 }
 
+type Evenement = {
+  id: string
+  container_id: string
+  event_type: string
+  event_time: string
+  location_text: string | null
+  source: string
+}
+
 const OPTIONS_DOUANE: { value: string; label: string }[] = [
   { value: 'pending', label: 'En attente de dédouanement' },
   { value: 'on_hold', label: 'Bloqué en douane' },
   { value: 'cleared', label: 'Dédouané' },
 ]
 
+// Miroir du libellé posé côté base (notify_org_on_container_event) — même
+// vocabulaire, seules les 9 valeurs event_type réellement utilisées à ce
+// jour sont couvertes ; toute valeur future non listée retombe sur le
+// texte brut, jamais un libellé inventé.
+const LABELS_EVENEMENT: Record<string, string> = {
+  empty_container_handoff: 'Remise du conteneur vide',
+  gate_in: 'Entrée au terminal',
+  load: 'Chargement',
+  vessel_departure: 'Départ du navire',
+  vessel_arrival: 'Arrivée du navire',
+  discharge: 'Déchargement',
+  customs_pending: 'En attente de dédouanement',
+  customs_hold: 'Bloqué en douane',
+  customs_cleared: 'Dédouané',
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })
+}
+
 export default function ConteneursDouanePage() {
   const supabase = createClient()
   const [loading, setLoading] = useState(true)
   const [conteneurs, setConteneurs] = useState<Container[]>([])
+  const [evenements, setEvenements] = useState<Evenement[]>([])
   const [erreur, setErreur] = useState<string | null>(null)
   const [msg, setMsg] = useState<{ text: string; type: 'ok' | 'err' } | null>(null)
   const [choixStatut, setChoixStatut] = useState<Record<string, string>>({})
@@ -33,12 +63,24 @@ export default function ConteneursDouanePage() {
     setLoading(true)
     setErreur(null)
     try {
-      const { data, error } = await supabase
-        .from('containers')
-        .select('id, container_number, current_status, customs_status')
-        .order('created_at', { ascending: false })
-      if (error) throw error
-      setConteneurs((data ?? []) as Container[])
+      const [conteneursRes, evenementsRes] = await Promise.all([
+        supabase
+          .from('containers')
+          .select('id, container_number, current_status, customs_status')
+          .order('created_at', { ascending: false }),
+        // container_events_select (can_access_container) couvre déjà le même
+        // périmètre que containers_org_select — pas de filtre supplémentaire
+        // nécessaire, RLS renvoie uniquement les événements des conteneurs
+        // visibles par l'utilisateur courant.
+        supabase
+          .from('container_events')
+          .select('id, container_id, event_type, event_time, location_text, source')
+          .order('event_time', { ascending: true }),
+      ])
+      if (conteneursRes.error) throw conteneursRes.error
+      if (evenementsRes.error) throw evenementsRes.error
+      setConteneurs((conteneursRes.data ?? []) as Container[])
+      setEvenements((evenementsRes.data ?? []) as Evenement[])
     } catch (e) {
       setErreur(messageUtilisateur(e))
     } finally {
@@ -138,6 +180,26 @@ export default function ConteneursDouanePage() {
             <button style={styles.bouton} disabled={busy === c.id} onClick={() => handleEnregistrer(c)}>
               {busy === c.id ? 'Enregistrement…' : 'Enregistrer le statut douanier'}
             </button>
+
+            <div style={styles.historique}>
+              <div style={styles.historiqueTitre}>Chronologie</div>
+              {evenements.filter((e) => e.container_id === c.id).length === 0 && (
+                <div style={styles.vide}>Aucun événement enregistré pour l&apos;instant.</div>
+              )}
+              <ul style={styles.liste}>
+                {evenements
+                  .filter((e) => e.container_id === c.id)
+                  .map((e) => (
+                    <li key={e.id} style={styles.ligne}>
+                      <div style={styles.ligneHaut}>
+                        <span style={styles.ligneType}>{LABELS_EVENEMENT[e.event_type] ?? e.event_type}</span>
+                        <span style={styles.ligneDate}>{formatDate(e.event_time)}</span>
+                      </div>
+                      {e.location_text && <div style={styles.ligneLieu}>{e.location_text}</div>}
+                    </li>
+                  ))}
+              </ul>
+            </div>
           </div>
         ))}
       </div>
@@ -167,4 +229,12 @@ const styles: { [key: string]: React.CSSProperties } = {
   select: shared.input,
   input: shared.input,
   bouton: shared.boutonPrimaire,
+  historique: { marginTop: 4, paddingTop: 14, borderTop: `1px solid ${color.borderStrong}` },
+  historiqueTitre: { fontWeight: 700, fontSize: 12.5, color: color.inkStrong, marginBottom: 8 },
+  liste: { display: 'flex', flexDirection: 'column', gap: 8, margin: 0, padding: 0, listStyle: 'none' },
+  ligne: { fontSize: 12.5 },
+  ligneHaut: { display: 'flex', justifyContent: 'space-between', gap: 8 },
+  ligneType: { fontWeight: 600, color: color.inkStrong },
+  ligneDate: { color: color.muted, whiteSpace: 'nowrap' },
+  ligneLieu: { color: color.muted, fontStyle: 'italic' },
 }

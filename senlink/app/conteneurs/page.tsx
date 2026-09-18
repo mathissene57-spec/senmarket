@@ -47,6 +47,7 @@ type ResultatTracking = {
   eta?: string | null
   current_status?: string | null
   customsStatus?: string | null
+  lieuRetrait?: string | null
   events: EvenementConteneur[]
   verifieManuellement: boolean
 }
@@ -83,6 +84,12 @@ function formatDate(iso: string | null): string {
 
 function regrouper(lignes: LigneTrackingBrute[]): ResultatTracking {
   const premiere = lignes[0]
+  // Le dédouanement ne dit pas où retirer le colis — c'est le lieu saisi
+  // sur l'événement customs_cleared lui-même (même champ que pour tout
+  // autre événement, pas une nouvelle colonne) qui porte cette info. On
+  // prend le plus récent en cas de saisies successives.
+  const dedouanements = lignes.filter((l) => l.event_type === 'customs_cleared')
+  const dernierDedouanement = dedouanements[dedouanements.length - 1]
   return {
     container_number: premiere.container_number,
     // Aucun flux fournisseur automatise n'est encore branche (demande
@@ -98,6 +105,7 @@ function regrouper(lignes: LigneTrackingBrute[]): ResultatTracking {
     current_status: premiere.current_status,
     customsStatus: premiere.customs_status,
     destination_port: premiere.destination_label,
+    lieuRetrait: premiere.customs_status === 'cleared' ? dernierDedouanement?.event_location ?? null : null,
     verifieManuellement: lignes.every((l) => l.event_source === 'manual'),
     events: lignes
       .filter((l) => l.event_type !== null)
@@ -215,6 +223,14 @@ export default function TrackerConteneurPage() {
             </div>
           </div>
 
+          {resultat.customsStatus === 'cleared' && (
+            <div style={styles.avisRetrait}>
+              {resultat.lieuRetrait
+                ? <>Conteneur dédouané — colis à retirer à : <strong>{resultat.lieuRetrait}</strong></>
+                : 'Conteneur dédouané — contactez SenLink pour connaître le lieu de retrait de votre colis.'}
+            </div>
+          )}
+
           <div style={styles.grille}>
             {resultat.carrier_name && (
               <div style={styles.champ}>
@@ -299,6 +315,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   badgeDanger: { background: color.dangerTint, color: color.danger },
   badgeSucces: { background: color.greenTint, color: color.green600 },
+  avisRetrait: { padding: 14, borderRadius: 10, background: color.greenTint, color: color.green600, fontSize: 13.5, marginBottom: 20, lineHeight: 1.5 },
   grille: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 24 },
   champ: { display: 'flex', flexDirection: 'column', gap: 2 },
   champLabel: { fontSize: 10.5, fontWeight: 700, color: color.muted, textTransform: 'uppercase', letterSpacing: 0.4 },

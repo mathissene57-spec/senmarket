@@ -115,6 +115,16 @@ export default function ConteneursDouanePage() {
     return pays_ ? `${port.name}, ${pays_.name}` : port.name
   }
 
+  // Le dédouanement ne dit pas où retirer le colis — c'est le lieu saisi sur
+  // l'événement customs_cleared lui-même qui porte cette info (même champ
+  // que pour tout autre événement, pas une nouvelle colonne). On prend le
+  // plus récent en cas de saisies successives.
+  function lieuRetrait(c: Container): string | null {
+    if (c.customs_status !== 'cleared') return null
+    const dedouanements = evenements.filter((e) => e.container_id === c.id && e.event_type === 'customs_cleared')
+    return dedouanements[dedouanements.length - 1]?.location_text ?? null
+  }
+
   async function handleEnregistrer(c: Container) {
     const statut = choixStatut[c.id]
     if (!statut) {
@@ -180,6 +190,13 @@ export default function ConteneursDouanePage() {
                 Statut douanier actuel : {OPTIONS_DOUANE.find((o) => o.value === c.customs_status)?.label ?? c.customs_status}
               </div>
             )}
+            {c.customs_status === 'cleared' && (
+              <div style={styles.avisRetrait}>
+                {lieuRetrait(c)
+                  ? `Colis à retirer à : ${lieuRetrait(c)}`
+                  : 'Aucun lieu de retrait renseigné pour l’instant — à ajouter dès que connu.'}
+              </div>
+            )}
 
             <select
               style={styles.select}
@@ -195,7 +212,11 @@ export default function ConteneursDouanePage() {
             </select>
             <input
               style={styles.input}
-              placeholder="Lieu (optionnel, ex. Port de Subic, Philippines)"
+              placeholder={
+                choixStatut[c.id] === 'cleared'
+                  ? 'Adresse du dépôt où le client peut retirer son colis'
+                  : 'Lieu (optionnel, ex. Port de Subic, Philippines)'
+              }
               value={lieux[c.id] ?? ''}
               onChange={(e) => setLieux({ ...lieux, [c.id]: e.target.value })}
             />
@@ -250,6 +271,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   douaneActuelle: { fontSize: 12.5, color: color.muted, fontStyle: 'italic' },
   destination: { fontSize: 12.5, color: color.muted },
+  avisRetrait: { padding: 12, borderRadius: 8, background: color.greenTint, color: color.green600, fontSize: 12.5, lineHeight: 1.5 },
   select: shared.input,
   input: shared.input,
   bouton: shared.boutonPrimaire,

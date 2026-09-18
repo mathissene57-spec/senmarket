@@ -1,0 +1,81 @@
+name: Mobility OS -- E2E navigateur reel (Playwright)
+
+# Declenchement manuel uniquement : cette suite teste l'app REELLEMENT
+# deployee sur Vercel (jamais un serveur local), contre les operateurs de
+# test Test QA / Test QA Senegal. Executee depuis un runner GitHub avec un
+# vrai acces reseau -- contrairement au sandbox Claude, qui n'a aucune
+# sortie internet (voir le rapport du 18/09/2026, tentative reelle avec
+# Chromium/Playwright bloquee par la politique reseau du sandbox).
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "URL de l'app a tester"
+        required: false
+        default: "https://mobility-os-maroc-git.vercel.app"
+
+jobs:
+  e2e:
+    name: Playwright E2E (Passager / Chauffeur / Dashboard / Senegal-XOF)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobility-os-maroc/webapp
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: mobility-os-maroc/webapp/package-lock.json
+
+      - name: Installer les dependances
+        run: npm install
+
+      - name: Installer les navigateurs Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Lancer la suite E2E
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ inputs.base_url }}
+          DASHBOARD_TEST_QA_SENEGAL_EMAIL: ${{ secrets.DASHBOARD_TEST_QA_SENEGAL_EMAIL }}
+          DASHBOARD_TEST_QA_SENEGAL_PASSWORD: ${{ secrets.DASHBOARD_TEST_QA_SENEGAL_PASSWORD }}
+        run: npx playwright test
+        continue-on-error: true
+        id: run_tests
+
+      - name: Publier le rapport HTML Playwright
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobility-os-e2e-report
+          path: mobility-os-maroc/webapp/playwright-report/
+          retention-days: 30
+
+      - name: Resume dans le job GitHub
+        if: always()
+        run: |
+          echo "## Mobility OS -- Rapport E2E navigateur reel" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "URL testee : \`${{ inputs.base_url }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f playwright-report/results.json ]; then
+            node -e "
+              const r = require('./playwright-report/results.json');
+              const stats = r.stats || {};
+              console.log('| Statut | Nombre |');
+              console.log('|---|---|');
+              console.log('| Reussis | ' + (stats.expected || 0) + ' |');
+              console.log('| Echoues | ' + (stats.unexpected || 0) + ' |');
+              console.log('| Ignores | ' + (stats.skipped || 0) + ' |');
+            " >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Aucun resultat JSON genere -- la suite a probablement echoue avant meme de lancer un test (voir les logs du job)." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Rapport HTML complet (captures, traces, videos des echecs) : voir l'artefact \`mobility-os-e2e-report\` de ce run." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Faire echouer le job si des tests ont echoue
+        if: steps.run_tests.outcome == 'failure'
+        run: exit 1

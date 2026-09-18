@@ -117,7 +117,14 @@ for (const [nomOperateur, op, prefixeTel] of [
         await expect(pagePassager.getByText(/\bMAD\b/)).toHaveCount(0)
       }
 
-      // 11. Chauffeur : verifier le retour a "disponible".
+      // 11. Chauffeur : apres avancer_course(...,'terminee',...), l'app affiche
+      // un ecran recapitulatif ('fin', app/chauffeur/page.tsx L852-876) -- PAS
+      // un retour automatique a l'accueil. Trouve au run #3 (les 2 tests sont
+      // alles jusqu'a cette toute derniere etape sans autre echec, preuve que
+      // tout le cycle -- Realtime dans les deux sens, Senegal/XOF inclus --
+      // fonctionne reellement). Il faut cliquer "Retour a l'accueil" (bouton
+      // reel de l'app) avant que le toggle "Disponible" ne redevienne visible.
+      await pageChauffeur.getByRole('button', { name: 'Retour à l\'accueil' }).click()
       await expect(pageChauffeur.getByText('Disponible')).toBeVisible({ timeout: 15000 })
     } finally {
       await contextePassager.close()

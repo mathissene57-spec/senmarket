@@ -1,3 +1,5 @@
+import { expect, type Page } from '@playwright/test'
+
 // Donnees de test partagees par les specs Playwright -- exclusivement les
 // operateurs de test (Test QA / Test QA Senegal), jamais TransAtlas/Toure.
 // Le code OTP maitre '000000' fonctionne pour n'importe quel numero tant que
@@ -35,4 +37,58 @@ export const OPERATEUR_SENEGAL = {
 export function telephonePassagerUnique(prefixe: string): string {
   const suffixe = Date.now().toString().slice(-8)
   return `${prefixe}${suffixe}`
+}
+
+export async function connecterPassager(page: Page, urlPassager: string, telephone: string) {
+  await page.goto(`${BASE_URL}${urlPassager}`)
+  const champTel = page.locator('input[type="tel"]')
+  await expect(champTel).toBeVisible({ timeout: 20000 })
+  await champTel.fill(telephone)
+  const champNom = page.getByPlaceholder('Votre nom')
+  if (await champNom.isVisible().catch(() => false)) {
+    await champNom.fill('Audit E2E Playwright')
+  }
+  await page.getByRole('button', { name: 'Recevoir un code' }).click()
+  const champCode = page.getByPlaceholder('123456')
+  await expect(champCode).toBeVisible({ timeout: 10000 })
+  await champCode.fill(CODE_OTP_MAITRE)
+  await page.getByRole('button', { name: 'Confirmer', exact: true }).click()
+  // Ecran d'accueil : le champ d'adresse de depart doit apparaitre.
+  await expect(page.getByPlaceholder('Adresse ou quartier de départ')).toBeVisible({ timeout: 15000 })
+}
+
+// IMPORTANT -- trouve pendant le run #1 (18/09/2026) : contrairement au
+// passager, demanderOtp() cote chauffeur (app/chauffeur/page.tsx, L410-418)
+// tente D'ABORD une connexion silencieuse (seConnecter(true) -> RPC
+// connexion_chauffeur direct). Tant que la verification OTP reste desactivee
+// GLOBALEMENT sur la plateforme (est_telephone_verifie() retourne toujours
+// true), cette tentative reussit systematiquement des le premier clic sur
+// "Recevoir un code" -- l'ecran de saisie du code n'apparait alors JAMAIS.
+// Comportement reel et voulu de l'app (voir le commentaire P20 dans le code
+// source), pas un defaut. On attend donc l'un OU l'autre ecran, sans
+// presumer lequel apparaitra -- jamais un delai arbitraire, toujours une
+// vraie condition observee dans le DOM.
+export async function connecterChauffeur(page: Page, urlChauffeur: string, telephone: string) {
+  await page.goto(`${BASE_URL}${urlChauffeur}`)
+  const champTel = page.locator('input[type="tel"]')
+  await expect(champTel).toBeVisible({ timeout: 20000 })
+  await champTel.fill(telephone)
+  await page.getByRole('button', { name: 'Recevoir un code' }).click()
+
+  const champCode = page.getByPlaceholder('123456')
+  const toggleDispo = page.locator('button.toggle')
+
+  await Promise.race([
+    champCode.waitFor({ state: 'visible', timeout: 20000 }),
+    toggleDispo.waitFor({ state: 'visible', timeout: 20000 }),
+  ])
+
+  if (await champCode.isVisible().catch(() => false)) {
+    // Chemin normal (OTP demande) : verifier avec le code maitre.
+    await champCode.fill(CODE_OTP_MAITRE)
+    await page.getByRole('button', { name: 'Confirmer et se connecter' }).click()
+  }
+  // Chemin court (connexion silencieuse reussie) : rien a faire de plus --
+  // on verifie juste, dans les deux cas, que l'ecran d'accueil est bien atteint.
+  await expect(toggleDispo).toBeVisible({ timeout: 15000 })
 }

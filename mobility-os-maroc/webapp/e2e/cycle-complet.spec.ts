@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Browser } from '@playwright/test'
-import { BASE_URL, CODE_OTP_MAITRE, OPERATEUR_MAROC, OPERATEUR_SENEGAL, telephonePassagerUnique } from './fixtures'
+import { OPERATEUR_MAROC, OPERATEUR_SENEGAL, telephonePassagerUnique, connecterPassager, connecterChauffeur } from './fixtures'
 
 // Test a DEUX acteurs reels (deux contextes navigateur independants dans le
 // meme test) : un onglet passager et un onglet chauffeur, tous deux sur la
@@ -10,38 +10,10 @@ import { BASE_URL, CODE_OTP_MAITRE, OPERATEUR_MAROC, OPERATEUR_SENEGAL, telephon
 // livre reellement l'evenement au navigateur. C'est la preuve exigee pour
 // Realtime : evenement backend -> reception navigateur -> changement visible
 // dans l'interface, sans etape simulee.
-
-async function connecterPassager(page: Page, urlPassager: string, telephone: string) {
-  await page.goto(`${BASE_URL}${urlPassager}`)
-  const champTel = page.locator('input[type="tel"]')
-  await expect(champTel).toBeVisible({ timeout: 20000 })
-  await champTel.fill(telephone)
-  const champNom = page.getByPlaceholder('Votre nom')
-  if (await champNom.isVisible().catch(() => false)) {
-    await champNom.fill('Audit E2E Playwright')
-  }
-  await page.getByRole('button', { name: 'Recevoir un code' }).click()
-  const champCode = page.getByPlaceholder('123456')
-  await expect(champCode).toBeVisible({ timeout: 10000 })
-  await champCode.fill(CODE_OTP_MAITRE)
-  await page.getByRole('button', { name: 'Confirmer', exact: true }).click()
-  // Ecran d'accueil : le champ d'adresse de depart doit apparaitre.
-  await expect(page.getByPlaceholder('Adresse ou quartier de départ')).toBeVisible({ timeout: 15000 })
-}
-
-async function connecterChauffeur(page: Page, urlChauffeur: string, telephone: string) {
-  await page.goto(`${BASE_URL}${urlChauffeur}`)
-  const champTel = page.locator('input[type="tel"]')
-  await expect(champTel).toBeVisible({ timeout: 20000 })
-  await champTel.fill(telephone)
-  await page.getByRole('button', { name: 'Recevoir un code' }).click()
-  const champCode = page.getByPlaceholder('123456')
-  await expect(champCode).toBeVisible({ timeout: 10000 })
-  await champCode.fill(CODE_OTP_MAITRE)
-  await page.getByRole('button', { name: 'Confirmer et se connecter' }).click()
-  // Ecran d'accueil chauffeur : le toggle disponibilite doit apparaitre.
-  await expect(page.locator('button.toggle')).toBeVisible({ timeout: 15000 })
-}
+//
+// connecterPassager/connecterChauffeur vivent dans fixtures.ts -- partagees
+// avec gps.spec.ts. Voir le commentaire au-dessus de connecterChauffeur pour
+// le finding du run #1 (chemin de connexion silencieuse chauffeur).
 
 async function sAssurerDisponible(page: Page) {
   const toggle = page.locator('button.toggle')

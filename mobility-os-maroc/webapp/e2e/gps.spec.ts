@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { BASE_URL, CODE_OTP_MAITRE, OPERATEUR_MAROC } from './fixtures'
+import { OPERATEUR_MAROC, connecterChauffeur } from './fixtures'
 
 // IMPORTANT -- a lire avant d'interpreter ce test comme "GPS reel" :
 // ce test verifie que l'app demande et utilise correctement l'API navigateur
@@ -20,12 +20,7 @@ test('Chauffeur -- geolocalisation acceptee et affichee (mock Playwright, pas un
   })
   const page = await context.newPage()
   try {
-    await page.goto(`${BASE_URL}${OPERATEUR_MAROC.urlChauffeur}`)
-    await page.locator('input[type="tel"]').fill(OPERATEUR_MAROC.chauffeurTelephone)
-    await page.getByRole('button', { name: 'Recevoir un code' }).click()
-    await page.getByPlaceholder('123456').fill(CODE_OTP_MAITRE)
-    await page.getByRole('button', { name: 'Confirmer et se connecter' }).click()
-    await expect(page.locator('button.toggle')).toBeVisible({ timeout: 15000 })
+    await connecterChauffeur(page, OPERATEUR_MAROC.urlChauffeur, OPERATEUR_MAROC.chauffeurTelephone)
 
     // watchPosition doit resoudre et l'app doit afficher l'indicateur position (📍)
     // a cote du statut -- preuve que la position mockee a bien ete recue et utilisee.

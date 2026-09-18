@@ -69,6 +69,7 @@ type LigneTrackingBrute = {
   current_status: string | null
   customs_status: string | null
   eta: string | null
+  destination_label: string | null
   event_type: string | null
   event_location: string | null
   event_time: string | null
@@ -96,6 +97,7 @@ function regrouper(lignes: LigneTrackingBrute[]): ResultatTracking {
     eta: formatDate(premiere.eta),
     current_status: premiere.current_status,
     customsStatus: premiere.customs_status,
+    destination_port: premiere.destination_label,
     verifieManuellement: lignes.every((l) => l.event_source === 'manual'),
     events: lignes
       .filter((l) => l.event_type !== null)

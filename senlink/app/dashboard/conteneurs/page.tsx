@@ -11,7 +11,11 @@ type Container = {
   container_number: string
   current_status: string
   customs_status: string | null
+  destination_port_id: string | null
 }
+
+type Port = { code: string; name: string; country: string | null }
+type Pays = { code: string; name: string }
 
 type Evenement = {
   id: string
@@ -53,6 +57,8 @@ export default function ConteneursDouanePage() {
   const [loading, setLoading] = useState(true)
   const [conteneurs, setConteneurs] = useState<Container[]>([])
   const [evenements, setEvenements] = useState<Evenement[]>([])
+  const [ports, setPorts] = useState<Port[]>([])
+  const [pays, setPays] = useState<Pays[]>([])
   const [erreur, setErreur] = useState<string | null>(null)
   const [msg, setMsg] = useState<{ text: string; type: 'ok' | 'err' } | null>(null)
   const [choixStatut, setChoixStatut] = useState<Record<string, string>>({})
@@ -63,10 +69,10 @@ export default function ConteneursDouanePage() {
     setLoading(true)
     setErreur(null)
     try {
-      const [conteneursRes, evenementsRes] = await Promise.all([
+      const [conteneursRes, evenementsRes, portsRes, paysRes] = await Promise.all([
         supabase
           .from('containers')
-          .select('id, container_number, current_status, customs_status')
+          .select('id, container_number, current_status, customs_status, destination_port_id')
           .order('created_at', { ascending: false }),
         // container_events_select (can_access_container) couvre déjà le même
         // périmètre que containers_org_select — pas de filtre supplémentaire
@@ -76,11 +82,19 @@ export default function ConteneursDouanePage() {
           .from('container_events')
           .select('id, container_id, event_type, event_time, location_text, source')
           .order('event_time', { ascending: true }),
+        // ports_public_read : lecture ouverte à tous, référentiel volontairement
+        // très court (1 port réel à ce jour) — chargé en entier, pas de filtre.
+        supabase.from('ports').select('code, name, country'),
+        supabase.from('countries').select('code, name'),
       ])
       if (conteneursRes.error) throw conteneursRes.error
       if (evenementsRes.error) throw evenementsRes.error
+      if (portsRes.error) throw portsRes.error
+      if (paysRes.error) throw paysRes.error
       setConteneurs((conteneursRes.data ?? []) as Container[])
       setEvenements((evenementsRes.data ?? []) as Evenement[])
+      setPorts((portsRes.data ?? []) as Port[])
+      setPays((paysRes.data ?? []) as Pays[])
     } catch (e) {
       setErreur(messageUtilisateur(e))
     } finally {
@@ -92,6 +106,14 @@ export default function ConteneursDouanePage() {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  function destinationLabel(c: Container): string | null {
+    if (!c.destination_port_id) return null
+    const port = ports.find((p) => p.code === c.destination_port_id)
+    if (!port) return null
+    const pays_ = port.country ? pays.find((p) => p.code === port.country) : null
+    return pays_ ? `${port.name}, ${pays_.name}` : port.name
+  }
 
   async function handleEnregistrer(c: Container) {
     const statut = choixStatut[c.id]
@@ -152,6 +174,7 @@ export default function ConteneursDouanePage() {
               <span style={styles.code}>{c.container_number}</span>
               <span style={styles.badge}>{c.current_status}</span>
             </div>
+            {destinationLabel(c) && <div style={styles.destination}>Destination : {destinationLabel(c)}</div>}
             {c.customs_status && (
               <div style={styles.douaneActuelle}>
                 Statut douanier actuel : {OPTIONS_DOUANE.find((o) => o.value === c.customs_status)?.label ?? c.customs_status}
@@ -226,6 +249,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     background: color.goldTint, color: '#8A6100',
   },
   douaneActuelle: { fontSize: 12.5, color: color.muted, fontStyle: 'italic' },
+  destination: { fontSize: 12.5, color: color.muted },
   select: shared.input,
   input: shared.input,
   bouton: shared.boutonPrimaire,

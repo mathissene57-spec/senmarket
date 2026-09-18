@@ -71,14 +71,22 @@ for (const [nomOperateur, op, prefixeTel] of [
       await expect(boutonCommander).toBeEnabled({ timeout: 15000 })
 
       // 4. Verification du tarif affiche AVANT de commander (doit montrer la bonne devise).
+      // \bMAD\b (frontieres de mot, sensible a la casse) plutot qu'une simple
+      // sous-chaine -- trouve pendant le run #2 : "MAD" en sous-chaine matchait
+      // aussi "Al-MAD-ies" (adresse d'arrivee Senegal choisie dans fixtures.ts),
+      // faux positif de mon propre script, pas une fuite reelle de devise.
       await expect(pagePassager.getByText(op.devise)).toBeVisible({ timeout: 5000 })
       if (op.devise === 'XOF') {
-        await expect(pagePassager.getByText('MAD')).toHaveCount(0)
+        await expect(pagePassager.getByText(/\bMAD\b/)).toHaveCount(0)
       }
 
       // 5. Commande -- ceci appelle reellement le RPC creer_course.
+      // Apostrophe DROITE (&apos; -> ', pas une apostrophe courbe ’) -- trouve
+      // pendant le run #2 : la RPC creer_course reussissait bien (verifie via
+      // les logs edge Supabase), mais mon assertion ne matchait jamais le DOM
+      // a cause de ce mauvais caractere.
       await boutonCommander.click()
-      await expect(pagePassager.getByText('Recherche d’un chauffeur…')).toBeVisible({ timeout: 15000 })
+      await expect(pagePassager.getByText('Recherche d\'un chauffeur…')).toBeVisible({ timeout: 15000 })
 
       // 6. PREUVE REALTIME : le chauffeur ne fait RIEN -- on attend que SA demande
       // apparaisse toute seule sur SON navigateur, livree par le canal reel de l'app
@@ -106,7 +114,7 @@ for (const [nomOperateur, op, prefixeTel] of [
       await expect(pagePassager.getByText('Historique')).toBeVisible({ timeout: 10000 })
       await expect(pagePassager.getByText(op.devise).first()).toBeVisible()
       if (op.devise === 'XOF') {
-        await expect(pagePassager.getByText('MAD')).toHaveCount(0)
+        await expect(pagePassager.getByText(/\bMAD\b/)).toHaveCount(0)
       }
 
       // 11. Chauffeur : verifier le retour a "disponible".

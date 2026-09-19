@@ -2,7 +2,7 @@
 
 import { MapContainer, TileLayer, Marker, Polyline, useMap, useMapEvent } from 'react-leaflet'
 import { divIcon, latLngBounds } from 'leaflet'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import 'leaflet/dist/leaflet.css'
 
 const pin = (couleur: string) =>
@@ -23,6 +23,29 @@ function CadrerPoints({ points }: { points: Coordonnees[] }) {
     map.fitBounds(latLngBounds(points.map((p) => [p.lat, p.lng])), { padding: [28, 28] })
   }, [map, points])
   return null
+}
+
+// Recupere le trajet routier reel (pas a vol d'oiseau) via le proxy OSRM
+// (app/api/itineraire) des que depart/arrivee sont connus. Repli explicite
+// sur `null` si le service echoue ou n'a pas encore repondu -- l'appelant
+// trace alors la ligne droite entre les deux points, jamais de carte cassee.
+function useTraceRoutier(trajet?: { depart: Coordonnees; arrivee: Coordonnees }) {
+  const [trace, setTrace] = useState<Coordonnees[] | null>(null)
+  const { depart, arrivee } = trajet || {}
+  useEffect(() => {
+    if (!depart || !arrivee) { setTrace(null); return }
+    let annule = false
+    const params = new URLSearchParams({
+      depart_lat: String(depart.lat), depart_lng: String(depart.lng),
+      arrivee_lat: String(arrivee.lat), arrivee_lng: String(arrivee.lng),
+    })
+    fetch(`/api/itineraire?${params.toString()}`)
+      .then((r) => r.json())
+      .then((data) => { if (!annule) setTrace(Array.isArray(data.points) ? data.points : null) })
+      .catch(() => { if (!annule) setTrace(null) })
+    return () => { annule = true }
+  }, [depart?.lat, depart?.lng, arrivee?.lat, arrivee?.lng])
+  return trace
 }
 
 // Mode "choisir sur la carte" (passager) : signale le centre courant a
@@ -55,7 +78,13 @@ export default function Carte({
   trajet?: { depart: Coordonnees; arrivee: Coordonnees }
 }) {
   const centreCarte: [number, number] = centre ?? [points[0]?.lat ?? 33.5731, points[0]?.lng ?? -7.5898]
-  const pointsCadrage: Coordonnees[] = trajet ? [...points, trajet.depart, trajet.arrivee] : points
+  const traceRoutier = useTraceRoutier(trajet)
+  // Trajet routier reel si le proxy OSRM a repondu, sinon ligne droite
+  // depart-arrivee le temps de la reponse ou si le service est indisponible.
+  const traceAffichee: Coordonnees[] | null = trajet
+    ? (traceRoutier && traceRoutier.length > 1 ? traceRoutier : [trajet.depart, trajet.arrivee])
+    : null
+  const pointsCadrage: Coordonnees[] = traceAffichee ? [...points, ...traceAffichee] : points
 
   return (
     <MapContainer
@@ -68,9 +97,9 @@ export default function Carte({
       style={{ height: '100%', width: '100%' }}
     >
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-      {trajet && (
+      {traceAffichee && (
         <Polyline
-          positions={[[trajet.depart.lat, trajet.depart.lng], [trajet.arrivee.lat, trajet.arrivee.lng]]}
+          positions={traceAffichee.map((p) => [p.lat, p.lng])}
           pathOptions={{ color: '#101B3D', weight: 3, opacity: 0.6, dashArray: '2 10', lineCap: 'round' }}
         />
       )}

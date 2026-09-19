@@ -778,6 +778,11 @@ export default function ChauffeurPage() {
                       : []),
                   ]}
                   zoom={14}
+                  // Trajet toujours visible (depart -> arrivee), pas seulement le
+                  // point pertinent de cette phase -- demande explicite.
+                  trajet={courseActive.depart_lat != null && courseActive.depart_lng != null && courseActive.arrivee_lat != null && courseActive.arrivee_lng != null
+                    ? { depart: { lat: courseActive.depart_lat, lng: courseActive.depart_lng }, arrivee: { lat: courseActive.arrivee_lat, lng: courseActive.arrivee_lng } }
+                    : undefined}
                 />
               )}
             </div>
@@ -821,6 +826,9 @@ export default function ChauffeurPage() {
                       : []),
                   ]}
                   zoom={14}
+                  trajet={courseActive.depart_lat != null && courseActive.depart_lng != null && courseActive.arrivee_lat != null && courseActive.arrivee_lng != null
+                    ? { depart: { lat: courseActive.depart_lat, lng: courseActive.depart_lng }, arrivee: { lat: courseActive.arrivee_lat, lng: courseActive.arrivee_lng } }
+                    : undefined}
                 />
               )}
             </div>

@@ -173,6 +173,7 @@ export default function PassagerPage() {
   const [chargement, setChargement] = useState(false)
   const [pointDepart, setPointDepart] = useState(POINT_REPLI_TECHNIQUE)
   const [pointArrivee, setPointArrivee] = useState(POINT_REPLI_TECHNIQUE)
+  const [positionPassager, setPositionPassager] = useState<{ lat: number; lng: number } | null>(null)
   const [repereEnCours, setRepereEnCours] = useState(false)
   // Foundation V1 (modele d'adresse) : le systeme accepte deja une adresse
   // imprecise (quartier, ville) grace au geocodage existant -- mais avant ce
@@ -337,6 +338,21 @@ export default function PassagerPage() {
   }, [])
 
   useEffect(() => { courseRef.current = course }, [course])
+
+  // Suivi GPS continu du passager pendant qu'une course est en cours (demande
+  // explicite : les deux apps -- chauffeur et passager -- doivent avoir acces
+  // au GPS pendant la course, pas seulement un releve ponctuel au demarrage
+  // comme avant). Meme reglages que le suivi cote chauffeur (app/chauffeur/
+  // page.tsx) pour rester coherent. S'arrete des que l'ecran quitte 'course'.
+  useEffect(() => {
+    if (ecran !== 'course' || typeof navigator === 'undefined' || !navigator.geolocation) return
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => setPositionPassager({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => { /* refuse ou indisponible : la course continue sans position passager */ },
+      { enableHighAccuracy: false, maximumAge: 10000, timeout: 10000 }
+    )
+    return () => navigator.geolocation.clearWatch(watchId)
+  }, [ecran])
 
   useEffect(() => {
     if (departDepuisPickerRef.current) { departDepuisPickerRef.current = false; return }
@@ -935,7 +951,18 @@ export default function PassagerPage() {
           // distinct sur cet ecran.
           <div className="map-fullscreen">
             <div className="map-layer">
-              <Carte points={[{ ...pointDepart, couleur: primary }, { ...pointArrivee, couleur: accent }]} zoom={13} />
+              <Carte
+                points={[
+                  { ...pointDepart, couleur: primary },
+                  { ...pointArrivee, couleur: accent },
+                  // Position reelle du passager pendant la course (couleur fixe,
+                  // volontairement distincte de la marque de l'operateur pour ne
+                  // pas se confondre avec depart/arrivee).
+                  ...(positionPassager ? [{ ...positionPassager, couleur: '#2563EB' }] : []),
+                ]}
+                zoom={13}
+                trajet={{ depart: pointDepart, arrivee: pointArrivee }}
+              />
             </div>
             <div className="map-overlay-top">
               <strong>{course.statut === 'assignee' ? 'Le chauffeur arrive' : 'Course en cours'}</strong>

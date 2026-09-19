@@ -1,6 +1,6 @@
 'use client'
 
-import { MapContainer, TileLayer, Marker, useMap, useMapEvent } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Polyline, useMap, useMapEvent } from 'react-leaflet'
 import { divIcon, latLngBounds } from 'leaflet'
 import { useEffect } from 'react'
 import 'leaflet/dist/leaflet.css'
@@ -14,8 +14,9 @@ const pin = (couleur: string) =>
   })
 
 type Point = { lat: number; lng: number; couleur: string }
+type Coordonnees = { lat: number; lng: number }
 
-function CadrerPoints({ points }: { points: Point[] }) {
+function CadrerPoints({ points }: { points: Coordonnees[] }) {
   const map = useMap()
   useEffect(() => {
     if (points.length < 2) return
@@ -37,7 +38,7 @@ function SignalerCentre({ onDeplacer }: { onDeplacer: (centre: { lat: number; ln
 }
 
 export default function Carte({
-  points, centre, zoom = 14, interactif = false, onDeplacer,
+  points, centre, zoom = 14, interactif = false, onDeplacer, trajet,
 }: {
   points: Point[]
   centre?: [number, number]
@@ -47,8 +48,14 @@ export default function Carte({
   // centre a chaque arret de mouvement, utilise par le picker passager.
   interactif?: boolean
   onDeplacer?: (centre: { lat: number; lng: number }) => void
+  // Trace toujours une ligne entre depart et arrivee quand une course est en
+  // cours (passager et chauffeur), independamment des points/pastilles
+  // affiches -- demande explicite : le trajet doit rester visuellement relie,
+  // pas seulement deux repères isoles.
+  trajet?: { depart: Coordonnees; arrivee: Coordonnees }
 }) {
   const centreCarte: [number, number] = centre ?? [points[0]?.lat ?? 33.5731, points[0]?.lng ?? -7.5898]
+  const pointsCadrage: Coordonnees[] = trajet ? [...points, trajet.depart, trajet.arrivee] : points
 
   return (
     <MapContainer
@@ -61,10 +68,16 @@ export default function Carte({
       style={{ height: '100%', width: '100%' }}
     >
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+      {trajet && (
+        <Polyline
+          positions={[[trajet.depart.lat, trajet.depart.lng], [trajet.arrivee.lat, trajet.arrivee.lng]]}
+          pathOptions={{ color: '#101B3D', weight: 3, opacity: 0.6, dashArray: '2 10', lineCap: 'round' }}
+        />
+      )}
       {points.map((p, i) => (
         <Marker key={i} position={[p.lat, p.lng]} icon={pin(p.couleur)} />
       ))}
-      <CadrerPoints points={points} />
+      <CadrerPoints points={pointsCadrage} />
       {interactif && onDeplacer && <SignalerCentre onDeplacer={onDeplacer} />}
     </MapContainer>
   )

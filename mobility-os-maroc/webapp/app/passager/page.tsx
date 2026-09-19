@@ -180,7 +180,11 @@ export default function PassagerPage() {
   // qual=true, donc ouvrir la position table entiere exposerait TOUS les
   // chauffeurs en tout temps). Recuperee via la RPC position_chauffeur_course
   // qui ne la revele que pour le passager reel de cette course precise.
-  const [positionChauffeur, setPositionChauffeur] = useState<{ lat: number; lng: number } | null>(null)
+  // majAt (date serveur de la derniere mise a jour reelle par le chauffeur)
+  // est conservee pour detecter une position perimee (onglet chauffeur en
+  // arriere-plan, GPS perdu, etc.) -- constate en audit : une position vieille
+  // de plusieurs jours pouvait etre affichee sans aucun avertissement.
+  const [positionChauffeur, setPositionChauffeur] = useState<{ lat: number; lng: number; majAt: string | null } | null>(null)
   const [repereEnCours, setRepereEnCours] = useState(false)
   // Foundation V1 (modele d'adresse) : le systeme accepte deja une adresse
   // imprecise (quartier, ville) grace au geocodage existant -- mais avant ce
@@ -494,7 +498,7 @@ export default function PassagerPage() {
     supabase.rpc('position_chauffeur_course', { p_course_id: courseId, p_telephone: telephone })
       .then(({ data }) => {
         const ligne = data && data.length > 0 ? data[0] : null
-        setPositionChauffeur(ligne && ligne.lat != null && ligne.lng != null ? { lat: ligne.lat, lng: ligne.lng } : null)
+        setPositionChauffeur(ligne && ligne.lat != null && ligne.lng != null ? { lat: ligne.lat, lng: ligne.lng, majAt: ligne.maj_at } : null)
       })
   }
 
@@ -772,6 +776,20 @@ export default function PassagerPage() {
 
   const primary = operateur?.couleur_primaire || '#7A3B1E'
   const accent = operateur?.couleur_secondaire || '#E0A526'
+
+  // Fraicheur de la position chauffeur (audit du 19/09) : le chauffeur ne
+  // pousse sa position au serveur qu'au maximum toutes les 15s (voir
+  // app/chauffeur/page.tsx), donc un retard de quelques secondes est normal.
+  // Au-dela de 60s, quelque chose ne va probablement plus (onglet chauffeur
+  // en arriere-plan, GPS coupe) -- on avertit sans masquer. Au-dela de 5 min,
+  // la position est trop vieille pour rester fiable (constate en audit : une
+  // position vieille de plusieurs jours pouvait rester affichee) -- on la
+  // masque entierement plutot que d'induire le passager en erreur.
+  const AGE_AVERTISSEMENT_POSITION_S = 60
+  const AGE_MASQUAGE_POSITION_S = 300
+  const ageChauffeurS = positionChauffeur?.majAt ? (Date.now() - new Date(positionChauffeur.majAt).getTime()) / 1000 : null
+  const positionChauffeurAffichable = positionChauffeur && (ageChauffeurS === null || ageChauffeurS < AGE_MASQUAGE_POSITION_S) ? positionChauffeur : null
+  const positionChauffeurObsolete = ageChauffeurS !== null && ageChauffeurS >= AGE_AVERTISSEMENT_POSITION_S && ageChauffeurS < AGE_MASQUAGE_POSITION_S
   const vars = {
     ['--primary' as any]: primary,
     ['--accent' as any]: accent,
@@ -987,9 +1005,11 @@ export default function PassagerPage() {
                   // pas se confondre avec depart/arrivee).
                   ...(positionPassager ? [{ ...positionPassager, couleur: '#2563EB' }] : []),
                   // Position en direct du chauffeur (couleur distincte encore --
-                  // ne doit se confondre ni avec depart/arrivee, ni avec le
-                  // passager lui-meme).
-                  ...(positionChauffeur ? [{ ...positionChauffeur, couleur: '#F5B800' }] : []),
+                  // ne doit se confondre ni avec depart/arrivee (or/marque), ni
+                  // avec le passager (bleu) -- violet choisi expres pour ca,
+                  // suite a l'audit du 19/09 qui a releve une confusion possible
+                  // avec l'accent par defaut de l'operateur).
+                  ...(positionChauffeurAffichable ? [{ ...positionChauffeurAffichable, couleur: '#7C3AED' }] : []),
                 ]}
                 zoom={13}
                 trajet={
@@ -997,17 +1017,24 @@ export default function PassagerPage() {
                   // en direct depuis SA position jusqu'au point de prise en
                   // charge. Une fois la course commencee : vers la destination.
                   // Repli sur le trajet statique depart-arrivee tant que sa
-                  // position n'est pas encore connue.
-                  positionChauffeur && course.statut === 'assignee'
-                    ? { depart: positionChauffeur, arrivee: pointDepart }
-                    : positionChauffeur && course.statut === 'en_cours'
-                    ? { depart: positionChauffeur, arrivee: pointArrivee }
+                  // position n'est pas encore connue (ou plus assez fraiche).
+                  positionChauffeurAffichable && course.statut === 'assignee'
+                    ? { depart: positionChauffeurAffichable, arrivee: pointDepart }
+                    : positionChauffeurAffichable && course.statut === 'en_cours'
+                    ? { depart: positionChauffeurAffichable, arrivee: pointArrivee }
                     : { depart: pointDepart, arrivee: pointArrivee }
                 }
               />
             </div>
             <div className="map-overlay-top">
-              <strong>{course.statut === 'assignee' ? 'Le chauffeur arrive' : 'Course en cours'}</strong>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <strong>{course.statut === 'assignee' ? 'Le chauffeur arrive' : 'Course en cours'}</strong>
+                {positionChauffeurObsolete && (
+                  <span className="muted" style={{ fontSize: 12 }}>
+                    ⚠️ Position du chauffeur pas à jour depuis un moment
+                  </span>
+                )}
+              </div>
             </div>
             <div className="map-sheet">
               {chauffeur && (

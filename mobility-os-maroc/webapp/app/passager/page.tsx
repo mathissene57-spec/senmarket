@@ -174,6 +174,13 @@ export default function PassagerPage() {
   const [pointDepart, setPointDepart] = useState(POINT_REPLI_TECHNIQUE)
   const [pointArrivee, setPointArrivee] = useState(POINT_REPLI_TECHNIQUE)
   const [positionPassager, setPositionPassager] = useState<{ lat: number; lng: number } | null>(null)
+  // Position GPS en direct du chauffeur, une fois la course acceptee --
+  // jamais lue directement (colonnes exclues du GRANT anon/authenticated,
+  // meme raison que le telephone : chauffeurs_lecture_publique est en
+  // qual=true, donc ouvrir la position table entiere exposerait TOUS les
+  // chauffeurs en tout temps). Recuperee via la RPC position_chauffeur_course
+  // qui ne la revele que pour le passager reel de cette course precise.
+  const [positionChauffeur, setPositionChauffeur] = useState<{ lat: number; lng: number } | null>(null)
   const [repereEnCours, setRepereEnCours] = useState(false)
   // Foundation V1 (modele d'adresse) : le systeme accepte deja une adresse
   // imprecise (quartier, ville) grace au geocodage existant -- mais avant ce
@@ -475,6 +482,26 @@ export default function PassagerPage() {
   useEffect(() => {
     if (!course || (ecran !== 'recherche' && ecran !== 'course')) return
     const intervalle = setInterval(() => reverifierCourse(course.id), 4000)
+    return () => clearInterval(intervalle)
+  }, [course?.id, ecran])
+
+  // Position en direct du chauffeur (demande explicite : des que la course
+  // est acceptee, l'app doit afficher son GPS et l'itineraire en cours vers
+  // le passager/la destination). Meme mecanique de sondage 4s que ci-dessus
+  // -- pas de canal Realtime possible ici non plus (chauffeurs.position_lat/
+  // lng sont hors GRANT anon/authenticated, voir position_chauffeur_course).
+  function chargerPositionChauffeur(courseId: string) {
+    supabase.rpc('position_chauffeur_course', { p_course_id: courseId, p_telephone: telephone })
+      .then(({ data }) => {
+        const ligne = data && data.length > 0 ? data[0] : null
+        setPositionChauffeur(ligne && ligne.lat != null && ligne.lng != null ? { lat: ligne.lat, lng: ligne.lng } : null)
+      })
+  }
+
+  useEffect(() => {
+    if (!course || ecran !== 'course') { setPositionChauffeur(null); return }
+    chargerPositionChauffeur(course.id)
+    const intervalle = setInterval(() => chargerPositionChauffeur(course.id), 4000)
     return () => clearInterval(intervalle)
   }, [course?.id, ecran])
 
@@ -959,9 +986,24 @@ export default function PassagerPage() {
                   // volontairement distincte de la marque de l'operateur pour ne
                   // pas se confondre avec depart/arrivee).
                   ...(positionPassager ? [{ ...positionPassager, couleur: '#2563EB' }] : []),
+                  // Position en direct du chauffeur (couleur distincte encore --
+                  // ne doit se confondre ni avec depart/arrivee, ni avec le
+                  // passager lui-meme).
+                  ...(positionChauffeur ? [{ ...positionChauffeur, couleur: '#F5B800' }] : []),
                 ]}
                 zoom={13}
-                trajet={{ depart: pointDepart, arrivee: pointArrivee }}
+                trajet={
+                  // Tant que le chauffeur roule vers le passager : itineraire
+                  // en direct depuis SA position jusqu'au point de prise en
+                  // charge. Une fois la course commencee : vers la destination.
+                  // Repli sur le trajet statique depart-arrivee tant que sa
+                  // position n'est pas encore connue.
+                  positionChauffeur && course.statut === 'assignee'
+                    ? { depart: positionChauffeur, arrivee: pointDepart }
+                    : positionChauffeur && course.statut === 'en_cours'
+                    ? { depart: positionChauffeur, arrivee: pointArrivee }
+                    : { depart: pointDepart, arrivee: pointArrivee }
+                }
               />
             </div>
             <div className="map-overlay-top">

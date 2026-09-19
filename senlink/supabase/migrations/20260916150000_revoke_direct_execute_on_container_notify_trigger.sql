@@ -1,0 +1,13 @@
+-- SenLink — ferme l'appel RPC direct du trigger de notification conteneurs
+--
+-- Constat d'audit (16/09/2026) : notify_org_on_container_event() (ajoutée
+-- dans notify_org_on_container_status_change) n'a jamais reçu le même
+-- revoke que son équivalent colis (notify_client_on_shipment_event, cf.
+-- revoke_direct_execute_on_notify_trigger, 12/09/2026) -- un oubli lors de
+-- sa création, repéré par les advisors sécurité (anon_security_definer_
+-- function_executable / authenticated_...). Même raisonnement : un trigger
+-- s'exécute sans qu'EXECUTE soit accordé à l'appelant, donc ce revoke ne
+-- change rien à son fonctionnement -- juste une surface d'appel RPC en
+-- moins. Vérifié par simulation SQL rollback-safe avant application : le
+-- trigger insère toujours bien la notification après ce revoke.
+revoke execute on function public.notify_org_on_container_event() from public, anon, authenticated;

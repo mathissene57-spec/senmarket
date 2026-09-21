@@ -24,6 +24,7 @@ const ROLE_DESC: Record<UserRole, string> = {
 
 export default async function DashboardPage() {
   let roles: UserRole[] = []
+  let estMembreCrm = false
   let erreur: string | null = null
 
   try {
@@ -33,8 +34,13 @@ export default async function DashboardPage() {
     } = await supabase.auth.getUser()
 
     if (user) {
-      const { data } = await supabase.from('user_roles').select('role').eq('user_id', user.id)
-      roles = (data ?? []).map((r) => r.role as UserRole)
+      const [rolesRes, crmRes] = await Promise.all([
+        supabase.from('user_roles').select('role').eq('user_id', user.id),
+        // crm_team_members_self_select : l'utilisateur voit toujours sa propre ligne.
+        supabase.from('crm_team_members').select('id').eq('user_id', user.id).maybeSingle(),
+      ])
+      roles = (rolesRes.data ?? []).map((r) => r.role as UserRole)
+      estMembreCrm = crmRes.data !== null
     }
   } catch (e) {
     erreur = messageUtilisateur(e)
@@ -50,7 +56,7 @@ export default async function DashboardPage() {
     )
   }
 
-  if (roles.length === 0) {
+  if (roles.length === 0 && !estMembreCrm) {
     return (
       <main style={shared.page}>
         <p style={styles.vide}>
@@ -77,6 +83,16 @@ export default async function DashboardPage() {
             <div style={styles.carteDesc}>{ROLE_DESC[role]}</div>
           </Link>
         ))}
+        {estMembreCrm && (
+          <Link
+            href="/dashboard/crm"
+            className="sl-fade-in sl-card-hover"
+            style={{ ...styles.carte, animationDelay: `${roles.length * 60}ms` }}
+          >
+            <div style={styles.carteLabel}>CRM SenLink</div>
+            <div style={styles.carteDesc}>Équipe, organisations, tâches, activités</div>
+          </Link>
+        )}
       </div>
     </main>
   )

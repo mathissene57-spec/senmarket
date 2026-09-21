@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { color, shared } from '@/lib/theme'
-import { CRM_ROLE_LABELS, type MembreCrm } from './equipe/page'
+import type { MembreCrm } from '@/lib/crm'
 
 type TacheUrgente = {
   id: string

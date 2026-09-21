@@ -5,23 +5,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { color, shared } from '@/lib/theme'
-
-export type CrmRole = 'direction' | 'business' | 'logistics' | 'transporter_relations'
-
-export const CRM_ROLE_LABELS: Record<CrmRole, string> = {
-  direction: 'Direction',
-  business: 'Développement / Relations',
-  logistics: 'Logistique / Transit',
-  transporter_relations: 'Relations Transporteurs',
-}
-
-export type MembreCrm = {
-  user_id: string
-  email: string
-  full_name: string | null
-  crm_role: CrmRole
-  created_at: string
-}
+import { CRM_ROLE_LABELS, type CrmRole, type MembreCrm } from '@/lib/crm'
 
 export default function CrmEquipePage() {
   const supabase = createClient()

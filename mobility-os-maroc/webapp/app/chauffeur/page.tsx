@@ -347,11 +347,15 @@ export default function ChauffeurPage() {
   // que l'onglet est en arriere-plan (websocket Realtime suspendu par le
   // navigateur mobile), le seul canal Realtime ne suffit pas -- un sondage
   // direct comble le meme trou que pour la reception des nouvelles courses.
+  // Audit du 22/09 (P35) : passe par la RPC etat_course plutot que par une
+  // lecture directe de la table -- voir le meme correctif cote passager
+  // (app/passager/page.tsx, reverifierCourse) pour le detail de la faille
+  // fermee (policy RLS large sur courses, scannable par n'importe qui).
   function verifierCourseActive() {
     const active = courseActiveRef.current
     if (!active || !['navigation', 'encours', 'messages'].includes(ecranRef.current)) return
-    supabase.from('courses').select('id,statut,prix_estime,prix_final,currency').eq('id', active.id).maybeSingle()
-      .then(({ data }) => { if (data) evaluerClotureCourseActive(data) })
+    supabase.rpc('etat_course', { p_course_id: active.id })
+      .then(({ data }) => { if (data && data.length > 0) evaluerClotureCourseActive(data[0]) })
   }
 
   useEffect(() => {

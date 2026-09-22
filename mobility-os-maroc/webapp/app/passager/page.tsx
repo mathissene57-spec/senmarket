@@ -470,10 +470,15 @@ export default function PassagerPage() {
     return () => { supabase.removeChannel(channel) }
   }, [course?.id])
 
+  // Audit du 22/09 (P35) : passe par la RPC etat_course plutot que par une
+  // lecture directe de la table -- la policy RLS large sur courses (requise
+  // par ailleurs pour Realtime avec un role anon sans session) permettait
+  // sinon de scanner n'importe quelle course recente de n'importe quel
+  // operateur. etat_course filtre toujours sur l'id fourni : il faut deja
+  // connaitre l'UUID (128 bits d'entropie), aucun scan possible.
   function reverifierCourse(courseId: string) {
-    supabase.from('courses').select('id,statut,adresse_depart,adresse_arrivee,prix_estime,prix_final,currency,chauffeur_id')
-      .eq('id', courseId).single()
-      .then(({ data }) => { if (data) appliquerMiseAJourCourse(data as Course) })
+    supabase.rpc('etat_course', { p_course_id: courseId })
+      .then(({ data }) => { if (data && data.length > 0) appliquerMiseAJourCourse(data[0] as Course) })
   }
 
   // Sondage de secours (finition UX) : le radar de recherche restait bloque

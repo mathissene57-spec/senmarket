@@ -76,7 +76,14 @@ export const INCIDENT_STATUS_LABELS: Record<IncidentStatus, string> = {
   closed: 'Clôturé',
 }
 
-export type UserRole = 'client' | 'agent_point_relais' | 'transporteur' | 'admin' | 'transitaire' | 'org_viewer'
+export type UserRole =
+  | 'client'
+  | 'agent_point_relais'
+  | 'transporteur'
+  | 'admin'
+  | 'transitaire'
+  | 'org_viewer'
+  | 'livreur'
 
 export const USER_ROLE_LABELS: Record<UserRole, string> = {
   client: 'Client',
@@ -85,6 +92,18 @@ export const USER_ROLE_LABELS: Record<UserRole, string> = {
   admin: 'Admin',
   transitaire: 'Transitaire partenaire',
   org_viewer: 'Contact organisation',
+  livreur: 'Livreur',
+}
+
+// Branche 3 : livraison de colis au Sénégal. 'corridor_ma_sn' est le pilote
+// international existant (comportement inchangé) ; 'domestic_sn' couvre à la
+// fois Dakar intra-ville et l'interrégional (même moteur de statuts, voir
+// supabase/migrations/20260924100000_domestic_delivery_senegal.sql).
+export type ServiceType = 'corridor_ma_sn' | 'domestic_sn'
+
+export const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
+  corridor_ma_sn: 'Corridor Maroc → Sénégal',
+  domestic_sn: 'Livraison au Sénégal (Dakar / interrégional)',
 }
 
 export type IncidentType =

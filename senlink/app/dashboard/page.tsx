@@ -11,6 +11,7 @@ const ROLE_ROUTES: Record<UserRole, string> = {
   admin: '/dashboard/admin',
   transitaire: '/dashboard/transitaire',
   org_viewer: '/dashboard/org_viewer',
+  livreur: '/dashboard/livreur',
 }
 
 const ROLE_DESC: Record<UserRole, string> = {
@@ -20,6 +21,7 @@ const ROLE_DESC: Record<UserRole, string> = {
   admin: 'Réseau, audit, supervision',
   transitaire: 'Statut douanier des conteneurs',
   org_viewer: 'Suivi de vos conteneurs',
+  livreur: 'Livraison Dakar et interrégionale',
 }
 
 export default async function DashboardPage() {

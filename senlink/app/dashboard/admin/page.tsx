@@ -11,6 +11,7 @@ const CARTES_LIENS: { label: string; href: string }[] = [
   { label: 'Points relais', href: '/dashboard/admin/points-relais' },
   { label: 'Hubs', href: '/dashboard/admin/hubs' },
   { label: 'Agents point relais', href: '/dashboard/admin/agents' },
+  { label: 'Livreurs', href: '/dashboard/admin/livreurs' },
   { label: 'Pays', href: '/dashboard/admin/countries' },
   { label: 'Corridors', href: '/dashboard/admin/corridors' },
   { label: 'Retards', href: '/dashboard/admin/retards' },

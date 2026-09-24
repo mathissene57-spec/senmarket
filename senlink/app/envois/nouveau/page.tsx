@@ -4,6 +4,7 @@ import { messageUtilisateur } from '@/lib/errors'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { ShipmentQrCode } from '@/components/ShipmentQrCode'
+import { SERVICE_TYPE_LABELS, type ServiceType } from '@/lib/shipment-status'
 import { color, shared } from '@/lib/theme'
 
 export default function NouvelEnvoiPage() {
@@ -13,16 +14,29 @@ export default function NouvelEnvoiPage() {
   const [msg, setMsg] = useState<{ text: string; type: 'ok' | 'err' } | null>(null)
   const [created, setCreated] = useState<string | null>(null)
 
+  const [serviceType, setServiceType] = useState<ServiceType>('corridor_ma_sn')
+
   const [senderName, setSenderName] = useState('')
   const [senderPhone, setSenderPhone] = useState('')
+  const [senderAddress, setSenderAddress] = useState('')
   const [originCity, setOriginCity] = useState('Casablanca')
   const [recipientName, setRecipientName] = useState('')
   const [recipientPhone, setRecipientPhone] = useState('')
+  const [recipientAddress, setRecipientAddress] = useState('')
   const [destinationCity, setDestinationCity] = useState('Dakar')
   const [category, setCategory] = useState('')
   const [weight, setWeight] = useState('')
   const [declaredValue, setDeclaredValue] = useState('')
   const [photo, setPhoto] = useState<File | null>(null)
+
+  function handleServiceTypeChange(next: ServiceType) {
+    setServiceType(next)
+    if (next === 'domestic_sn') {
+      setOriginCity((c) => (c === 'Casablanca' ? 'Dakar' : c))
+    } else {
+      setOriginCity((c) => (c === 'Dakar' ? 'Casablanca' : c))
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -59,14 +73,18 @@ export default function NouvelEnvoiPage() {
         .insert({
           client_user_id: userData.user?.id ?? null,
           created_by: userData.user?.id ?? null,
+          service_type: serviceType,
           sender_name: senderName,
           sender_phone: senderPhone,
+          sender_address: senderAddress || null,
           origin_city: originCity,
-          origin_country: 'MA',
+          origin_country: serviceType === 'domestic_sn' ? 'SN' : 'MA',
           recipient_name: recipientName,
           recipient_phone: recipientPhone,
+          recipient_address: recipientAddress || null,
           destination_city: destinationCity,
           destination_country: 'SN',
+          currency: serviceType === 'domestic_sn' ? 'XOF' : 'MAD',
           category: category || null,
           weight_declared_kg: weight ? Number(weight) : null,
           declared_value: declaredValue ? Number(declaredValue) : null,
@@ -116,10 +134,27 @@ export default function NouvelEnvoiPage() {
       <p style={styles.kicker}>Nouvel envoi</p>
       <h1 style={styles.titre}>Créer un envoi</h1>
       <p style={styles.soustitre}>
-        Casablanca → Dakar — pilote contrôlé (voir docs/blueprint.md).
+        {serviceType === 'corridor_ma_sn'
+          ? 'Casablanca → Dakar — pilote contrôlé (voir docs/blueprint.md).'
+          : 'Livraison au Sénégal — Dakar ou interrégional, prise en charge par un livreur SenLink.'}
       </p>
 
       <form onSubmit={handleSubmit} style={styles.form}>
+        <fieldset style={styles.fieldset}>
+          <legend style={styles.legend}>Type d&apos;envoi</legend>
+          <select
+            style={styles.input}
+            value={serviceType}
+            onChange={(e) => handleServiceTypeChange(e.target.value as ServiceType)}
+          >
+            {(Object.keys(SERVICE_TYPE_LABELS) as ServiceType[]).map((s) => (
+              <option key={s} value={s}>
+                {SERVICE_TYPE_LABELS[s]}
+              </option>
+            ))}
+          </select>
+        </fieldset>
+
         <fieldset style={styles.fieldset}>
           <legend style={styles.legend}>Expéditeur</legend>
           <input
@@ -136,10 +171,18 @@ export default function NouvelEnvoiPage() {
           />
           <input
             style={styles.input}
-            placeholder="Ville de départ"
+            placeholder={serviceType === 'domestic_sn' ? 'Ville de récupération' : 'Ville de départ'}
             value={originCity}
             onChange={(e) => setOriginCity(e.target.value)}
           />
+          {serviceType === 'domestic_sn' && (
+            <input
+              style={styles.input}
+              placeholder="Adresse de récupération (quartier, repère)"
+              value={senderAddress}
+              onChange={(e) => setSenderAddress(e.target.value)}
+            />
+          )}
         </fieldset>
 
         <fieldset style={styles.fieldset}>
@@ -162,6 +205,14 @@ export default function NouvelEnvoiPage() {
             value={destinationCity}
             onChange={(e) => setDestinationCity(e.target.value)}
           />
+          {serviceType === 'domestic_sn' && (
+            <input
+              style={styles.input}
+              placeholder="Adresse de livraison (quartier, repère)"
+              value={recipientAddress}
+              onChange={(e) => setRecipientAddress(e.target.value)}
+            />
+          )}
         </fieldset>
 
         <fieldset style={styles.fieldset}>

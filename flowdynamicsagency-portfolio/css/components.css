@@ -214,6 +214,33 @@
 }
 .theme-light .project-cat { color: #8a6100; border-color: rgba(212,160,23,0.5); background: rgba(212,160,23,0.1); }
 
+/* ---------- Project + status badges (grouped above a card title) ---------- */
+
+.project-badges {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.project-badges .project-cat { margin-bottom: 0; }
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.18);
+  color: rgba(255,255,255,0.85);
+}
+.theme-light .status-badge { background: rgba(10,10,10,0.05); border-color: var(--line); color: var(--ink-soft); }
+
 .project-card h3 { color: inherit; font-size: clamp(1.6rem, 2.6vw, 2.3rem); margin-bottom: 14px; }
 .project-result {
   font-family: var(--font-display);

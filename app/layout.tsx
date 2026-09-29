@@ -6,6 +6,9 @@ import { Entete } from '@/components/Entete'
 export const metadata: Metadata = {
   title: 'SenMarket -- Dashboard Vendeur',
   description: 'Marketplace senegalaise au Maroc',
+  verification: {
+    google: 'HosTTre8hrAASDtavnd8PfVIoexrJSa_PgsZuPrkJco',
+  },
 }
 
 export default function RootLayout({
